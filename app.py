@@ -31,7 +31,6 @@ def get_db_connection():
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = get_db_connection()
     cursor = conn.cursor()
-
     cursor.execute(query, params)
 
     result = None
@@ -52,6 +51,35 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 
 def row_to_dict(row):
     return dict(row) if row else None
+
+
+def placeholder():
+    return "%s" if USING_POSTGRES else "?"
+
+
+def add_column_if_missing(table_name, column_name, column_type):
+    if USING_POSTGRES:
+        existing = execute_query("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = %s AND column_name = %s
+        """, (table_name, column_name), fetchone=True)
+
+        if not existing:
+            execute_query(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}",
+                commit=True
+            )
+    else:
+        conn = get_db_connection()
+        columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        exists = any(column["name"] == column_name for column in columns)
+
+        if not exists:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+            conn.commit()
+
+        conn.close()
 
 
 def init_db():
@@ -77,6 +105,8 @@ def init_db():
                 notes TEXT,
                 status TEXT DEFAULT 'New',
                 createdAt TEXT,
+                lastContacted TEXT,
+                nextFollowUp TEXT,
                 FOREIGN KEY (userId) REFERENCES users (id)
             )
         """, commit=True)
@@ -103,13 +133,14 @@ def init_db():
                 notes TEXT,
                 status TEXT DEFAULT 'New',
                 createdAt TEXT,
+                lastContacted TEXT,
+                nextFollowUp TEXT,
                 FOREIGN KEY (userId) REFERENCES users (id)
             )
         """, commit=True)
 
-
-def placeholder():
-    return "%s" if USING_POSTGRES else "?"
+    add_column_if_missing("leads", "lastContacted", "TEXT")
+    add_column_if_missing("leads", "nextFollowUp", "TEXT")
 
 
 @app.route("/")
@@ -241,11 +272,16 @@ def add_lead():
         return jsonify({"error": "Business name is required"}), 400
 
     created_at = data.get("createdAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    last_contacted = data.get("lastContacted", "")
+    next_follow_up = data.get("nextFollowUp", "")
 
     if USING_POSTGRES:
         lead = execute_query("""
-            INSERT INTO leads (userId, businessName, link, contact, priority, notes, status, createdAt)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO leads (
+                userId, businessName, link, contact, priority, notes,
+                status, createdAt, lastContacted, nextFollowUp
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING *
         """, (
             data.get("userId"),
@@ -255,7 +291,9 @@ def add_lead():
             data.get("priority", "Cold"),
             data.get("notes", ""),
             data.get("status", "New"),
-            created_at
+            created_at,
+            last_contacted,
+            next_follow_up
         ), fetchone=True, commit=True)
 
         return jsonify(row_to_dict(lead)), 201
@@ -264,8 +302,11 @@ def add_lead():
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO leads (userId, businessName, link, contact, priority, notes, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO leads (
+            userId, businessName, link, contact, priority, notes,
+            status, createdAt, lastContacted, nextFollowUp
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data.get("userId"),
         data.get("businessName"),
@@ -274,7 +315,9 @@ def add_lead():
         data.get("priority", "Cold"),
         data.get("notes", ""),
         data.get("status", "New"),
-        created_at
+        created_at,
+        last_contacted,
+        next_follow_up
     ))
 
     conn.commit()
@@ -291,7 +334,9 @@ def add_lead():
         "priority": data.get("priority", "Cold"),
         "notes": data.get("notes", ""),
         "status": data.get("status", "New"),
-        "createdAt": created_at
+        "createdAt": created_at,
+        "lastContacted": last_contacted,
+        "nextFollowUp": next_follow_up
     }), 201
 
 
@@ -302,7 +347,8 @@ def update_lead(lead_id):
     if USING_POSTGRES:
         lead = execute_query("""
             UPDATE leads
-            SET businessName=%s, link=%s, contact=%s, priority=%s, notes=%s, status=%s, createdAt=%s
+            SET businessName=%s, link=%s, contact=%s, priority=%s, notes=%s,
+                status=%s, createdAt=%s, lastContacted=%s, nextFollowUp=%s
             WHERE id=%s
             RETURNING *
         """, (
@@ -313,6 +359,8 @@ def update_lead(lead_id):
             data.get("notes"),
             data.get("status"),
             data.get("createdAt"),
+            data.get("lastContacted", ""),
+            data.get("nextFollowUp", ""),
             lead_id
         ), fetchone=True, commit=True)
 
@@ -320,7 +368,8 @@ def update_lead(lead_id):
 
     execute_query("""
         UPDATE leads
-        SET businessName=?, link=?, contact=?, priority=?, notes=?, status=?, createdAt=?
+        SET businessName=?, link=?, contact=?, priority=?, notes=?,
+            status=?, createdAt=?, lastContacted=?, nextFollowUp=?
         WHERE id=?
     """, (
         data.get("businessName"),
@@ -330,6 +379,8 @@ def update_lead(lead_id):
         data.get("notes"),
         data.get("status"),
         data.get("createdAt"),
+        data.get("lastContacted", ""),
+        data.get("nextFollowUp", ""),
         lead_id
     ), commit=True)
 
@@ -349,7 +400,7 @@ def delete_lead(lead_id):
     return jsonify({"message": "Lead deleted"})
 
 
-# ================= FREE AI =================
+# ================= FREE AI MESSAGE =================
 
 @app.route("/api/generate-message", methods=["POST"])
 def generate_message():
