@@ -471,3 +471,18 @@ a:hover {
     text-align: center;
   }
 }
+.overdue-lead {
+  border-color: #ef4444;
+  background: linear-gradient(180deg, #fff, #fef2f2);
+}
+
+.overdue-badge {
+  display: inline-block;
+  margin-left: 8px;
+  background: #ef4444;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}

@@ -350,6 +350,18 @@ function renderLeadIdeas(ideas) {
   });
 }
 
+function isOverdue(dateString) {
+  if (!dateString) return false;
+
+  const today = new Date();
+  const followUpDate = new Date(dateString);
+
+  today.setHours(0, 0, 0, 0);
+  followUpDate.setHours(0, 0, 0, 0);
+
+  return followUpDate < today;
+}
+
 function renderLeads() {
   if (!leadList) return;
 
@@ -370,7 +382,9 @@ function renderLeads() {
 
   filteredLeads.forEach(({ lead, index }) => {
     const div = document.createElement("div");
-    div.className = "lead-card";
+    div.className = isOverdue(lead.nextFollowUp)
+      ? "lead-card overdue-lead"
+      : "lead-card";
 
     div.innerHTML = `
       <h3>${lead.businessName}</h3>
@@ -380,8 +394,11 @@ function renderLeads() {
       <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
       <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
       <p><strong>Last Contacted:</strong> ${lead.lastContacted || "Not yet"}</p>
-      <p><strong>Next Follow-up:</strong> ${lead.nextFollowUp || "Not set"}</p>
-
+      <p>
+        <strong>Next Follow-up:</strong> 
+        ${lead.nextFollowUp || "Not set"}
+        ${isOverdue(lead.nextFollowUp) ? `<span class="overdue-badge">Overdue</span>` : ""}
+      </p>
       <label>Status:</label>
       <select onchange="updateStatus(${index}, this.value)">
         <option ${lead.status === "New" ? "selected" : ""}>New</option>
