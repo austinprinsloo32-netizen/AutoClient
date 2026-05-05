@@ -151,6 +151,39 @@ async function fetchLeads() {
   }
 }
 
+function setFollowUp(index) {
+  const date = prompt("Enter next follow-up date (YYYY-MM-DD)");
+
+  if (!date) return;
+
+  const lead = leads[index];
+
+  updateFollowUp(lead.id, date);
+}
+
+async function updateFollowUp(leadId, date) {
+  const lead = leads.find(l => l.id === leadId);
+
+  try {
+    await fetch(`${API_URL}/${leadId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...lead,
+        nextFollowUp: date,
+        lastContacted: new Date().toISOString().split("T")[0]
+      })
+    });
+
+    fetchLeads();
+  } catch (error) {
+    console.error("Follow-up error:", error);
+    alert("Could not update follow-up");
+  }
+}
+
 function sendLinkedIn(index) {
   const lead = leads[index];
   if (!lead) return;
@@ -346,6 +379,8 @@ function renderLeads() {
       <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
       <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
       <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
+      <p><strong>Last Contacted:</strong> ${lead.lastContacted || "Not yet"}</p>
+      <p><strong>Next Follow-up:</strong> ${lead.nextFollowUp || "Not set"}</p>
 
       <label>Status:</label>
       <select onchange="updateStatus(${index}, this.value)">
@@ -361,6 +396,7 @@ function renderLeads() {
         <button onclick="handleGenerate(${index})">Generate Message</button>
         <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
         <button class="linkedin-btn" onclick="sendLinkedIn(${index})">LinkedIn</button>
+        <button onclick="setFollowUp(${index})">Set Follow-up</button>
         <button onclick="editLead(${index})">Edit</button>
         <button onclick="markContacted(${index})">Mark Contacted</button>
         <button class="delete-btn" onclick="deleteLead(${index})">Delete</button>
