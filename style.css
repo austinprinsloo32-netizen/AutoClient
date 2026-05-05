@@ -458,3 +458,20 @@ button:hover {
     text-align: center;
   }
 }
+a {
+  color: #2563eb;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+.whatsapp-btn {
+  background: #25D366;
+  color: white;
+}
+
+.whatsapp-btn:hover {
+  background: #1ebe5d;
+}

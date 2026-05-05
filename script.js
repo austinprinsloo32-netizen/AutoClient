@@ -69,9 +69,7 @@ registerForm.addEventListener("submit", async function (e) {
   try {
     const response = await fetch(`${BASE_URL}/api/register`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password })
     });
 
@@ -89,7 +87,7 @@ registerForm.addEventListener("submit", async function (e) {
     showApp();
   } catch (error) {
     console.error("Register error:", error);
-    alert("Could not register. Make sure Flask is running.");
+    alert("Could not register. Make sure backend is running.");
   }
 });
 
@@ -102,9 +100,7 @@ loginForm.addEventListener("submit", async function (e) {
   try {
     const response = await fetch(`${BASE_URL}/api/login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
 
@@ -122,7 +118,7 @@ loginForm.addEventListener("submit", async function (e) {
     showApp();
   } catch (error) {
     console.error("Login error:", error);
-    alert("Could not login. Make sure Flask is running.");
+    alert("Could not login. Make sure backend is running.");
   }
 });
 
@@ -151,7 +147,7 @@ async function fetchLeads() {
     renderLeads();
   } catch (error) {
     console.error("Fetch leads error:", error);
-    leadList.innerHTML = `<p>Could not connect to backend. Make sure Flask is running.</p>`;
+    leadList.innerHTML = `<p>Could not connect to backend.</p>`;
   }
 }
 
@@ -171,21 +167,6 @@ function generateMessage(lead) {
   const personalLine = notes
     ? `I noticed this about your business: ${notes}`
     : `I wanted to reach out because your business looks like it could benefit from extra support.`;
-
-  if (style === "formal") {
-    return `Good day ${lead.businessName},
-
-I hope you are well.
-
-${personalLine}
-
-I help businesses with ${service}. I believe there may be an opportunity to support your business by improving visibility, attracting more customers, or saving valuable time.
-
-Would you be open to a brief conversation this week?
-
-Kind regards,
-${currentUser ? currentUser.name : ""}`;
-  }
 
   if (style === "casual") {
     return `Hi ${lead.businessName},
@@ -229,6 +210,19 @@ Would now be a better time for a quick conversation?
 Kind regards,
 ${currentUser ? currentUser.name : ""}`;
   }
+
+  return `Good day ${lead.businessName},
+
+I hope you are well.
+
+${personalLine}
+
+I help businesses with ${service}. I believe there may be an opportunity to support your business by improving visibility, attracting more customers, or saving valuable time.
+
+Would you be open to a brief conversation this week?
+
+Kind regards,
+${currentUser ? currentUser.name : ""}`;
 }
 
 function getFilteredLeads() {
@@ -291,9 +285,7 @@ function renderLeadIdeas(ideas) {
       try {
         await fetch(API_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newLead)
         });
 
@@ -333,7 +325,7 @@ function renderLeads() {
     div.innerHTML = `
       <h3>${lead.businessName}</h3>
       <p><strong>Priority:</strong> ${lead.priority || "Cold"}</p>
-      <p><strong>Link:</strong> ${lead.link || "N/A"}</p>
+      <p><strong>Link:</strong> ${lead.link ? `<a href="${lead.link}" target="_blank">Open</a>` : "N/A"}</p>
       <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
       <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
       <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
@@ -350,6 +342,7 @@ function renderLeads() {
 
       <div class="lead-actions">
         <button onclick="handleGenerate(${index})">Generate Message</button>
+        <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
         <button onclick="editLead(${index})">Edit</button>
         <button onclick="markContacted(${index})">Mark Contacted</button>
         <button class="delete-btn" onclick="deleteLead(${index})">Delete</button>
@@ -391,9 +384,7 @@ leadForm.addEventListener("submit", async function (e) {
 
       await fetch(`${API_URL}/${leadId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...leadData,
           status: leads[editIndex].status,
@@ -406,9 +397,7 @@ leadForm.addEventListener("submit", async function (e) {
     } else {
       await fetch(API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leadData)
       });
     }
@@ -417,7 +406,7 @@ leadForm.addEventListener("submit", async function (e) {
     fetchLeads();
   } catch (error) {
     console.error("Save lead error:", error);
-    alert("Could not save lead. Make sure Flask backend is running.");
+    alert("Could not save lead. Make sure backend is running.");
   }
 });
 
@@ -442,14 +431,11 @@ async function deleteLead(index) {
   const leadId = leads[index].id;
 
   try {
-    await fetch(`${API_URL}/${leadId}`, {
-      method: "DELETE"
-    });
-
+    await fetch(`${API_URL}/${leadId}`, { method: "DELETE" });
     fetchLeads();
   } catch (error) {
     console.error("Delete lead error:", error);
-    alert("Could not delete lead. Make sure Flask backend is running.");
+    alert("Could not delete lead. Make sure backend is running.");
   }
 }
 
@@ -459,13 +445,8 @@ async function updateStatus(index, newStatus) {
   try {
     await fetch(`${API_URL}/${lead.id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        ...lead,
-        status: newStatus
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...lead, status: newStatus })
     });
 
     fetchLeads();
@@ -482,15 +463,13 @@ function markContacted(index) {
 async function handleGenerate(index) {
   const lead = leads[index];
 
-  messageOutput.value = "Generating AI message...";
+  messageOutput.value = "Generating message...";
   messageOutput.scrollIntoView({ behavior: "smooth" });
 
   try {
     const response = await fetch(`${BASE_URL}/api/generate-message`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         businessName: lead.businessName,
         service: serviceInput.value.trim() || "my services",
@@ -503,17 +482,29 @@ async function handleGenerate(index) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "AI failed");
+      throw new Error(data.error || "Message failed");
     }
 
     messageOutput.value = data.message;
   } catch (error) {
-    console.error("AI message error:", error);
-
-    const fallbackMessage = generateMessage(lead);
-    messageOutput.value = fallbackMessage;
-    alert("AI failed, so AutoClient used the backup template message.");
+    console.error("Message error:", error);
+    messageOutput.value = generateMessage(lead);
   }
+}
+
+function sendWhatsApp(index) {
+  const lead = leads[index];
+  if (!lead) return;
+
+  const message = generateMessage(lead);
+  const encodedMessage = encodeURIComponent(message);
+
+  const phone = (lead.contact || "").replace(/\D/g, "");
+  const whatsappURL = phone
+    ? `https://wa.me/${phone}?text=${encodedMessage}`
+    : `https://wa.me/?text=${encodedMessage}`;
+
+  window.open(whatsappURL, "_blank");
 }
 
 copyBtn.addEventListener("click", async function () {
@@ -575,10 +566,6 @@ searchInput.addEventListener("input", renderLeads);
 filterStatus.addEventListener("change", renderLeads);
 exportBtn.addEventListener("click", exportToCSV);
 
-checkAuth();
-
-// ===== AUTO LEAD FINDER =====
-
 findLeadsBtn.addEventListener("click", async function () {
   const industry = leadIndustry.value.trim();
   const location = leadLocation.value.trim();
@@ -593,9 +580,7 @@ findLeadsBtn.addEventListener("click", async function () {
   try {
     const response = await fetch(`${BASE_URL}/api/find-leads`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ industry, location })
     });
 
@@ -611,3 +596,5 @@ findLeadsBtn.addEventListener("click", async function () {
     leadIdeas.innerHTML = "<p>Could not generate leads.</p>";
   }
 });
+
+checkAuth();
