@@ -367,3 +367,94 @@ button:hover {
     align-items: flex-end;
   }
 }
+/* AUTO LEAD FINDER */
+#leadIdeas {
+  margin-top: 15px;
+  display: grid;
+  gap: 12px;
+}
+
+.lead-idea-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 14px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: 0.2s ease;
+}
+
+.lead-idea-card:hover {
+  background: #eef2ff;
+  border-color: #2563eb;
+}
+
+.lead-idea-text {
+  font-size: 14px;
+  color: #111827;
+}
+
+.add-idea-btn {
+  background: #10b981;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.add-idea-btn:hover {
+  background: #059669;
+}
+
+/* FIND BUTTON IMPROVEMENT */
+#findLeadsBtn {
+  margin-top: 10px;
+  width: fit-content;
+}
+.lead-idea-info {
+  display: grid;
+  gap: 4px;
+}
+
+.lead-idea-info p {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.lead-idea-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.google-search-btn {
+  background: #0f172a;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.google-search-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 700px) {
+  .lead-idea-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lead-idea-actions {
+    width: 100%;
+  }
+
+  .google-search-btn,
+  .add-idea-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

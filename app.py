@@ -64,10 +64,12 @@ def init_db():
 @app.route("/")
 def home():
     return jsonify({
-        "message": "AutoClient backend is running with users and SQLite",
+        "message": "AutoClient backend is running (FREE AI MODE)",
         "status": "success"
     })
 
+
+# ================= AUTH =================
 
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -114,21 +116,14 @@ def login():
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
-
     conn = get_db_connection()
     user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     conn.close()
 
-    if user is None:
-        return jsonify({"error": "Invalid email or password"}), 401
-
-    if not check_password_hash(user["password"], password):
+    if user is None or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
     return jsonify({
-        "message": "Login successful",
         "user": {
             "id": user["id"],
             "name": user["name"],
@@ -137,12 +132,11 @@ def login():
     })
 
 
+# ================= LEADS =================
+
 @app.route("/api/leads", methods=["GET"])
 def get_leads():
     user_id = request.args.get("userId")
-
-    if not user_id:
-        return jsonify({"error": "userId is required"}), 400
 
     conn = get_db_connection()
     leads = conn.execute(
@@ -157,12 +151,6 @@ def get_leads():
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     data = request.get_json()
-
-    if not data or not data.get("businessName"):
-        return jsonify({"error": "Business name is required"}), 400
-
-    if not data.get("userId"):
-        return jsonify({"error": "userId is required"}), 400
 
     created_at = data.get("createdAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -185,17 +173,7 @@ def add_lead():
     lead_id = cursor.lastrowid
     conn.close()
 
-    return jsonify({
-        "id": lead_id,
-        "userId": data.get("userId"),
-        "businessName": data.get("businessName"),
-        "link": data.get("link", ""),
-        "contact": data.get("contact", ""),
-        "priority": data.get("priority", "Cold"),
-        "notes": data.get("notes", ""),
-        "status": data.get("status", "New"),
-        "createdAt": created_at
-    }), 201
+    return jsonify({"id": lead_id, **data, "createdAt": created_at}), 201
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
@@ -203,32 +181,26 @@ def update_lead(lead_id):
     data = request.get_json()
 
     conn = get_db_connection()
-    lead = conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,)).fetchone()
-
-    if lead is None:
-        conn.close()
-        return jsonify({"error": "Lead not found"}), 404
 
     conn.execute("""
         UPDATE leads
-        SET businessName = ?, link = ?, contact = ?, priority = ?, notes = ?, status = ?, createdAt = ?
-        WHERE id = ?
+        SET businessName=?, link=?, contact=?, priority=?, notes=?, status=?, createdAt=?
+        WHERE id=?
     """, (
-        data.get("businessName", lead["businessName"]),
-        data.get("link", lead["link"]),
-        data.get("contact", lead["contact"]),
-        data.get("priority", lead["priority"]),
-        data.get("notes", lead["notes"]),
-        data.get("status", lead["status"]),
-        data.get("createdAt", lead["createdAt"]),
+        data.get("businessName"),
+        data.get("link"),
+        data.get("contact"),
+        data.get("priority"),
+        data.get("notes"),
+        data.get("status"),
+        data.get("createdAt"),
         lead_id
     ))
 
     conn.commit()
-    updated_lead = conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,)).fetchone()
     conn.close()
 
-    return jsonify(dict(updated_lead))
+    return jsonify({"message": "Lead updated"})
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
@@ -240,6 +212,109 @@ def delete_lead(lead_id):
 
     return jsonify({"message": "Lead deleted"})
 
+
+# ================= FREE AI =================
+
+@app.route("/api/generate-message", methods=["POST"])
+def generate_message():
+    data = request.get_json()
+
+    business = data.get("businessName")
+    service = data.get("service", "my services")
+    notes = data.get("notes", "")
+    style = data.get("style", "formal")
+    name = data.get("userName", "AutoClient User")
+
+    note_line = (
+        f"I noticed that {notes}."
+        if notes else
+        "I came across your business and saw potential to improve results."
+    )
+
+    if style == "casual":
+        msg = f"""Hi {business},
+
+{note_line}
+
+I help businesses with {service} and thought this might be useful for you.
+
+Open to a quick chat?
+
+Thanks,
+{name}"""
+
+    elif style == "direct":
+        msg = f"""Hi {business},
+
+Quick one.
+
+I help businesses with {service}. If you want better results or more clients, I can help.
+
+Interested in a quick discussion?
+
+{name}"""
+
+    elif style == "followup":
+        msg = f"""Hi {business},
+
+Just following up.
+
+I still believe I can help your business with {service}.
+
+Let me know if you're open to chatting.
+
+{name}"""
+
+    else:
+        msg = f"""Good day {business},
+
+{note_line}
+
+I help businesses with {service}. I believe there may be a strong opportunity to improve performance and results.
+
+Would you be open to a short conversation?
+
+Kind regards,
+{name}"""
+
+    return jsonify({"message": msg})
+
+# ================= AUTO LEAD FINDER =================
+
+@app.route("/api/find-leads", methods=["POST"])
+def find_leads():
+    data = request.get_json()
+
+    industry = data.get("industry", "").strip()
+    location = data.get("location", "").strip()
+
+    if not industry or not location:
+        return jsonify({"error": "Industry and location are required"}), 400
+
+    lead_templates = [
+        f"{industry.title()} in {location}",
+        f"Local {industry} company in {location}",
+        f"Independent {industry} business in {location}",
+        f"Top-rated {industry} near {location}",
+        f"Small {industry} business in {location}",
+        f"{location} {industry} service provider",
+        f"Family-owned {industry} in {location}",
+        f"New {industry} business in {location}"
+    ]
+
+    leads = []
+
+    for lead in lead_templates:
+        leads.append({
+            "businessName": lead,
+            "link": "",
+            "contact": "",
+            "priority": "Warm",
+            "notes": f"Potential {industry} lead in {location}. Check Google, Facebook, or website before contacting.",
+            "status": "New"
+        })
+
+    return jsonify(leads)
 
 if __name__ == "__main__":
     init_db()

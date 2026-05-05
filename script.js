@@ -4,6 +4,11 @@ const API_URL = `${BASE_URL}/api/leads`;
 const authSection = document.getElementById("authSection");
 const appSection = document.getElementById("appSection");
 
+const findLeadsBtn = document.getElementById("findLeadsBtn");
+const leadIdeas = document.getElementById("leadIdeas");
+const leadIndustry = document.getElementById("leadIndustry");
+const leadLocation = document.getElementById("leadLocation");
+
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -245,6 +250,64 @@ function getFilteredLeads() {
     });
 }
 
+function renderLeadIdeas(ideas) {
+  leadIdeas.innerHTML = "";
+
+  ideas.forEach(idea => {
+    const div = document.createElement("div");
+    div.className = "lead-idea-card";
+
+    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(idea.businessName)}`;
+
+    div.innerHTML = `
+      <div class="lead-idea-info">
+        <strong>${idea.businessName}</strong>
+        <p>${idea.notes}</p>
+      </div>
+
+      <div class="lead-idea-actions">
+        <a href="${googleSearchUrl}" target="_blank" class="google-search-btn">Search Google</a>
+        <button class="add-idea-btn">+ Add</button>
+      </div>
+    `;
+
+    div.querySelector(".add-idea-btn").addEventListener("click", async () => {
+      if (!currentUser) {
+        alert("Login first");
+        return;
+      }
+
+      const newLead = {
+        userId: currentUser.id,
+        businessName: idea.businessName,
+        link: googleSearchUrl,
+        contact: "",
+        priority: "Warm",
+        notes: idea.notes,
+        status: "New",
+        createdAt: new Date().toLocaleString()
+      };
+
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(newLead)
+        });
+
+        fetchLeads();
+      } catch (error) {
+        console.error("Add idea error:", error);
+        alert("Could not add lead");
+      }
+    });
+
+    leadIdeas.appendChild(div);
+  });
+}
+
 function renderLeads() {
   if (!leadList) return;
 
@@ -416,10 +479,41 @@ function markContacted(index) {
   updateStatus(index, "Contacted");
 }
 
-function handleGenerate(index) {
-  const message = generateMessage(leads[index]);
-  messageOutput.value = message;
+async function handleGenerate(index) {
+  const lead = leads[index];
+
+  messageOutput.value = "Generating AI message...";
   messageOutput.scrollIntoView({ behavior: "smooth" });
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/generate-message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        businessName: lead.businessName,
+        service: serviceInput.value.trim() || "my services",
+        notes: lead.notes || "",
+        style: messageStyle.value,
+        userName: currentUser ? currentUser.name : "AutoClient User"
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "AI failed");
+    }
+
+    messageOutput.value = data.message;
+  } catch (error) {
+    console.error("AI message error:", error);
+
+    const fallbackMessage = generateMessage(lead);
+    messageOutput.value = fallbackMessage;
+    alert("AI failed, so AutoClient used the backup template message.");
+  }
 }
 
 copyBtn.addEventListener("click", async function () {
@@ -482,3 +576,38 @@ filterStatus.addEventListener("change", renderLeads);
 exportBtn.addEventListener("click", exportToCSV);
 
 checkAuth();
+
+// ===== AUTO LEAD FINDER =====
+
+findLeadsBtn.addEventListener("click", async function () {
+  const industry = leadIndustry.value.trim();
+  const location = leadLocation.value.trim();
+
+  if (!industry || !location) {
+    alert("Enter both industry and location");
+    return;
+  }
+
+  leadIdeas.innerHTML = "Finding leads...";
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/find-leads`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ industry, location })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed");
+    }
+
+    renderLeadIdeas(data);
+  } catch (error) {
+    console.error("Lead finder error:", error);
+    leadIdeas.innerHTML = "<p>Could not generate leads.</p>";
+  }
+});

@@ -35,6 +35,7 @@
 
   <main class="container">
 
+    <!-- AUTH -->
     <section id="authSection" class="auth-grid">
       <div class="card">
         <div class="section-heading">
@@ -70,8 +71,10 @@
       </div>
     </section>
 
+    <!-- MAIN APP -->
     <section id="appSection" style="display: none;">
 
+      <!-- DASHBOARD -->
       <section class="dashboard">
         <div class="stat-card"><span>📊</span><h3 id="totalLeads">0</h3><p>Total Leads</p></div>
         <div class="stat-card"><span>🆕</span><h3 id="newLeads">0</h3><p>New</p></div>
@@ -80,6 +83,25 @@
         <div class="stat-card"><span>✅</span><h3 id="closedLeads">0</h3><p>Closed</p></div>
       </section>
 
+      <!-- AUTO LEAD FINDER -->
+      <section class="card">
+        <div class="section-heading">
+          <span class="step">🔎</span>
+          <div>
+            <h2>Auto Lead Finder</h2>
+            <p>Generate potential lead ideas based on an industry and location.</p>
+          </div>
+        </div>
+
+        <input type="text" id="leadIndustry" placeholder="Industry e.g. plumbers, salons, restaurants" />
+        <input type="text" id="leadLocation" placeholder="Location e.g. Port Elizabeth, Cape Town" />
+
+        <button id="findLeadsBtn">Find Lead Ideas</button>
+
+        <div id="leadIdeas" class="lead-list"></div>
+      </section>
+
+      <!-- STEP 1 -->
       <section class="card">
         <div class="section-heading">
           <span class="step">1</span>
@@ -88,9 +110,11 @@
             <p>Tell AutoClient what you sell so messages sound relevant.</p>
           </div>
         </div>
+
         <textarea id="serviceInput" placeholder="Example: I build websites for small businesses..."></textarea>
       </section>
 
+      <!-- STEP 2 -->
       <section class="card">
         <div class="section-heading">
           <span class="step">2</span>
@@ -117,6 +141,7 @@
         </form>
       </section>
 
+      <!-- STEP 3 -->
       <section class="card">
         <div class="section-heading">
           <span class="step">3</span>
@@ -138,6 +163,7 @@
         <button id="copyBtn">Copy Message</button>
       </section>
 
+      <!-- STEP 4 -->
       <section class="card">
         <div class="section-heading">
           <span class="step">4</span>
