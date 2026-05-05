@@ -1,70 +1,122 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
+import os
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    psycopg2 = None
 
 app = Flask(__name__)
 CORS(app)
 
 DB_NAME = "autoclient.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+USING_POSTGRES = bool(DATABASE_URL)
 
 
 def get_db_connection():
+    if USING_POSTGRES:
+        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def column_exists(table_name, column_name):
+def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = get_db_connection()
-    columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    cursor = conn.cursor()
+
+    cursor.execute(query, params)
+
+    result = None
+
+    if fetchone:
+        result = cursor.fetchone()
+    elif fetchall:
+        result = cursor.fetchall()
+
+    if commit:
+        conn.commit()
+
+    cursor.close()
     conn.close()
-    return any(column["name"] == column_name for column in columns)
+
+    return result
+
+
+def row_to_dict(row):
+    return dict(row) if row else None
 
 
 def init_db():
-    conn = get_db_connection()
+    if USING_POSTGRES:
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                createdAt TEXT
+            )
+        """, commit=True)
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            createdAt TEXT
-        )
-    """)
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id SERIAL PRIMARY KEY,
+                userId INTEGER,
+                businessName TEXT NOT NULL,
+                link TEXT,
+                contact TEXT,
+                priority TEXT DEFAULT 'Cold',
+                notes TEXT,
+                status TEXT DEFAULT 'New',
+                createdAt TEXT,
+                FOREIGN KEY (userId) REFERENCES users (id)
+            )
+        """, commit=True)
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER,
-            businessName TEXT NOT NULL,
-            link TEXT,
-            contact TEXT,
-            priority TEXT DEFAULT 'Cold',
-            notes TEXT,
-            status TEXT DEFAULT 'New',
-            createdAt TEXT,
-            FOREIGN KEY (userId) REFERENCES users (id)
-        )
-    """)
+    else:
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                createdAt TEXT
+            )
+        """, commit=True)
 
-    conn.commit()
-    conn.close()
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER,
+                businessName TEXT NOT NULL,
+                link TEXT,
+                contact TEXT,
+                priority TEXT DEFAULT 'Cold',
+                notes TEXT,
+                status TEXT DEFAULT 'New',
+                createdAt TEXT,
+                FOREIGN KEY (userId) REFERENCES users (id)
+            )
+        """, commit=True)
 
-    if not column_exists("leads", "userId"):
-        conn = get_db_connection()
-        conn.execute("ALTER TABLE leads ADD COLUMN userId INTEGER")
-        conn.commit()
-        conn.close()
+
+def placeholder():
+    return "%s" if USING_POSTGRES else "?"
 
 
 @app.route("/")
 def home():
     return jsonify({
-        "message": "AutoClient backend is running (FREE AI MODE)",
+        "message": "AutoClient backend is running",
+        "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
         "status": "success"
     })
 
@@ -86,27 +138,47 @@ def register():
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        conn = get_db_connection()
-        cursor = conn.execute("""
-            INSERT INTO users (name, email, password, createdAt)
-            VALUES (?, ?, ?, ?)
-        """, (name, email, hashed_password, created_at))
+        if USING_POSTGRES:
+            user = execute_query("""
+                INSERT INTO users (name, email, password, createdAt)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, name, email
+            """, (name, email, hashed_password, created_at), fetchone=True, commit=True)
 
-        conn.commit()
-        user_id = cursor.lastrowid
-        conn.close()
+            user = row_to_dict(user)
 
-        return jsonify({
-            "message": "User registered successfully",
-            "user": {
+        else:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO users (name, email, password, createdAt)
+                VALUES (?, ?, ?, ?)
+            """, (name, email, hashed_password, created_at))
+
+            conn.commit()
+            user_id = cursor.lastrowid
+            cursor.close()
+            conn.close()
+
+            user = {
                 "id": user_id,
                 "name": name,
                 "email": email
             }
+
+        return jsonify({
+            "message": "User registered successfully",
+            "user": user
         }), 201
 
-    except sqlite3.IntegrityError:
-        return jsonify({"error": "Email already exists"}), 409
+    except Exception as e:
+        error_text = str(e).lower()
+
+        if "unique" in error_text or "duplicate" in error_text:
+            return jsonify({"error": "Email already exists"}), 409
+
+        print("Register error:", e)
+        return jsonify({"error": "Registration failed"}), 500
 
 
 @app.route("/api/login", methods=["POST"])
@@ -116,9 +188,15 @@ def login():
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
 
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
+    p = placeholder()
+
+    user = execute_query(
+        f"SELECT * FROM users WHERE email = {p}",
+        (email,),
+        fetchone=True
+    )
+
+    user = row_to_dict(user)
 
     if user is None or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid email or password"}), 401
@@ -138,24 +216,54 @@ def login():
 def get_leads():
     user_id = request.args.get("userId")
 
-    conn = get_db_connection()
-    leads = conn.execute(
-        "SELECT * FROM leads WHERE userId = ? ORDER BY id DESC",
-        (user_id,)
-    ).fetchall()
-    conn.close()
+    if not user_id:
+        return jsonify({"error": "userId is required"}), 400
 
-    return jsonify([dict(lead) for lead in leads])
+    p = placeholder()
+
+    leads = execute_query(
+        f"SELECT * FROM leads WHERE userId = {p} ORDER BY id DESC",
+        (user_id,),
+        fetchall=True
+    )
+
+    return jsonify([row_to_dict(lead) for lead in leads])
 
 
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     data = request.get_json()
 
+    if not data.get("userId"):
+        return jsonify({"error": "userId is required"}), 400
+
+    if not data.get("businessName"):
+        return jsonify({"error": "Business name is required"}), 400
+
     created_at = data.get("createdAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    if USING_POSTGRES:
+        lead = execute_query("""
+            INSERT INTO leads (userId, businessName, link, contact, priority, notes, status, createdAt)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            data.get("userId"),
+            data.get("businessName"),
+            data.get("link", ""),
+            data.get("contact", ""),
+            data.get("priority", "Cold"),
+            data.get("notes", ""),
+            data.get("status", "New"),
+            created_at
+        ), fetchone=True, commit=True)
+
+        return jsonify(row_to_dict(lead)), 201
+
     conn = get_db_connection()
-    cursor = conn.execute("""
+    cursor = conn.cursor()
+
+    cursor.execute("""
         INSERT INTO leads (userId, businessName, link, contact, priority, notes, status, createdAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
@@ -171,18 +279,46 @@ def add_lead():
 
     conn.commit()
     lead_id = cursor.lastrowid
+    cursor.close()
     conn.close()
 
-    return jsonify({"id": lead_id, **data, "createdAt": created_at}), 201
+    return jsonify({
+        "id": lead_id,
+        "userId": data.get("userId"),
+        "businessName": data.get("businessName"),
+        "link": data.get("link", ""),
+        "contact": data.get("contact", ""),
+        "priority": data.get("priority", "Cold"),
+        "notes": data.get("notes", ""),
+        "status": data.get("status", "New"),
+        "createdAt": created_at
+    }), 201
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
     data = request.get_json()
 
-    conn = get_db_connection()
+    if USING_POSTGRES:
+        lead = execute_query("""
+            UPDATE leads
+            SET businessName=%s, link=%s, contact=%s, priority=%s, notes=%s, status=%s, createdAt=%s
+            WHERE id=%s
+            RETURNING *
+        """, (
+            data.get("businessName"),
+            data.get("link"),
+            data.get("contact"),
+            data.get("priority"),
+            data.get("notes"),
+            data.get("status"),
+            data.get("createdAt"),
+            lead_id
+        ), fetchone=True, commit=True)
 
-    conn.execute("""
+        return jsonify(row_to_dict(lead))
+
+    execute_query("""
         UPDATE leads
         SET businessName=?, link=?, contact=?, priority=?, notes=?, status=?, createdAt=?
         WHERE id=?
@@ -195,20 +331,20 @@ def update_lead(lead_id):
         data.get("status"),
         data.get("createdAt"),
         lead_id
-    ))
-
-    conn.commit()
-    conn.close()
+    ), commit=True)
 
     return jsonify({"message": "Lead updated"})
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
 def delete_lead(lead_id):
-    conn = get_db_connection()
-    conn.execute("DELETE FROM leads WHERE id = ?", (lead_id,))
-    conn.commit()
-    conn.close()
+    p = placeholder()
+
+    execute_query(
+        f"DELETE FROM leads WHERE id = {p}",
+        (lead_id,),
+        commit=True
+    )
 
     return jsonify({"message": "Lead deleted"})
 
@@ -279,6 +415,7 @@ Kind regards,
 
     return jsonify({"message": msg})
 
+
 # ================= AUTO LEAD FINDER =================
 
 @app.route("/api/find-leads", methods=["POST"])
@@ -305,9 +442,11 @@ def find_leads():
     leads = []
 
     for lead in lead_templates:
+        google_link = f"https://www.google.com/search?q={lead.replace(' ', '+')}"
+
         leads.append({
             "businessName": lead,
-            "link": "",
+            "link": google_link,
             "contact": "",
             "priority": "Warm",
             "notes": f"Potential {industry} lead in {location}. Check Google, Facebook, or website before contacting.",
@@ -315,6 +454,7 @@ def find_leads():
         })
 
     return jsonify(leads)
+
 
 if __name__ == "__main__":
     init_db()
