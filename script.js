@@ -1,3 +1,14 @@
+const BASE_URL = "http://127.0.0.1:5000";
+const API_URL = `${BASE_URL}/api/leads`;
+
+const authSection = document.getElementById("authSection");
+const appSection = document.getElementById("appSection");
+
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const logoutBtn = document.getElementById("logoutBtn");
+const userDisplay = document.getElementById("userDisplay");
+
 const leadForm = document.getElementById("leadForm");
 const leadList = document.getElementById("leadList");
 
@@ -16,11 +27,127 @@ const contactedLeads = document.getElementById("contactedLeads");
 const interestedLeads = document.getElementById("interestedLeads");
 const closedLeads = document.getElementById("closedLeads");
 
-let leads = JSON.parse(localStorage.getItem("autoclient_leads")) || [];
+let leads = [];
 let editIndex = null;
+let currentUser = JSON.parse(localStorage.getItem("autoclient_user")) || null;
 
-function saveLeads() {
-  localStorage.setItem("autoclient_leads", JSON.stringify(leads));
+function showAuth() {
+  authSection.style.display = "grid";
+  appSection.style.display = "none";
+  logoutBtn.style.display = "none";
+  userDisplay.textContent = "Not logged in";
+}
+
+function showApp() {
+  authSection.style.display = "none";
+  appSection.style.display = "grid";
+  logoutBtn.style.display = "inline-block";
+  userDisplay.textContent = currentUser ? `Logged in: ${currentUser.name}` : "Logged in";
+  fetchLeads();
+}
+
+function checkAuth() {
+  if (currentUser) {
+    showApp();
+  } else {
+    showAuth();
+  }
+}
+
+registerForm.addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  const name = document.getElementById("registerName").value.trim();
+  const email = document.getElementById("registerEmail").value.trim();
+  const password = document.getElementById("registerPassword").value.trim();
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Registration failed");
+      return;
+    }
+
+    currentUser = data.user;
+    localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
+
+    registerForm.reset();
+    showApp();
+  } catch (error) {
+    console.error("Register error:", error);
+    alert("Could not register. Make sure Flask is running.");
+  }
+});
+
+loginForm.addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Login failed");
+      return;
+    }
+
+    currentUser = data.user;
+    localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
+
+    loginForm.reset();
+    showApp();
+  } catch (error) {
+    console.error("Login error:", error);
+    alert("Could not login. Make sure Flask is running.");
+  }
+});
+
+logoutBtn.addEventListener("click", function () {
+  currentUser = null;
+  leads = [];
+  localStorage.removeItem("autoclient_user");
+  renderLeads();
+  showAuth();
+});
+
+async function fetchLeads() {
+  if (!currentUser) return;
+
+  try {
+    const response = await fetch(`${API_URL}?userId=${currentUser.id}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Fetch leads error:", data);
+      leadList.innerHTML = `<p>Could not load leads.</p>`;
+      return;
+    }
+
+    leads = data;
+    renderLeads();
+  } catch (error) {
+    console.error("Fetch leads error:", error);
+    leadList.innerHTML = `<p>Could not connect to backend. Make sure Flask is running.</p>`;
+  }
 }
 
 function updateDashboard() {
@@ -51,7 +178,8 @@ I help businesses with ${service}. I believe there may be an opportunity to supp
 
 Would you be open to a brief conversation this week?
 
-Kind regards`;
+Kind regards,
+${currentUser ? currentUser.name : ""}`;
   }
 
   if (style === "casual") {
@@ -65,7 +193,8 @@ I help businesses with ${service}, and I think I could possibly help you get bet
 
 Would you be open to a quick chat?
 
-Thanks`;
+Thanks,
+${currentUser ? currentUser.name : ""}`;
   }
 
   if (style === "direct") {
@@ -79,7 +208,8 @@ I help businesses with ${service}. If you want more clients, a better online pre
 
 Are you open to discussing how I could help your business grow?
 
-Regards`;
+Regards,
+${currentUser ? currentUser.name : ""}`;
   }
 
   if (style === "followup") {
@@ -91,7 +221,8 @@ I help businesses with ${service}, and I still think there may be a good opportu
 
 Would now be a better time for a quick conversation?
 
-Kind regards`;
+Kind regards,
+${currentUser ? currentUser.name : ""}`;
   }
 }
 
@@ -115,6 +246,8 @@ function getFilteredLeads() {
 }
 
 function renderLeads() {
+  if (!leadList) return;
+
   leadList.innerHTML = "";
   updateDashboard();
 
@@ -164,8 +297,13 @@ function renderLeads() {
   });
 }
 
-leadForm.addEventListener("submit", function (e) {
+leadForm.addEventListener("submit", async function (e) {
   e.preventDefault();
+
+  if (!currentUser) {
+    alert("Please login first.");
+    return;
+  }
 
   const businessName = document.getElementById("businessName").value.trim();
   const leadLink = document.getElementById("leadLink").value.trim();
@@ -174,6 +312,7 @@ leadForm.addEventListener("submit", function (e) {
   const notes = document.getElementById("notes").value.trim();
 
   const leadData = {
+    userId: currentUser.id,
     businessName,
     link: leadLink,
     contact: contactInfo,
@@ -183,23 +322,40 @@ leadForm.addEventListener("submit", function (e) {
     createdAt: new Date().toLocaleString()
   };
 
-  if (editIndex !== null) {
-    leads[editIndex] = {
-      ...leads[editIndex],
-      ...leadData,
-      status: leads[editIndex].status,
-      createdAt: leads[editIndex].createdAt
-    };
+  try {
+    if (editIndex !== null) {
+      const leadId = leads[editIndex].id;
 
-    editIndex = null;
-    leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
-  } else {
-    leads.push(leadData);
+      await fetch(`${API_URL}/${leadId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...leadData,
+          status: leads[editIndex].status,
+          createdAt: leads[editIndex].createdAt
+        })
+      });
+
+      editIndex = null;
+      leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
+    } else {
+      await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(leadData)
+      });
+    }
+
+    leadForm.reset();
+    fetchLeads();
+  } catch (error) {
+    console.error("Save lead error:", error);
+    alert("Could not save lead. Make sure Flask backend is running.");
   }
-
-  saveLeads();
-  renderLeads();
-  leadForm.reset();
 });
 
 function editLead(index) {
@@ -213,29 +369,51 @@ function editLead(index) {
 
   editIndex = index;
   leadForm.querySelector("button[type='submit']").textContent = "Update Lead";
-
   leadForm.scrollIntoView({ behavior: "smooth" });
 }
 
-function deleteLead(index) {
+async function deleteLead(index) {
   const confirmDelete = confirm("Delete this lead?");
   if (!confirmDelete) return;
 
-  leads.splice(index, 1);
-  saveLeads();
-  renderLeads();
+  const leadId = leads[index].id;
+
+  try {
+    await fetch(`${API_URL}/${leadId}`, {
+      method: "DELETE"
+    });
+
+    fetchLeads();
+  } catch (error) {
+    console.error("Delete lead error:", error);
+    alert("Could not delete lead. Make sure Flask backend is running.");
+  }
 }
 
-function updateStatus(index, newStatus) {
-  leads[index].status = newStatus;
-  saveLeads();
-  renderLeads();
+async function updateStatus(index, newStatus) {
+  const lead = leads[index];
+
+  try {
+    await fetch(`${API_URL}/${lead.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...lead,
+        status: newStatus
+      })
+    });
+
+    fetchLeads();
+  } catch (error) {
+    console.error("Update status error:", error);
+    alert("Could not update status.");
+  }
 }
 
 function markContacted(index) {
-  leads[index].status = "Contacted";
-  saveLeads();
-  renderLeads();
+  updateStatus(index, "Contacted");
 }
 
 function handleGenerate(index) {
@@ -303,4 +481,4 @@ searchInput.addEventListener("input", renderLeads);
 filterStatus.addEventListener("change", renderLeads);
 exportBtn.addEventListener("click", exportToCSV);
 
-renderLeads();
+checkAuth();
