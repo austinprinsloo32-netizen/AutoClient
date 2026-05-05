@@ -151,6 +151,23 @@ async function fetchLeads() {
   }
 }
 
+function sendLinkedIn(index) {
+  const lead = leads[index];
+  if (!lead) return;
+
+  const message = generateMessage(lead);
+
+  // Copy message
+  navigator.clipboard.writeText(message);
+
+  // Open LinkedIn search
+  const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
+
+  window.open(searchUrl, "_blank");
+
+  alert("Message copied! Paste it into LinkedIn chat.");
+}
+
 function updateDashboard() {
   totalLeads.textContent = leads.length;
   newLeads.textContent = leads.filter(lead => lead.status === "New").length;
@@ -343,6 +360,7 @@ function renderLeads() {
       <div class="lead-actions">
         <button onclick="handleGenerate(${index})">Generate Message</button>
         <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
+        <button class="linkedin-btn" onclick="sendLinkedIn(${index})">LinkedIn</button>
         <button onclick="editLead(${index})">Edit</button>
         <button onclick="markContacted(${index})">Mark Contacted</button>
         <button class="delete-btn" onclick="deleteLead(${index})">Delete</button>
