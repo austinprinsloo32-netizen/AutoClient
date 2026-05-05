@@ -1,4 +1,4 @@
-const BASE_URL = "http://127.0.0.1:5000";
+const BASE_URL = "https://autoclient-cim7.onrender.com";
 const API_URL = `${BASE_URL}/api/leads`;
 
 const authSection = document.getElementById("authSection");
