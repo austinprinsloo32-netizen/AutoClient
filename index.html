@@ -13,33 +13,43 @@
   <div class="app-shell">
 
     <aside class="sidebar" id="sidebar">
-      <div class="logo">
-        <img src="AutoClient_Icon.png" alt="AutoClient logo" />
-      </div>
+  <div class="brand">
+    <div class="logo">
+      <img src="AutoClient_Icon.png" alt="AutoClient logo" />
+    </div>
+
+    <div class="brand-text">
+      <strong>AutoClient</strong>
+      <span>V2 SaaS CRM</span>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <button class="nav-link active" data-page="dashboardPage">Dashboard</button>
+    <button class="nav-link" data-page="leadsPage">Leads</button>
+    <button class="nav-link" data-page="outreachPage">Outreach</button>
+    <button class="nav-link" data-page="analyticsPage">Analytics</button>
+    <button class="nav-link admin-only" data-page="adminPage" style="display:none;">Admin</button>
+    <button class="nav-link" data-page="settingsPage">Settings</button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <span id="userDisplay">Not logged in</span>
+    <button id="logoutBtn" class="logout-btn" style="display:none;">Logout</button>
+  </div>
+</aside>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div class="mobile-brand">
+          <img src="AutoClient_Icon.png" alt="AutoClient logo" />
+
         <div>
           <strong>AutoClient</strong>
           <span>V2 SaaS CRM</span>
         </div>
       </div>
-
-      <nav class="side-nav">
-        <button class="nav-link active" data-page="dashboardPage">Dashboard</button>
-        <button class="nav-link" data-page="leadsPage">Leads</button>
-        <button class="nav-link" data-page="outreachPage">Outreach</button>
-        <button class="nav-link" data-page="analyticsPage">Analytics</button>
-        <button class="nav-link admin-only" data-page="adminPage" style="display:none;">Admin</button>
-        <button class="nav-link" data-page="settingsPage">Settings</button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <span id="userDisplay">Not logged in</span>
-        <button id="logoutBtn" class="logout-btn" style="display:none;">Logout</button>
-      </div>
-    </aside>
-
-    <main class="main">
-
-      <header class="topbar">
         <div>
           <h1 id="pageTitle">Dashboard</h1>
           <p id="pageSubtitle">Overview of your lead generation workflow.</p>

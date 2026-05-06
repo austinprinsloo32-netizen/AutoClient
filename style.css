@@ -679,3 +679,178 @@ button:hover,
     width: 100%;
   }
 }
+/* ===== AUTOCLIENT BRANDING FIX ===== */
+
+.logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 30px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-text strong {
+  color: white;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.brand-text span {
+  color: #cbd5e1;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.sidebar {
+  background: #0f172a !important;
+  min-height: 100vh;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-nav .nav-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ===== MOBILE FIX ===== */
+
+.mobile-brand {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    height: 100vh;
+    z-index: 9999;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .mobile-brand img {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .mobile-brand strong {
+    display: block;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .mobile-brand span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .topbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+  }
+
+  .top-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    width: 100%;
+  }
+
+  #mobileMenuBtn {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .hero-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .two-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-panel h2 {
+    font-size: 44px;
+    line-height: 1.1;
+  }
+
+  .main {
+    padding: 22px;
+  }
+
+  .card,
+  .hero-panel {
+    padding: 24px;
+  }
+}
