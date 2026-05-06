@@ -1,4 +1,4 @@
-const BASE_URL = "https://autoclient-cim7.onrender.com";
+const BASE_URL = "https://autoclient-v2.onrender.com";
 const API_URL = `${BASE_URL}/api/leads`;
 
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
