@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import os
@@ -11,21 +11,30 @@ try:
 except ImportError:
     psycopg2 = None
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 CORS(app)
 
 DB_NAME = "autoclient.db"
 DATABASE_URL = os.environ.get("DATABASE_URL")
 USING_POSTGRES = bool(DATABASE_URL)
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "Austinprinsloo32@gmail.com").lower()
+ADMIN_EMAIL = os.environ.get(
+    "ADMIN_EMAIL",
+    "Austinprinsloo32@gmail.com"
+).lower()
 
+
+# ================= DATABASE =================
 
 def get_db_connection():
     if USING_POSTGRES:
         if psycopg2 is None:
             raise ImportError("psycopg2 is not installed")
-        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+        return psycopg2.connect(
+            DATABASE_URL,
+            cursor_factory=RealDictCursor
+        )
 
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -35,12 +44,14 @@ def get_db_connection():
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = get_db_connection()
     cursor = conn.cursor()
+
     cursor.execute(query, params)
 
     result = None
 
     if fetchone:
         result = cursor.fetchone()
+
     elif fetchall:
         result = cursor.fetchall()
 
@@ -62,11 +73,14 @@ def placeholder():
 
 
 def add_column_if_missing(table_name, column_name, column_type):
+
     if USING_POSTGRES:
+
         existing = execute_query("""
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = %s AND LOWER(column_name) = LOWER(%s)
+            WHERE table_name = %s
+            AND LOWER(column_name) = LOWER(%s)
         """, (table_name, column_name), fetchone=True)
 
         if not existing:
@@ -74,20 +88,34 @@ def add_column_if_missing(table_name, column_name, column_type):
                 f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}",
                 commit=True
             )
+
     else:
+
         conn = get_db_connection()
-        columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-        exists = any(column["name"].lower() == column_name.lower() for column in columns)
+
+        columns = conn.execute(
+            f"PRAGMA table_info({table_name})"
+        ).fetchall()
+
+        exists = any(
+            column["name"].lower() == column_name.lower()
+            for column in columns
+        )
 
         if not exists:
-            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+            conn.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+            )
+
             conn.commit()
 
         conn.close()
 
 
 def init_db():
+
     if USING_POSTGRES:
+
         execute_query("""
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -110,12 +138,12 @@ def init_db():
                 status TEXT DEFAULT 'New',
                 createdAt TEXT,
                 lastContacted TEXT,
-                nextFollowUp TEXT,
-                FOREIGN KEY (userId) REFERENCES users (id)
+                nextFollowUp TEXT
             )
         """, commit=True)
 
     else:
+
         execute_query("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,8 +166,7 @@ def init_db():
                 status TEXT DEFAULT 'New',
                 createdAt TEXT,
                 lastContacted TEXT,
-                nextFollowUp TEXT,
-                FOREIGN KEY (userId) REFERENCES users (id)
+                nextFollowUp TEXT
             )
         """, commit=True)
 
@@ -147,7 +174,31 @@ def init_db():
     add_column_if_missing("leads", "nextFollowUp", "TEXT")
 
 
+# ================= FRONTEND =================
+
+@app.route("/")
+def serve_frontend():
+    return send_from_directory("static", "index.html")
+
+
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory("static", path)
+
+
+@app.route("/api/status")
+def api_status():
+    return jsonify({
+        "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
+        "message": "AutoClient V2 backend is running",
+        "status": "success"
+    })
+
+
+# ================= ADMIN =================
+
 def is_admin_user(user_id):
+
     if not user_id:
         return False
 
@@ -167,28 +218,11 @@ def is_admin_user(user_id):
     return user["email"].lower() == ADMIN_EMAIL
 
 
-def admin_required():
-    user_id = request.args.get("userId") or request.get_json(silent=True, force=False).get("userId") if request.is_json else None
-
-    if not is_admin_user(user_id):
-        return False
-
-    return True
-
-
-@app.route("/")
-def home():
-    return jsonify({
-        "message": "AutoClient V2 backend is running",
-        "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
-        "status": "success"
-    })
-
-
 # ================= AUTH =================
 
 @app.route("/api/register", methods=["POST"])
 def register():
+
     data = request.get_json()
 
     name = data.get("name", "").strip()
@@ -196,32 +230,50 @@ def register():
     password = data.get("password", "").strip()
 
     if not name or not email or not password:
-        return jsonify({"error": "Name, email, and password are required"}), 400
+        return jsonify({
+            "error": "Name, email and password required"
+        }), 400
 
     hashed_password = generate_password_hash(password)
+
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
+
         if USING_POSTGRES:
+
             user = execute_query("""
                 INSERT INTO users (name, email, password, createdAt)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id, name, email, createdAt
-            """, (name, email, hashed_password, created_at), fetchone=True, commit=True)
+            """, (
+                name,
+                email,
+                hashed_password,
+                created_at
+            ), fetchone=True, commit=True)
 
             user = row_to_dict(user)
 
         else:
+
             conn = get_db_connection()
             cursor = conn.cursor()
 
             cursor.execute("""
                 INSERT INTO users (name, email, password, createdAt)
                 VALUES (?, ?, ?, ?)
-            """, (name, email, hashed_password, created_at))
+            """, (
+                name,
+                email,
+                hashed_password,
+                created_at
+            ))
 
             conn.commit()
+
             user_id = cursor.lastrowid
+
             cursor.close()
             conn.close()
 
@@ -232,7 +284,9 @@ def register():
                 "createdAt": created_at
             }
 
-        user["isAdmin"] = email == ADMIN_EMAIL
+        user["isAdmin"] = (
+            email.lower() == ADMIN_EMAIL
+        )
 
         return jsonify({
             "message": "User registered successfully",
@@ -240,17 +294,24 @@ def register():
         }), 201
 
     except Exception as e:
+
         error_text = str(e).lower()
 
         if "unique" in error_text or "duplicate" in error_text:
-            return jsonify({"error": "Email already exists"}), 409
+            return jsonify({
+                "error": "Email already exists"
+            }), 409
 
         print("Register error:", e)
-        return jsonify({"error": "Registration failed"}), 500
+
+        return jsonify({
+            "error": "Registration failed"
+        }), 500
 
 
 @app.route("/api/login", methods=["POST"])
 def login():
+
     data = request.get_json()
 
     email = data.get("email", "").strip().lower()
@@ -266,8 +327,15 @@ def login():
 
     user = row_to_dict(user)
 
-    if user is None or not check_password_hash(user["password"], password):
-        return jsonify({"error": "Invalid email or password"}), 401
+    if user is None:
+        return jsonify({
+            "error": "Invalid email or password"
+        }), 401
+
+    if not check_password_hash(user["password"], password):
+        return jsonify({
+            "error": "Invalid email or password"
+        }), 401
 
     return jsonify({
         "user": {
@@ -275,334 +343,14 @@ def login():
             "name": user["name"],
             "email": user["email"],
             "createdAt": user.get("createdAt", ""),
-            "isAdmin": user["email"].lower() == ADMIN_EMAIL
+            "isAdmin": (
+                user["email"].lower() == ADMIN_EMAIL
+            )
         }
     })
 
 
-# ================= LEADS =================
-
-@app.route("/api/leads", methods=["GET"])
-def get_leads():
-    user_id = request.args.get("userId")
-
-    if not user_id:
-        return jsonify({"error": "userId is required"}), 400
-
-    p = placeholder()
-
-    leads = execute_query(
-        f"SELECT * FROM leads WHERE userId = {p} ORDER BY id DESC",
-        (user_id,),
-        fetchall=True
-    )
-
-    return jsonify([row_to_dict(lead) for lead in leads])
-
-
-@app.route("/api/leads", methods=["POST"])
-def add_lead():
-    data = request.get_json()
-
-    if not data.get("userId"):
-        return jsonify({"error": "userId is required"}), 400
-
-    if not data.get("businessName"):
-        return jsonify({"error": "Business name is required"}), 400
-
-    created_at = data.get("createdAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    last_contacted = data.get("lastContacted", "")
-    next_follow_up = data.get("nextFollowUp", "")
-
-    if USING_POSTGRES:
-        lead = execute_query("""
-            INSERT INTO leads (
-                userId, businessName, link, contact, priority, notes,
-                status, createdAt, lastContacted, nextFollowUp
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-        """, (
-            data.get("userId"),
-            data.get("businessName"),
-            data.get("link", ""),
-            data.get("contact", ""),
-            data.get("priority", "Cold"),
-            data.get("notes", ""),
-            data.get("status", "New"),
-            created_at,
-            last_contacted,
-            next_follow_up
-        ), fetchone=True, commit=True)
-
-        return jsonify(row_to_dict(lead)), 201
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT INTO leads (
-            userId, businessName, link, contact, priority, notes,
-            status, createdAt, lastContacted, nextFollowUp
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        data.get("userId"),
-        data.get("businessName"),
-        data.get("link", ""),
-        data.get("contact", ""),
-        data.get("priority", "Cold"),
-        data.get("notes", ""),
-        data.get("status", "New"),
-        created_at,
-        last_contacted,
-        next_follow_up
-    ))
-
-    conn.commit()
-    lead_id = cursor.lastrowid
-    cursor.close()
-    conn.close()
-
-    return jsonify({
-        "id": lead_id,
-        "userId": data.get("userId"),
-        "businessName": data.get("businessName"),
-        "link": data.get("link", ""),
-        "contact": data.get("contact", ""),
-        "priority": data.get("priority", "Cold"),
-        "notes": data.get("notes", ""),
-        "status": data.get("status", "New"),
-        "createdAt": created_at,
-        "lastContacted": last_contacted,
-        "nextFollowUp": next_follow_up
-    }), 201
-
-
-@app.route("/api/leads/<int:lead_id>", methods=["PUT"])
-def update_lead(lead_id):
-    data = request.get_json()
-
-    if USING_POSTGRES:
-        lead = execute_query("""
-            UPDATE leads
-            SET businessName=%s, link=%s, contact=%s, priority=%s, notes=%s,
-                status=%s, createdAt=%s, lastContacted=%s, nextFollowUp=%s
-            WHERE id=%s
-            RETURNING *
-        """, (
-            data.get("businessName"),
-            data.get("link"),
-            data.get("contact"),
-            data.get("priority"),
-            data.get("notes"),
-            data.get("status"),
-            data.get("createdAt"),
-            data.get("lastContacted", ""),
-            data.get("nextFollowUp", ""),
-            lead_id
-        ), fetchone=True, commit=True)
-
-        return jsonify(row_to_dict(lead))
-
-    execute_query("""
-        UPDATE leads
-        SET businessName=?, link=?, contact=?, priority=?, notes=?,
-            status=?, createdAt=?, lastContacted=?, nextFollowUp=?
-        WHERE id=?
-    """, (
-        data.get("businessName"),
-        data.get("link"),
-        data.get("contact"),
-        data.get("priority"),
-        data.get("notes"),
-        data.get("status"),
-        data.get("createdAt"),
-        data.get("lastContacted", ""),
-        data.get("nextFollowUp", ""),
-        lead_id
-    ), commit=True)
-
-    return jsonify({"message": "Lead updated"})
-
-
-@app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
-def delete_lead(lead_id):
-    p = placeholder()
-
-    execute_query(
-        f"DELETE FROM leads WHERE id = {p}",
-        (lead_id,),
-        commit=True
-    )
-
-    return jsonify({"message": "Lead deleted"})
-
-
-# ================= OUTREACH =================
-
-@app.route("/api/generate-message", methods=["POST"])
-def generate_message():
-    data = request.get_json()
-
-    business = data.get("businessName")
-    service = data.get("service", "my services")
-    notes = data.get("notes", "")
-    style = data.get("style", "formal")
-    name = data.get("userName", "AutoClient User")
-
-    note_line = (
-        f"I noticed that {notes}."
-        if notes else
-        "I came across your business and saw potential to improve results."
-    )
-
-    if style == "casual":
-        msg = f"""Hi {business},
-
-{note_line}
-
-I help businesses with {service} and thought this might be useful for you.
-
-Open to a quick chat?
-
-Thanks,
-{name}"""
-
-    elif style == "direct":
-        msg = f"""Hi {business},
-
-Quick one.
-
-I help businesses with {service}. If you want better results or more clients, I can help.
-
-Interested in a quick discussion?
-
-{name}"""
-
-    elif style == "followup":
-        msg = f"""Hi {business},
-
-Just following up.
-
-I still believe I can help your business with {service}.
-
-Let me know if you're open to chatting.
-
-{name}"""
-
-    else:
-        msg = f"""Good day {business},
-
-{note_line}
-
-I help businesses with {service}. I believe there may be a strong opportunity to improve performance and results.
-
-Would you be open to a short conversation?
-
-Kind regards,
-{name}"""
-
-    return jsonify({"message": msg})
-
-
-@app.route("/api/find-leads", methods=["POST"])
-def find_leads():
-    data = request.get_json()
-
-    industry = data.get("industry", "").strip()
-    location = data.get("location", "").strip()
-
-    if not industry or not location:
-        return jsonify({"error": "Industry and location are required"}), 400
-
-    lead_templates = [
-        f"{industry.title()} in {location}",
-        f"Local {industry} company in {location}",
-        f"Independent {industry} business in {location}",
-        f"Top-rated {industry} near {location}",
-        f"Small {industry} business in {location}",
-        f"{location} {industry} service provider",
-        f"Family-owned {industry} in {location}",
-        f"New {industry} business in {location}"
-    ]
-
-    leads = []
-
-    for lead in lead_templates:
-        google_link = f"https://www.google.com/search?q={lead.replace(' ', '+')}"
-
-        leads.append({
-            "businessName": lead,
-            "link": google_link,
-            "contact": "",
-            "priority": "Warm",
-            "notes": f"Potential {industry} lead in {location}. Check Google, Facebook, or website before contacting.",
-            "status": "New"
-        })
-
-    return jsonify(leads)
-
-
-# ================= ADMIN =================
-
-@app.route("/api/admin/stats", methods=["GET"])
-def admin_stats():
-    user_id = request.args.get("userId")
-
-    if not is_admin_user(user_id):
-        return jsonify({"error": "Admin access required"}), 403
-
-    total_users = execute_query("SELECT COUNT(*) AS count FROM users", fetchone=True)
-    total_leads = execute_query("SELECT COUNT(*) AS count FROM leads", fetchone=True)
-
-    new_leads = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'New'", fetchone=True)
-    contacted = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Contacted'", fetchone=True)
-    interested = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'", fetchone=True)
-    closed = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'", fetchone=True)
-
-    return jsonify({
-        "totalUsers": row_to_dict(total_users)["count"],
-        "totalLeads": row_to_dict(total_leads)["count"],
-        "newLeads": row_to_dict(new_leads)["count"],
-        "contactedLeads": row_to_dict(contacted)["count"],
-        "interestedLeads": row_to_dict(interested)["count"],
-        "closedLeads": row_to_dict(closed)["count"]
-    })
-
-
-@app.route("/api/admin/users", methods=["GET"])
-def admin_users():
-    user_id = request.args.get("userId")
-
-    if not is_admin_user(user_id):
-        return jsonify({"error": "Admin access required"}), 403
-
-    users = execute_query("""
-        SELECT id, name, email, createdAt
-        FROM users
-        ORDER BY id DESC
-    """, fetchall=True)
-
-    return jsonify([row_to_dict(user) for user in users])
-
-
-@app.route("/api/admin/leads", methods=["GET"])
-def admin_leads():
-    user_id = request.args.get("userId")
-
-    if not is_admin_user(user_id):
-        return jsonify({"error": "Admin access required"}), 403
-
-    leads = execute_query("""
-        SELECT leads.*, users.name AS ownerName, users.email AS ownerEmail
-        FROM leads
-        LEFT JOIN users ON leads.userId = users.id
-        ORDER BY leads.id DESC
-    """, fetchall=True)
-
-    return jsonify([row_to_dict(lead) for lead in leads])
-
+# ================= START =================
 
 init_db()
 
