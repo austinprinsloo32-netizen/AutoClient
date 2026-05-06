@@ -18,9 +18,13 @@ DB_NAME = "autoclient.db"
 DATABASE_URL = os.environ.get("DATABASE_URL")
 USING_POSTGRES = bool(DATABASE_URL)
 
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "Austinprinsloo32@gmail.com").lower()
+
 
 def get_db_connection():
     if USING_POSTGRES:
+        if psycopg2 is None:
+            raise ImportError("psycopg2 is not installed")
         return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
     conn = sqlite3.connect(DB_NAME)
@@ -143,10 +147,39 @@ def init_db():
     add_column_if_missing("leads", "nextFollowUp", "TEXT")
 
 
+def is_admin_user(user_id):
+    if not user_id:
+        return False
+
+    p = placeholder()
+
+    user = execute_query(
+        f"SELECT email FROM users WHERE id = {p}",
+        (user_id,),
+        fetchone=True
+    )
+
+    user = row_to_dict(user)
+
+    if not user:
+        return False
+
+    return user["email"].lower() == ADMIN_EMAIL
+
+
+def admin_required():
+    user_id = request.args.get("userId") or request.get_json(silent=True, force=False).get("userId") if request.is_json else None
+
+    if not is_admin_user(user_id):
+        return False
+
+    return True
+
+
 @app.route("/")
 def home():
     return jsonify({
-        "message": "AutoClient backend is running",
+        "message": "AutoClient V2 backend is running",
         "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
         "status": "success"
     })
@@ -173,7 +206,7 @@ def register():
             user = execute_query("""
                 INSERT INTO users (name, email, password, createdAt)
                 VALUES (%s, %s, %s, %s)
-                RETURNING id, name, email
+                RETURNING id, name, email, createdAt
             """, (name, email, hashed_password, created_at), fetchone=True, commit=True)
 
             user = row_to_dict(user)
@@ -181,6 +214,7 @@ def register():
         else:
             conn = get_db_connection()
             cursor = conn.cursor()
+
             cursor.execute("""
                 INSERT INTO users (name, email, password, createdAt)
                 VALUES (?, ?, ?, ?)
@@ -194,8 +228,11 @@ def register():
             user = {
                 "id": user_id,
                 "name": name,
-                "email": email
+                "email": email,
+                "createdAt": created_at
             }
+
+        user["isAdmin"] = email == ADMIN_EMAIL
 
         return jsonify({
             "message": "User registered successfully",
@@ -236,7 +273,9 @@ def login():
         "user": {
             "id": user["id"],
             "name": user["name"],
-            "email": user["email"]
+            "email": user["email"],
+            "createdAt": user.get("createdAt", ""),
+            "isAdmin": user["email"].lower() == ADMIN_EMAIL
         }
     })
 
@@ -400,7 +439,7 @@ def delete_lead(lead_id):
     return jsonify({"message": "Lead deleted"})
 
 
-# ================= FREE AI MESSAGE =================
+# ================= OUTREACH =================
 
 @app.route("/api/generate-message", methods=["POST"])
 def generate_message():
@@ -467,8 +506,6 @@ Kind regards,
     return jsonify({"message": msg})
 
 
-# ================= AUTO LEAD FINDER =================
-
 @app.route("/api/find-leads", methods=["POST"])
 def find_leads():
     data = request.get_json()
@@ -505,6 +542,66 @@ def find_leads():
         })
 
     return jsonify(leads)
+
+
+# ================= ADMIN =================
+
+@app.route("/api/admin/stats", methods=["GET"])
+def admin_stats():
+    user_id = request.args.get("userId")
+
+    if not is_admin_user(user_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    total_users = execute_query("SELECT COUNT(*) AS count FROM users", fetchone=True)
+    total_leads = execute_query("SELECT COUNT(*) AS count FROM leads", fetchone=True)
+
+    new_leads = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'New'", fetchone=True)
+    contacted = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Contacted'", fetchone=True)
+    interested = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'", fetchone=True)
+    closed = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'", fetchone=True)
+
+    return jsonify({
+        "totalUsers": row_to_dict(total_users)["count"],
+        "totalLeads": row_to_dict(total_leads)["count"],
+        "newLeads": row_to_dict(new_leads)["count"],
+        "contactedLeads": row_to_dict(contacted)["count"],
+        "interestedLeads": row_to_dict(interested)["count"],
+        "closedLeads": row_to_dict(closed)["count"]
+    })
+
+
+@app.route("/api/admin/users", methods=["GET"])
+def admin_users():
+    user_id = request.args.get("userId")
+
+    if not is_admin_user(user_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    users = execute_query("""
+        SELECT id, name, email, createdAt
+        FROM users
+        ORDER BY id DESC
+    """, fetchall=True)
+
+    return jsonify([row_to_dict(user) for user in users])
+
+
+@app.route("/api/admin/leads", methods=["GET"])
+def admin_leads():
+    user_id = request.args.get("userId")
+
+    if not is_admin_user(user_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    leads = execute_query("""
+        SELECT leads.*, users.name AS ownerName, users.email AS ownerEmail
+        FROM leads
+        LEFT JOIN users ON leads.userId = users.id
+        ORDER BY leads.id DESC
+    """, fetchall=True)
+
+    return jsonify([row_to_dict(lead) for lead in leads])
 
 
 init_db()
