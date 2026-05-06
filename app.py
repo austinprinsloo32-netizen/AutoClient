@@ -66,7 +66,7 @@ def add_column_if_missing(table_name, column_name, column_type):
         existing = execute_query("""
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = %s AND column_name = %s
+            WHERE table_name = %s AND LOWER(column_name) = LOWER(%s)
         """, (table_name, column_name), fetchone=True)
 
         if not existing:
@@ -77,7 +77,7 @@ def add_column_if_missing(table_name, column_name, column_type):
     else:
         conn = get_db_connection()
         columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-        exists = any(column["name"] == column_name for column in columns)
+        exists = any(column["name"].lower() == column_name.lower() for column in columns)
 
         if not exists:
             conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
