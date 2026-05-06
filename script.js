@@ -144,8 +144,7 @@ function showApp() {
     : "Logged in";
 
   adminOnlyLinks.forEach(link => {
-    link.style.display = currentUser && currentUser.isAdmin ? "block" : "none";
-  });
+  link.style.display = currentUser && currentUser.isAdmin ? "flex" : "none";  });
 
   settingsUserName.textContent = currentUser.name;
   settingsUserEmail.textContent = currentUser.email;

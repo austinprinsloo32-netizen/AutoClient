@@ -637,3 +637,16 @@ button:hover,
     width: 100%;
   }
 }
+.side-nav .nav-link {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.side-nav .admin-only {
+  width: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+}
