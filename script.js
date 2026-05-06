@@ -4,7 +4,6 @@ const BASE_URL =
     : "";
 
 const API_URL = `${BASE_URL}/api/leads`;
-
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
 const authSection = document.getElementById("authSection");
@@ -95,6 +94,22 @@ const pageInfo = {
   }
 };
 
+function normalizeLead(lead) {
+  return {
+    id: lead.id,
+    userId: lead.userId || lead.userid,
+    businessName: lead.businessName || lead.businessname || "",
+    link: lead.link || "",
+    contact: lead.contact || "",
+    priority: lead.priority || "Cold",
+    notes: lead.notes || "",
+    status: lead.status || "New",
+    createdAt: lead.createdAt || lead.createdat || "",
+    lastContacted: lead.lastContacted || lead.lastcontacted || "",
+    nextFollowUp: lead.nextFollowUp || lead.nextfollowup || ""
+  };
+}
+
 function isCurrentAdmin() {
   return (
     currentUser &&
@@ -109,10 +124,7 @@ function showPage(pageId) {
     pageId = "dashboardPage";
   }
 
-  pageSections.forEach(section => {
-    section.classList.remove("active-page");
-  });
-
+  pageSections.forEach(section => section.classList.remove("active-page"));
   document.getElementById(pageId).classList.add("active-page");
 
   navLinks.forEach(link => {
@@ -130,15 +142,11 @@ function showPage(pageId) {
 }
 
 navLinks.forEach(link => {
-  link.addEventListener("click", () => {
-    showPage(link.dataset.page);
-  });
+  link.addEventListener("click", () => showPage(link.dataset.page));
 });
 
 document.querySelectorAll("[data-page-jump]").forEach(button => {
-  button.addEventListener("click", () => {
-    showPage(button.dataset.pageJump);
-  });
+  button.addEventListener("click", () => showPage(button.dataset.pageJump));
 });
 
 mobileMenuBtn.addEventListener("click", () => {
@@ -269,14 +277,15 @@ async function fetchLeads() {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("Fetch leads server error:", data);
       leadList.innerHTML = `<p>Could not load leads.</p>`;
       return;
     }
 
-    leads = data;
+    leads = data.map(normalizeLead);
     renderAll();
   } catch (error) {
-    console.error("Fetch leads error:", error);
+    console.error("Fetch leads connection error:", error);
     leadList.innerHTML = `<p>Could not connect to backend.</p>`;
   }
 }
@@ -379,7 +388,6 @@ function renderLeads() {
   if (!leadList) return;
 
   leadList.innerHTML = "";
-
   const filteredLeads = getFilteredLeads();
 
   if (leads.length === 0) {
@@ -466,14 +474,18 @@ leadForm.addEventListener("submit", async function (e) {
     priority,
     notes,
     status: "New",
-    createdAt: new Date().toLocaleString()
+    createdAt: new Date().toLocaleString(),
+    lastContacted: "",
+    nextFollowUp: ""
   };
 
   try {
+    let response;
+
     if (editIndex !== null) {
       const leadId = leads[editIndex].id;
 
-      await fetch(`${API_URL}/${leadId}`, {
+      response = await fetch(`${API_URL}/${leadId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -488,18 +500,27 @@ leadForm.addEventListener("submit", async function (e) {
       editIndex = null;
       leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
     } else {
-      await fetch(API_URL, {
+      response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leadData)
       });
     }
 
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Save lead server error:", data);
+      alert(data.error || "Could not save lead.");
+      return;
+    }
+
     leadForm.reset();
-    fetchLeads();
+    await fetchLeads();
+    showPage("leadsPage");
   } catch (error) {
-    console.error("Save lead error:", error);
-    alert("Could not save lead.");
+    console.error("Save lead connection error:", error);
+    alert("Could not connect to backend.");
   }
 });
 
@@ -522,11 +543,22 @@ async function deleteLead(index) {
   if (!confirmDelete) return;
 
   try {
-    await fetch(`${API_URL}/${leads[index].id}`, { method: "DELETE" });
-    fetchLeads();
+    const response = await fetch(`${API_URL}/${leads[index].id}`, {
+      method: "DELETE"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Delete lead server error:", data);
+      alert(data.error || "Could not delete lead.");
+      return;
+    }
+
+    await fetchLeads();
   } catch (error) {
-    console.error("Delete lead error:", error);
-    alert("Could not delete lead.");
+    console.error("Delete lead connection error:", error);
+    alert("Could not connect to backend.");
   }
 }
 
@@ -534,16 +566,24 @@ async function updateStatus(index, newStatus) {
   const lead = leads[index];
 
   try {
-    await fetch(`${API_URL}/${lead.id}`, {
+    const response = await fetch(`${API_URL}/${lead.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...lead, status: newStatus })
     });
 
-    fetchLeads();
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Update status server error:", data);
+      alert(data.error || "Could not update status.");
+      return;
+    }
+
+    await fetchLeads();
   } catch (error) {
-    console.error("Update status error:", error);
-    alert("Could not update status.");
+    console.error("Update status connection error:", error);
+    alert("Could not connect to backend.");
   }
 }
 
@@ -566,16 +606,24 @@ function setFollowUp(index) {
 
 async function updateLead(leadId, payload) {
   try {
-    await fetch(`${API_URL}/${leadId}`, {
+    const response = await fetch(`${API_URL}/${leadId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-    fetchLeads();
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Update lead server error:", data);
+      alert(data.error || "Could not update lead.");
+      return;
+    }
+
+    await fetchLeads();
   } catch (error) {
-    console.error("Update lead error:", error);
-    alert("Could not update lead");
+    console.error("Update lead connection error:", error);
+    alert("Could not connect to backend.");
   }
 }
 
@@ -755,20 +803,30 @@ function renderLeadIdeas(ideas) {
         priority: "Warm",
         notes: idea.notes,
         status: "New",
-        createdAt: new Date().toLocaleString()
+        createdAt: new Date().toLocaleString(),
+        lastContacted: "",
+        nextFollowUp: ""
       };
 
       try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newLead)
         });
 
-        fetchLeads();
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("Add idea server error:", data);
+          alert(data.error || "Could not add lead.");
+          return;
+        }
+
+        await fetchLeads();
       } catch (error) {
-        console.error("Add idea error:", error);
-        alert("Could not add lead");
+        console.error("Add idea connection error:", error);
+        alert("Could not connect to backend.");
       }
     });
 
@@ -880,7 +938,7 @@ async function loadAdminDashboard() {
       div.innerHTML = `
         <strong>${user.name}</strong>
         <span>${user.email}</span>
-        <span>Joined: ${user.createdAt || "N/A"}</span>
+        <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
       `;
       adminUsersList.appendChild(div);
     });
@@ -889,7 +947,7 @@ async function loadAdminDashboard() {
       ? ""
       : `<div class="table-row"><strong>No leads found</strong></div>`;
 
-    allLeads.slice(0, 30).forEach(lead => {
+    allLeads.slice(0, 30).map(normalizeLead).forEach(lead => {
       const div = document.createElement("div");
       div.className = "table-row";
       div.innerHTML = `
