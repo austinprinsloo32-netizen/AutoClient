@@ -62,18 +62,19 @@ a:hover {
 }
 
 .logo {
-  width: 46px;
-  height: 46px;
-  background: linear-gradient(135deg, white, #dbeafe);
+  width: 50px;
+  height: 50px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25);
 }
 
-.logo svg {
-  width: 28px;
-  height: 28px;
-  fill: var(--blue);
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .brand strong {
@@ -643,4 +644,38 @@ button:hover,
   align-items: center;
   justify-content: flex-start;
 }
+@media (max-width: 1050px) {
+  .sidebar {
+    left: -290px;
+  }
 
+  .sidebar.open {
+    left: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .brand strong,
+  .brand span {
+    display: block;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    gap: 14px;
+  }
+
+  .top-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    width: 100%;
+  }
+
+  #mobileMenuBtn {
+    width: 100%;
+  }
+}
