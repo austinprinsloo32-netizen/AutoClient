@@ -1,6 +1,8 @@
 const BASE_URL = "https://autoclient-cim7.onrender.com";
 const API_URL = `${BASE_URL}/api/leads`;
 
+const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
+
 const authSection = document.getElementById("authSection");
 const appSection = document.getElementById("appSection");
 
@@ -89,7 +91,20 @@ const pageInfo = {
   }
 };
 
+function isCurrentAdmin() {
+  return (
+    currentUser &&
+    currentUser.email &&
+    currentUser.email.toLowerCase() === ADMIN_EMAIL_FRONTEND
+  );
+}
+
 function showPage(pageId) {
+  if (pageId === "adminPage" && !isCurrentAdmin()) {
+    alert("Admin access only.");
+    pageId = "dashboardPage";
+  }
+
   pageSections.forEach(section => {
     section.classList.remove("active-page");
   });
@@ -131,7 +146,10 @@ function showAuth() {
   appSection.style.display = "none";
   logoutBtn.style.display = "none";
   userDisplay.textContent = "Not logged in";
-  adminOnlyLinks.forEach(link => link.style.display = "none");
+
+  adminOnlyLinks.forEach(link => {
+    link.style.display = "none";
+  });
 }
 
 function showApp() {
@@ -139,16 +157,24 @@ function showApp() {
   appSection.style.display = "grid";
   logoutBtn.style.display = "inline-flex";
 
+  currentUser.isAdmin = isCurrentAdmin();
+  localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
+
   userDisplay.textContent = currentUser
-    ? `${currentUser.name} ${currentUser.isAdmin ? "• Admin" : ""}`
+    ? `${currentUser.name} ${isCurrentAdmin() ? "• Admin" : ""}`
     : "Logged in";
 
   adminOnlyLinks.forEach(link => {
-  link.style.display = currentUser && currentUser.isAdmin ? "flex" : "none";  });
+    link.style.display = isCurrentAdmin() ? "flex" : "none";
+  });
 
   settingsUserName.textContent = currentUser.name;
   settingsUserEmail.textContent = currentUser.email;
-  settingsUserRole.textContent = currentUser.isAdmin ? "Admin" : "User";
+  settingsUserRole.textContent = isCurrentAdmin() ? "Admin" : "User";
+
+  if (!isCurrentAdmin()) {
+    showPage("dashboardPage");
+  }
 
   fetchLeads();
 }
@@ -179,6 +205,8 @@ registerForm.addEventListener("submit", async function (e) {
     }
 
     currentUser = data.user;
+    currentUser.isAdmin = isCurrentAdmin();
+
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     registerForm.reset();
     showApp();
@@ -209,6 +237,8 @@ loginForm.addEventListener("submit", async function (e) {
     }
 
     currentUser = data.user;
+    currentUser.isAdmin = isCurrentAdmin();
+
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     loginForm.reset();
     showApp();
@@ -224,6 +254,7 @@ logoutBtn.addEventListener("click", function () {
   localStorage.removeItem("autoclient_user");
   renderLeads();
   showAuth();
+  showPage("dashboardPage");
 });
 
 async function fetchLeads() {
@@ -341,6 +372,8 @@ function isOverdue(dateString) {
 }
 
 function renderLeads() {
+  if (!leadList) return;
+
   leadList.innerHTML = "";
 
   const filteredLeads = getFilteredLeads();
@@ -808,7 +841,11 @@ filterStatus.addEventListener("change", renderLeads);
 exportBtn.addEventListener("click", exportToCSV);
 
 async function loadAdminDashboard() {
-  if (!currentUser || !currentUser.isAdmin) return;
+  if (!isCurrentAdmin()) {
+    alert("Admin access only.");
+    showPage("dashboardPage");
+    return;
+  }
 
   try {
     const statsRes = await fetch(`${BASE_URL}/api/admin/stats?userId=${currentUser.id}`);
