@@ -6,34 +6,30 @@
   <title>AutoClient V1</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
-  <header class="hero">
-    <nav class="navbar">
-      <div class="brand">
-        <div class="logo">AC</div>
-        <span>AutoClient</span>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 13.5C4 8.8 7.8 5 12.5 5H14V2l6 5-6 5V9h-1.5A4.5 4.5 0 0 0 8 13.5V15H4v-1.5Z"></path>
+          <path d="M20 10.5c0 4.7-3.8 8.5-8.5 8.5H10v3l-6-5 6-5v3h1.5A4.5 4.5 0 0 0 16 10.5V9h4v1.5Z"></path>
+        </svg>
       </div>
+      <div>
+        <strong>AutoClient</strong>
+        <span>Lead CRM Dashboard</span>
+      </div>
+    </div>
 
-      <div class="nav-actions">
-        <span id="userDisplay" class="version-badge">Not logged in</span>
-        <button id="logoutBtn" class="logout-btn" style="display: none;">Logout</button>
-      </div>
-    </nav>
-
-    <div class="hero-content">
-      <div class="hero-icon">🤖</div>
-      <h1>Find clients faster.</h1>
-      <p>Track leads, generate outreach messages, and manage follow-ups from one simple dashboard.</p>
-      <div class="hero-tags">
-        <span>Lead CRM</span>
-        <span>Outreach Generator</span>
-        <span>SQLite Backend</span>
-      </div>
+    <div class="nav-actions">
+      <span id="userDisplay" class="user-pill">Not logged in</span>
+      <button id="logoutBtn" class="ghost-btn" style="display: none;">Logout</button>
     </div>
   </header>
 
-  <main class="container">
+  <main class="page">
 
     <!-- AUTH -->
     <section id="authSection" class="auth-grid">
@@ -49,13 +45,13 @@
         <form id="loginForm">
           <input type="email" id="loginEmail" placeholder="Email address" required />
           <input type="password" id="loginPassword" placeholder="Password" required />
-          <button type="submit">Login</button>
+          <button type="submit" class="primary-btn">Login</button>
         </form>
       </div>
 
       <div class="card">
         <div class="section-heading">
-          <span class="step">🆕</span>
+          <span class="step">+</span>
           <div>
             <h2>Create Account</h2>
             <p>Register a new AutoClient profile.</p>
@@ -66,7 +62,7 @@
           <input type="text" id="registerName" placeholder="Your name" required />
           <input type="email" id="registerEmail" placeholder="Email address" required />
           <input type="password" id="registerPassword" placeholder="Password" required />
-          <button type="submit">Create Account</button>
+          <button type="submit" class="primary-btn">Create Account</button>
         </form>
       </div>
     </section>
@@ -74,108 +70,139 @@
     <!-- MAIN APP -->
     <section id="appSection" style="display: none;">
 
-      <!-- DASHBOARD -->
+      <section class="hero-panel">
+        <div>
+          <span class="eyebrow">AI-powered lead workflow</span>
+          <h1>Find, track, and contact clients faster.</h1>
+          <p>Generate lead ideas, save prospects, create outreach messages, and manage follow-ups from one clean dashboard.</p>
+        </div>
+
+        <div class="hero-card">
+          <div class="hero-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2 4 6v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V6l-8-4Zm0 4.2 4 1.8v4c0 3.1-1.7 6.1-4 7.4-2.3-1.3-4-4.3-4-7.4V8l4-1.8Z"></path>
+              <path d="M10.8 14.8 8.5 12.5l1.4-1.4.9.9 3.6-3.6 1.4 1.4-5 5Z"></path>
+            </svg>
+          </div>
+          <strong>Smart outreach assistant</strong>
+          <span>Built for freelancers, small businesses, and lead generation workflows.</span>
+        </div>
+      </section>
+
+      <!-- STATS -->
       <section class="dashboard">
-        <div class="stat-card"><span>📊</span><h3 id="totalLeads">0</h3><p>Total Leads</p></div>
-        <div class="stat-card"><span>🆕</span><h3 id="newLeads">0</h3><p>New</p></div>
-        <div class="stat-card"><span>📨</span><h3 id="contactedLeads">0</h3><p>Contacted</p></div>
-        <div class="stat-card"><span>🔥</span><h3 id="interestedLeads">0</h3><p>Interested</p></div>
-        <div class="stat-card"><span>✅</span><h3 id="closedLeads">0</h3><p>Closed</p></div>
+        <div class="stat-card"><span>Total</span><h3 id="totalLeads">0</h3><p>Total Leads</p></div>
+        <div class="stat-card"><span>New</span><h3 id="newLeads">0</h3><p>New</p></div>
+        <div class="stat-card"><span>Sent</span><h3 id="contactedLeads">0</h3><p>Contacted</p></div>
+        <div class="stat-card"><span>Hot</span><h3 id="interestedLeads">0</h3><p>Interested</p></div>
+        <div class="stat-card"><span>Won</span><h3 id="closedLeads">0</h3><p>Closed</p></div>
       </section>
 
-      <!-- AUTO LEAD FINDER -->
-      <section class="card">
-        <div class="section-heading">
-          <span class="step">🔎</span>
-          <div>
-            <h2>Auto Lead Finder</h2>
-            <p>Generate potential lead ideas based on an industry and location.</p>
-          </div>
+      <!-- WORKSPACE -->
+      <section class="workspace-grid">
+
+        <div class="workspace-column">
+
+          <section class="card">
+            <div class="section-heading">
+              <span class="step">1</span>
+              <div>
+                <h2>Auto Lead Finder</h2>
+                <p>Generate potential lead ideas by industry and location.</p>
+              </div>
+            </div>
+
+            <div class="input-grid">
+              <input type="text" id="leadIndustry" placeholder="Industry e.g. plumbers, salons" />
+              <input type="text" id="leadLocation" placeholder="Location e.g. Port Elizabeth" />
+            </div>
+
+            <button id="findLeadsBtn" class="primary-btn">Find Lead Ideas</button>
+            <div id="leadIdeas" class="lead-ideas-grid"></div>
+          </section>
+
+          <section class="card">
+            <div class="section-heading">
+              <span class="step">2</span>
+              <div>
+                <h2>Add Potential Lead</h2>
+                <p>Save businesses you want to contact.</p>
+              </div>
+            </div>
+
+            <form id="leadForm">
+              <input type="text" id="businessName" placeholder="Business name" required />
+              <input type="text" id="leadLink" placeholder="Website or social link" />
+              <input type="text" id="contactInfo" placeholder="Email, phone, or LinkedIn" />
+
+              <select id="priority">
+                <option value="Cold">Cold Lead</option>
+                <option value="Warm">Warm Lead</option>
+                <option value="Hot">Hot Lead</option>
+              </select>
+
+              <textarea id="notes" placeholder="Notes about this lead"></textarea>
+              <button type="submit" class="primary-btn">Add Lead</button>
+            </form>
+          </section>
+
         </div>
 
-        <input type="text" id="leadIndustry" placeholder="Industry e.g. plumbers, salons, restaurants" />
-        <input type="text" id="leadLocation" placeholder="Location e.g. Port Elizabeth, Cape Town" />
+        <div class="workspace-column">
 
-        <button id="findLeadsBtn">Find Lead Ideas</button>
+          <section class="card">
+            <div class="section-heading">
+              <span class="step">3</span>
+              <div>
+                <h2>Your Service</h2>
+                <p>Tell AutoClient what you offer.</p>
+              </div>
+            </div>
 
-        <div id="leadIdeas" class="lead-list"></div>
-      </section>
+            <textarea id="serviceInput" placeholder="Example: I build websites for small businesses..."></textarea>
+          </section>
 
-      <!-- STEP 1 -->
-      <section class="card">
-        <div class="section-heading">
-          <span class="step">1</span>
-          <div>
-            <h2>What service do you offer?</h2>
-            <p>Tell AutoClient what you sell so messages sound relevant.</p>
-          </div>
+          <section class="card">
+            <div class="section-heading">
+              <span class="step">4</span>
+              <div>
+                <h2>Generated Outreach Message</h2>
+                <p>Create a message based on your service, lead, and notes.</p>
+              </div>
+            </div>
+
+            <label for="messageStyle">Message Style</label>
+            <select id="messageStyle">
+              <option value="formal">Formal</option>
+              <option value="casual">Casual</option>
+              <option value="direct">Direct Sales</option>
+              <option value="followup">Follow-up</option>
+            </select>
+
+            <textarea id="messageOutput" readonly placeholder="Your outreach message will appear here..."></textarea>
+            <button id="copyBtn" class="secondary-btn">Copy Message</button>
+          </section>
+
         </div>
 
-        <textarea id="serviceInput" placeholder="Example: I build websites for small businesses..."></textarea>
       </section>
 
-      <!-- STEP 2 -->
-      <section class="card">
-        <div class="section-heading">
-          <span class="step">2</span>
-          <div>
-            <h2>Add a potential lead</h2>
-            <p>Save businesses you want to contact.</p>
+      <!-- LEAD TRACKER -->
+      <section class="card tracker-card">
+        <div class="tracker-header">
+          <div class="section-heading no-margin">
+            <span class="step">5</span>
+            <div>
+              <h2>Lead Tracker</h2>
+              <p>Search, filter, update, export, and manage your leads.</p>
+            </div>
           </div>
-        </div>
 
-        <form id="leadForm">
-          <input type="text" id="businessName" placeholder="Business name" required />
-          <input type="text" id="leadLink" placeholder="Website or social link" />
-          <input type="text" id="contactInfo" placeholder="Email, phone, or LinkedIn" />
-
-          <select id="priority">
-            <option value="Cold">Cold Lead</option>
-            <option value="Warm">Warm Lead</option>
-            <option value="Hot">Hot Lead</option>
-          </select>
-
-          <textarea id="notes" placeholder="Notes about this lead"></textarea>
-
-          <button type="submit">Add Lead</button>
-        </form>
-      </section>
-
-      <!-- STEP 3 -->
-      <section class="card">
-        <div class="section-heading">
-          <span class="step">3</span>
-          <div>
-            <h2>Generated outreach message</h2>
-            <p>Create a message based on your service, lead, and notes.</p>
-          </div>
-        </div>
-
-        <label for="messageStyle">Message Style</label>
-        <select id="messageStyle">
-          <option value="formal">Formal</option>
-          <option value="casual">Casual</option>
-          <option value="direct">Direct Sales</option>
-          <option value="followup">Follow-up</option>
-        </select>
-
-        <textarea id="messageOutput" readonly placeholder="Your outreach message will appear here..."></textarea>
-        <button id="copyBtn">Copy Message</button>
-      </section>
-
-      <!-- STEP 4 -->
-      <section class="card">
-        <div class="section-heading">
-          <span class="step">4</span>
-          <div>
-            <h2>Lead Tracker</h2>
-            <p>Search, filter, update, export, and manage your leads.</p>
-          </div>
+          <button id="exportBtn" class="dark-btn">Export CSV</button>
         </div>
 
         <div class="lead-controls">
           <input type="text" id="searchInput" placeholder="Search leads..." />
-
           <select id="filterStatus">
             <option value="all">All Statuses</option>
             <option value="New">New</option>
@@ -186,8 +213,6 @@
             <option value="Rejected">Rejected</option>
           </select>
         </div>
-
-        <button id="exportBtn" class="secondary-btn">Export Leads CSV</button>
 
         <div id="leadList" class="lead-list"></div>
       </section>

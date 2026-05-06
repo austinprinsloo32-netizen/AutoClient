@@ -46,17 +46,13 @@ function showAuth() {
 function showApp() {
   authSection.style.display = "none";
   appSection.style.display = "grid";
-  logoutBtn.style.display = "inline-block";
+  logoutBtn.style.display = "inline-flex";
   userDisplay.textContent = currentUser ? `Logged in: ${currentUser.name}` : "Logged in";
   fetchLeads();
 }
 
 function checkAuth() {
-  if (currentUser) {
-    showApp();
-  } else {
-    showAuth();
-  }
+  currentUser ? showApp() : showAuth();
 }
 
 registerForm.addEventListener("submit", async function (e) {
@@ -138,7 +134,6 @@ async function fetchLeads() {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Fetch leads error:", data);
       leadList.innerHTML = `<p>Could not load leads.</p>`;
       return;
     }
@@ -149,56 +144,6 @@ async function fetchLeads() {
     console.error("Fetch leads error:", error);
     leadList.innerHTML = `<p>Could not connect to backend.</p>`;
   }
-}
-
-function setFollowUp(index) {
-  const date = prompt("Enter next follow-up date (YYYY-MM-DD)");
-
-  if (!date) return;
-
-  const lead = leads[index];
-
-  updateFollowUp(lead.id, date);
-}
-
-async function updateFollowUp(leadId, date) {
-  const lead = leads.find(l => l.id === leadId);
-
-  try {
-    await fetch(`${API_URL}/${leadId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        ...lead,
-        nextFollowUp: date,
-        lastContacted: new Date().toISOString().split("T")[0]
-      })
-    });
-
-    fetchLeads();
-  } catch (error) {
-    console.error("Follow-up error:", error);
-    alert("Could not update follow-up");
-  }
-}
-
-function sendLinkedIn(index) {
-  const lead = leads[index];
-  if (!lead) return;
-
-  const message = generateMessage(lead);
-
-  // Copy message
-  navigator.clipboard.writeText(message);
-
-  // Open LinkedIn search
-  const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
-
-  window.open(searchUrl, "_blank");
-
-  alert("Message copied! Paste it into LinkedIn chat.");
 }
 
 function updateDashboard() {
@@ -294,6 +239,18 @@ function getFilteredLeads() {
     });
 }
 
+function isOverdue(dateString) {
+  if (!dateString) return false;
+
+  const today = new Date();
+  const followUpDate = new Date(dateString);
+
+  today.setHours(0, 0, 0, 0);
+  followUpDate.setHours(0, 0, 0, 0);
+
+  return followUpDate < today;
+}
+
 function renderLeadIdeas(ideas) {
   leadIdeas.innerHTML = "";
 
@@ -310,7 +267,7 @@ function renderLeadIdeas(ideas) {
       </div>
 
       <div class="lead-idea-actions">
-        <a href="${googleSearchUrl}" target="_blank" class="google-search-btn">Search Google</a>
+        <a href="${googleSearchUrl}" target="_blank" class="google-search-btn">Search</a>
         <button class="add-idea-btn">+ Add</button>
       </div>
     `;
@@ -350,18 +307,6 @@ function renderLeadIdeas(ideas) {
   });
 }
 
-function isOverdue(dateString) {
-  if (!dateString) return false;
-
-  const today = new Date();
-  const followUpDate = new Date(dateString);
-
-  today.setHours(0, 0, 0, 0);
-  followUpDate.setHours(0, 0, 0, 0);
-
-  return followUpDate < today;
-}
-
 function renderLeads() {
   if (!leadList) return;
 
@@ -387,19 +332,27 @@ function renderLeads() {
       : "lead-card";
 
     div.innerHTML = `
-      <h3>${lead.businessName}</h3>
-      <p><strong>Priority:</strong> ${lead.priority || "Cold"}</p>
-      <p><strong>Link:</strong> ${lead.link ? `<a href="${lead.link}" target="_blank">Open</a>` : "N/A"}</p>
-      <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
-      <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
-      <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
-      <p><strong>Last Contacted:</strong> ${lead.lastContacted || "Not yet"}</p>
-      <p>
-        <strong>Next Follow-up:</strong> 
-        ${lead.nextFollowUp || "Not set"}
-        ${isOverdue(lead.nextFollowUp) ? `<span class="overdue-badge">Overdue</span>` : ""}
-      </p>
-      <label>Status:</label>
+      <div class="lead-card-top">
+        <div>
+          <h3>${lead.businessName}</h3>
+          <span class="priority-badge">${lead.priority || "Cold"} Lead</span>
+        </div>
+        <span class="status-badge">${lead.status || "New"}</span>
+      </div>
+
+      <div class="lead-meta">
+        <p><strong>Link:</strong> ${lead.link ? `<a href="${lead.link}" target="_blank">Open</a>` : "N/A"}</p>
+        <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
+        <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
+        <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
+        <p><strong>Last Contacted:</strong> ${lead.lastContacted || "Not yet"}</p>
+        <p>
+          <strong>Next Follow-up:</strong> 
+          ${lead.nextFollowUp || "Not set"}
+          ${isOverdue(lead.nextFollowUp) ? `<span class="overdue-badge">Overdue</span>` : ""}
+        </p>
+      </div>
+
       <select onchange="updateStatus(${index}, this.value)">
         <option ${lead.status === "New" ? "selected" : ""}>New</option>
         <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
@@ -410,12 +363,12 @@ function renderLeads() {
       </select>
 
       <div class="lead-actions">
-        <button onclick="handleGenerate(${index})">Generate Message</button>
+        <button class="primary-btn" onclick="handleGenerate(${index})">Generate</button>
         <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
         <button class="linkedin-btn" onclick="sendLinkedIn(${index})">LinkedIn</button>
-        <button onclick="setFollowUp(${index})">Set Follow-up</button>
-        <button onclick="editLead(${index})">Edit</button>
-        <button onclick="markContacted(${index})">Mark Contacted</button>
+        <button class="secondary-btn" onclick="setFollowUp(${index})">Follow-up</button>
+        <button class="secondary-btn" onclick="editLead(${index})">Edit</button>
+        <button class="secondary-btn" onclick="markContacted(${index})">Contacted</button>
         <button class="delete-btn" onclick="deleteLead(${index})">Delete</button>
       </div>
     `;
@@ -531,6 +484,35 @@ function markContacted(index) {
   updateStatus(index, "Contacted");
 }
 
+function setFollowUp(index) {
+  const date = prompt("Enter next follow-up date (YYYY-MM-DD)");
+  if (!date) return;
+
+  const lead = leads[index];
+  updateFollowUp(lead.id, date);
+}
+
+async function updateFollowUp(leadId, date) {
+  const lead = leads.find(l => l.id === leadId);
+
+  try {
+    await fetch(`${API_URL}/${leadId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...lead,
+        nextFollowUp: date,
+        lastContacted: new Date().toISOString().split("T")[0]
+      })
+    });
+
+    fetchLeads();
+  } catch (error) {
+    console.error("Follow-up error:", error);
+    alert("Could not update follow-up");
+  }
+}
+
 async function handleGenerate(index) {
   const lead = leads[index];
 
@@ -578,12 +560,23 @@ function sendWhatsApp(index) {
   window.open(whatsappURL, "_blank");
 }
 
+function sendLinkedIn(index) {
+  const lead = leads[index];
+  if (!lead) return;
+
+  const message = generateMessage(lead);
+  navigator.clipboard.writeText(message);
+
+  const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
+  window.open(searchUrl, "_blank");
+
+  alert("Message copied! Paste it into LinkedIn chat.");
+}
+
 copyBtn.addEventListener("click", async function () {
   if (!messageOutput.value.trim()) {
     copyBtn.textContent = "No message";
-    setTimeout(() => {
-      copyBtn.textContent = "Copy Message";
-    }, 1500);
+    setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
     return;
   }
 
@@ -595,9 +588,7 @@ copyBtn.addEventListener("click", async function () {
   }
 
   copyBtn.textContent = "Copied!";
-  setTimeout(() => {
-    copyBtn.textContent = "Copy Message";
-  }, 1500);
+  setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
 });
 
 function exportToCSV() {
