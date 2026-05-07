@@ -1,5 +1,5 @@
 # 🚀 AutoClient V2
-
+![AutoClient Banner](images/autoclient-banner.png)
 AI-powered CRM and outreach platform built for freelancers, agencies, startups, and sales teams.
 
 AutoClient helps users manage leads, generate AI-powered outreach messages, track follow-ups, and streamline client communication from a modern SaaS dashboard.
