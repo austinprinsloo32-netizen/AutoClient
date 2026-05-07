@@ -9,47 +9,46 @@
 </head>
 
 <body>
-
   <div class="app-shell">
 
     <aside class="sidebar" id="sidebar">
-  <div class="brand">
-    <div class="logo">
-      <img src="AutoClient_Icon.png" alt="AutoClient logo" />
-    </div>
+      <div class="brand">
+        <div class="logo">
+          <img src="AutoClient_Icon.png" alt="AutoClient logo" />
+        </div>
 
-    <div class="brand-text">
-      <strong>AutoClient</strong>
-      <span>V2 SaaS CRM</span>
-    </div>
-  </div>
+        <div class="brand-text">
+          <strong>AutoClient</strong>
+          <span>V2 SaaS CRM</span>
+        </div>
+      </div>
 
-  <nav class="side-nav">
-    <button class="nav-link active" data-page="dashboardPage">Dashboard</button>
-    <button class="nav-link" data-page="leadsPage">Leads</button>
-    <button class="nav-link" data-page="outreachPage">Outreach</button>
-    <button class="nav-link" data-page="analyticsPage">Analytics</button>
-    <button class="nav-link admin-only" data-page="adminPage" style="display:none;">Admin</button>
-    <button class="nav-link" data-page="settingsPage">Settings</button>
-  </nav>
+      <nav class="side-nav">
+        <button class="nav-link active" data-page="dashboardPage">Dashboard</button>
+        <button class="nav-link" data-page="leadsPage">Leads</button>
+        <button class="nav-link" data-page="outreachPage">Outreach</button>
+        <button class="nav-link" data-page="analyticsPage">Analytics</button>
+        <button class="nav-link admin-only" data-page="adminPage" style="display:none;">Admin</button>
+        <button class="nav-link" data-page="settingsPage">Settings</button>
+      </nav>
 
-  <div class="sidebar-footer">
-    <span id="userDisplay">Not logged in</span>
-    <button id="logoutBtn" class="logout-btn" style="display:none;">Logout</button>
-  </div>
-</aside>
+      <div class="sidebar-footer">
+        <span id="userDisplay">Not logged in</span>
+        <button id="logoutBtn" class="logout-btn" style="display:none;">Logout</button>
+      </div>
+    </aside>
 
     <main class="main">
 
       <header class="topbar">
         <div class="mobile-brand">
           <img src="AutoClient_Icon.png" alt="AutoClient logo" />
-
-        <div>
-          <strong>AutoClient</strong>
-          <span>V2 SaaS CRM</span>
+          <div>
+            <strong>AutoClient</strong>
+            <span>V2 SaaS CRM</span>
+          </div>
         </div>
-      </div>
+
         <div>
           <h1 id="pageTitle">Dashboard</h1>
           <p id="pageSubtitle">Overview of your lead generation workflow.</p>
@@ -258,11 +257,23 @@
               <span class="step">📊</span>
               <div>
                 <h2>Analytics</h2>
-                <p>Simple lead performance overview.</p>
+                <p>Track lead performance, outreach activity, and conversion progress.</p>
               </div>
             </div>
 
             <div id="analyticsGrid" class="analytics-grid"></div>
+
+            <div class="analytics-charts">
+              <div class="chart-card">
+                <h3>Lead Status Overview</h3>
+                <canvas id="leadStatusChart"></canvas>
+              </div>
+
+              <div class="chart-card">
+                <h3>Outreach Activity</h3>
+                <canvas id="outreachChart"></canvas>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -318,6 +329,7 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

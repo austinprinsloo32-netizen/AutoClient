@@ -295,6 +295,7 @@ function renderAll() {
   renderLeads();
   renderRecentLeads();
   renderAnalytics();
+  renderAnalyticsCharts();
 }
 
 function updateDashboard() {
@@ -967,5 +968,91 @@ async function loadAdminDashboard() {
 if (refreshAdminBtn) {
   refreshAdminBtn.addEventListener("click", loadAdminDashboard);
 }
+let leadStatusChart;
+let outreachChart;
 
+function renderAnalyticsCharts() {
+  const leadCanvas = document.getElementById("leadStatusChart");
+  const outreachCanvas = document.getElementById("outreachChart");
+
+  if (!leadCanvas || !outreachCanvas || typeof Chart === "undefined") return;
+
+  const leadCounts = {
+    New: leads.filter(lead => lead.status === "New").length,
+    Contacted: leads.filter(lead => lead.status === "Contacted").length,
+    Interested: leads.filter(lead => lead.status === "Interested").length,
+    Closed: leads.filter(lead => lead.status === "Closed").length,
+    Rejected: leads.filter(lead => lead.status === "Rejected").length
+  };
+
+  if (leadStatusChart) leadStatusChart.destroy();
+  if (outreachChart) outreachChart.destroy();
+
+  leadStatusChart = new Chart(leadCanvas, {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(leadCounts),
+      datasets: [{
+        data: Object.values(leadCounts),
+        backgroundColor: [
+          "#2563eb",
+          "#06b6d4",
+          "#f59e0b",
+          "#22c55e",
+          "#ef4444"
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: "bottom"
+        }
+      }
+    }
+  });
+
+  outreachChart = new Chart(outreachCanvas, {
+    type: "bar",
+    data: {
+      labels: [
+        "Total Leads",
+        "Contacted",
+        "Interested",
+        "Closed",
+        "Overdue"
+      ],
+      datasets: [{
+        label: "Lead Activity",
+        data: [
+          leads.length,
+          leadCounts.Contacted,
+          leadCounts.Interested,
+          leadCounts.Closed,
+          document.querySelectorAll(".overdue-lead").length
+        ],
+        backgroundColor: "#2563eb",
+        borderRadius: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        }
+      }
+    }
+  });
+}
 checkAuth();
