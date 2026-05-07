@@ -750,6 +750,23 @@ Kind regards,
 ${currentUser ? currentUser.name : ""}`;
 }
 
+function typeText(element, text, speed = 18) {
+  if (!element) return;
+
+  element.value = "";
+  let index = 0;
+
+  function typeCharacter() {
+    if (index < text.length) {
+      element.value += text.charAt(index);
+      index++;
+      setTimeout(typeCharacter, speed);
+    }
+  }
+
+  typeCharacter();
+}
+
 async function handleGenerate(index) {
   const lead = leads[index];
 
@@ -776,11 +793,11 @@ async function handleGenerate(index) {
       throw new Error(data.error || "Message failed");
     }
 
-    messageOutput.value = data.message;
+    typeText(messageOutput, data.message);
     showToast("AI outreach message generated.", "success");
   } catch (error) {
     console.error("Message error:", error);
-    messageOutput.value = generateMessage(lead);
+    typeText(messageOutput, generateMessage(lead));
     showToast("Used fallback outreach generator.", "warning");
   }
 }
