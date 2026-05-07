@@ -1055,4 +1055,32 @@ function renderAnalyticsCharts() {
     }
   });
 }
+const themeToggle = document.getElementById("themeToggle");
+
+function applySavedTheme() {
+  const savedTheme = localStorage.getItem("autoclient_theme");
+
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+    if (themeToggle) themeToggle.textContent = "☀️ Light";
+  } else {
+    document.body.classList.remove("dark-mode");
+    if (themeToggle) themeToggle.textContent = "🌙 Dark";
+  }
+}
+
+if (themeToggle) {
+  themeToggle.addEventListener("click", function () {
+    document.body.classList.toggle("dark-mode");
+
+    const isDark = document.body.classList.contains("dark-mode");
+    localStorage.setItem("autoclient_theme", isDark ? "dark" : "light");
+
+    themeToggle.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+
+    renderAnalyticsCharts();
+  });
+}
+
+applySavedTheme();
 checkAuth();
