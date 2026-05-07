@@ -326,12 +326,35 @@ function renderAll() {
   renderAnalyticsCharts();
 }
 
+function animateCounter(element, target, duration = 700) {
+  if (!element) return;
+
+  const start = Number(element.textContent) || 0;
+  const startTime = performance.now();
+
+  function updateCounter(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const value = Math.floor(start + (target - start) * progress);
+
+    element.textContent = value;
+
+    if (progress < 1) {
+      requestAnimationFrame(updateCounter);
+    } else {
+      element.textContent = target;
+    }
+  }
+
+  requestAnimationFrame(updateCounter);
+}
+
 function updateDashboard() {
-  totalLeads.textContent = leads.length;
-  newLeads.textContent = leads.filter(lead => lead.status === "New").length;
-  contactedLeads.textContent = leads.filter(lead => lead.status === "Contacted").length;
-  interestedLeads.textContent = leads.filter(lead => lead.status === "Interested").length;
-  closedLeads.textContent = leads.filter(lead => lead.status === "Closed").length;
+  animateCounter(totalLeads, leads.length);
+  animateCounter(newLeads, leads.filter(lead => lead.status === "New").length);
+  animateCounter(contactedLeads, leads.filter(lead => lead.status === "Contacted").length);
+  animateCounter(interestedLeads, leads.filter(lead => lead.status === "Interested").length);
+  animateCounter(closedLeads, leads.filter(lead => lead.status === "Closed").length);
 
   if (leads.length === 0) {
     nextActionText.textContent = "Add your first lead or use Quick Lead Finder.";
