@@ -324,6 +324,7 @@ function renderAll() {
   renderRecentLeads();
   renderAnalytics();
   renderAnalyticsCharts();
+  renderKanbanBoard();
 }
 
 function animateCounter(element, target, duration = 700) {
@@ -1161,6 +1162,74 @@ if (themeToggle) {
     themeToggle.textContent = isDark ? "☀️ Light" : "🌙 Dark";
 
     renderAnalyticsCharts();
+  });
+}
+function renderKanbanBoard() {
+  const columns = {
+    New: document.getElementById("kanban-new"),
+    Contacted: document.getElementById("kanban-contacted"),
+    Interested: document.getElementById("kanban-interested"),
+    Closed: document.getElementById("kanban-closed")
+  };
+
+  Object.values(columns).forEach(column => {
+    if (column) column.innerHTML = "";
+  });
+
+  leads.forEach((lead, index) => {
+    const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
+      ? lead.status
+      : "New";
+
+    const card = document.createElement("div");
+    card.className = "kanban-card";
+    card.draggable = true;
+    card.dataset.index = index;
+
+    card.innerHTML = `
+      <h4>${lead.businessName}</h4>
+      <p>${lead.contact || "No contact info"}</p>
+      <span class="kanban-priority">${lead.priority || "Cold"} Lead</span>
+    `;
+
+    card.addEventListener("dragstart", function () {
+      card.classList.add("dragging");
+    });
+
+    card.addEventListener("dragend", function () {
+      card.classList.remove("dragging");
+    });
+
+    if (columns[status]) {
+      columns[status].appendChild(card);
+    }
+  });
+
+  document.querySelectorAll(".kanban-dropzone").forEach(zone => {
+    zone.addEventListener("dragover", e => {
+      e.preventDefault();
+    });
+
+    zone.addEventListener("drop", async function () {
+      const draggedCard = document.querySelector(".dragging");
+      if (!draggedCard) return;
+
+      const leadIndex = draggedCard.dataset.index;
+      const lead = leads[leadIndex];
+
+      let newStatus = "New";
+
+      if (zone.id === "kanban-contacted") newStatus = "Contacted";
+      if (zone.id === "kanban-interested") newStatus = "Interested";
+      if (zone.id === "kanban-closed") newStatus = "Closed";
+
+      await updateLead(lead.id, {
+        ...lead,
+        status: newStatus
+      });
+
+      showToast(`Lead moved to ${newStatus}.`, "success");
+    });
   });
 }
 
