@@ -63,8 +63,12 @@ const settingsUserName = document.getElementById("settingsUserName");
 const settingsUserEmail = document.getElementById("settingsUserEmail");
 const settingsUserRole = document.getElementById("settingsUserRole");
 
+const themeToggle = document.getElementById("themeToggle");
+
 let leads = [];
 let editIndex = null;
+let leadStatusChart;
+let outreachChart;
 let currentUser = JSON.parse(localStorage.getItem("autoclient_user")) || null;
 
 const pageInfo = {
@@ -94,6 +98,25 @@ const pageInfo = {
   }
 };
 
+function showToast(message, type = "info") {
+  const toastContainer = document.getElementById("toastContainer");
+
+  if (!toastContainer) {
+    alert(message);
+    return;
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+
+  toastContainer.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3200);
+}
+
 function normalizeLead(lead) {
   return {
     id: lead.id,
@@ -120,7 +143,7 @@ function isCurrentAdmin() {
 
 function showPage(pageId) {
   if (pageId === "adminPage" && !isCurrentAdmin()) {
-    alert("Admin access only.");
+    showToast("Admin access only.", "warning");
     pageId = "dashboardPage";
   }
 
@@ -212,7 +235,7 @@ registerForm.addEventListener("submit", async function (e) {
     const data = await response.json();
 
     if (!response.ok) {
-      alert(data.error || "Registration failed");
+      showToast(data.error || "Registration failed.", "error");
       return;
     }
 
@@ -221,10 +244,11 @@ registerForm.addEventListener("submit", async function (e) {
 
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     registerForm.reset();
+    showToast("Account created successfully.", "success");
     showApp();
   } catch (error) {
     console.error("Register error:", error);
-    alert("Could not register. Make sure backend is running.");
+    showToast("Could not register. Make sure backend is running.", "error");
   }
 });
 
@@ -244,7 +268,7 @@ loginForm.addEventListener("submit", async function (e) {
     const data = await response.json();
 
     if (!response.ok) {
-      alert(data.error || "Login failed");
+      showToast(data.error || "Login failed.", "error");
       return;
     }
 
@@ -253,10 +277,11 @@ loginForm.addEventListener("submit", async function (e) {
 
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     loginForm.reset();
+    showToast("Logged in successfully.", "success");
     showApp();
   } catch (error) {
     console.error("Login error:", error);
-    alert("Could not login. Make sure backend is running.");
+    showToast("Could not login. Make sure backend is running.", "error");
   }
 });
 
@@ -267,6 +292,7 @@ logoutBtn.addEventListener("click", function () {
   renderLeads();
   showAuth();
   showPage("dashboardPage");
+  showToast("Logged out successfully.", "info");
 });
 
 async function fetchLeads() {
@@ -279,6 +305,7 @@ async function fetchLeads() {
     if (!response.ok) {
       console.error("Fetch leads server error:", data);
       leadList.innerHTML = `<p>Could not load leads.</p>`;
+      showToast("Could not load leads.", "error");
       return;
     }
 
@@ -287,6 +314,7 @@ async function fetchLeads() {
   } catch (error) {
     console.error("Fetch leads connection error:", error);
     leadList.innerHTML = `<p>Could not connect to backend.</p>`;
+    showToast("Could not connect to backend.", "error");
   }
 }
 
@@ -457,7 +485,7 @@ leadForm.addEventListener("submit", async function (e) {
   e.preventDefault();
 
   if (!currentUser) {
-    alert("Please login first.");
+    showToast("Please login first.", "warning");
     return;
   }
 
@@ -512,16 +540,17 @@ leadForm.addEventListener("submit", async function (e) {
 
     if (!response.ok) {
       console.error("Save lead server error:", data);
-      alert(data.error || "Could not save lead.");
+      showToast(data.error || "Could not save lead.", "error");
       return;
     }
 
     leadForm.reset();
     await fetchLeads();
     showPage("leadsPage");
+    showToast(editIndex === null ? "Lead saved successfully." : "Lead updated successfully.", "success");
   } catch (error) {
     console.error("Save lead connection error:", error);
-    alert("Could not connect to backend.");
+    showToast("Could not connect to backend.", "error");
   }
 });
 
@@ -537,6 +566,7 @@ function editLead(index) {
   editIndex = index;
   leadForm.querySelector("button[type='submit']").textContent = "Update Lead";
   showPage("leadsPage");
+  showToast("Lead loaded for editing.", "info");
 }
 
 async function deleteLead(index) {
@@ -552,14 +582,15 @@ async function deleteLead(index) {
 
     if (!response.ok) {
       console.error("Delete lead server error:", data);
-      alert(data.error || "Could not delete lead.");
+      showToast(data.error || "Could not delete lead.", "error");
       return;
     }
 
     await fetchLeads();
+    showToast("Lead deleted successfully.", "success");
   } catch (error) {
     console.error("Delete lead connection error:", error);
-    alert("Could not connect to backend.");
+    showToast("Could not connect to backend.", "error");
   }
 }
 
@@ -577,14 +608,15 @@ async function updateStatus(index, newStatus) {
 
     if (!response.ok) {
       console.error("Update status server error:", data);
-      alert(data.error || "Could not update status.");
+      showToast(data.error || "Could not update status.", "error");
       return;
     }
 
     await fetchLeads();
+    showToast(`Lead marked as ${newStatus}.`, "success");
   } catch (error) {
     console.error("Update status connection error:", error);
-    alert("Could not connect to backend.");
+    showToast("Could not connect to backend.", "error");
   }
 }
 
@@ -617,14 +649,15 @@ async function updateLead(leadId, payload) {
 
     if (!response.ok) {
       console.error("Update lead server error:", data);
-      alert(data.error || "Could not update lead.");
+      showToast(data.error || "Could not update lead.", "error");
       return;
     }
 
     await fetchLeads();
+    showToast("Lead updated successfully.", "success");
   } catch (error) {
     console.error("Update lead connection error:", error);
-    alert("Could not connect to backend.");
+    showToast("Could not connect to backend.", "error");
   }
 }
 
@@ -699,6 +732,7 @@ async function handleGenerate(index) {
 
   showPage("outreachPage");
   messageOutput.value = "Generating outreach message...";
+  showToast("Generating outreach message...", "info");
 
   try {
     const response = await fetch(`${BASE_URL}/api/generate-message`, {
@@ -720,9 +754,11 @@ async function handleGenerate(index) {
     }
 
     messageOutput.value = data.message;
+    showToast("AI outreach message generated.", "success");
   } catch (error) {
     console.error("Message error:", error);
     messageOutput.value = generateMessage(lead);
+    showToast("Used fallback outreach generator.", "warning");
   }
 }
 
@@ -737,6 +773,7 @@ function sendWhatsApp(index) {
     : `https://wa.me/?text=${encodedMessage}`;
 
   window.open(whatsappURL, "_blank");
+  showToast("WhatsApp outreach opened.", "success");
 }
 
 function sendLinkedIn(index) {
@@ -748,12 +785,13 @@ function sendLinkedIn(index) {
   const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
   window.open(searchUrl, "_blank");
 
-  alert("Message copied. Paste it into LinkedIn chat.");
+  showToast("Message copied. Paste it into LinkedIn chat.", "success");
 }
 
 copyBtn.addEventListener("click", async function () {
   if (!messageOutput.value.trim()) {
     copyBtn.textContent = "No message";
+    showToast("No outreach message to copy.", "warning");
     setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
     return;
   }
@@ -766,6 +804,7 @@ copyBtn.addEventListener("click", async function () {
   }
 
   copyBtn.textContent = "Copied!";
+  showToast("Message copied successfully.", "success");
   setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
 });
 
@@ -792,7 +831,7 @@ function renderLeadIdeas(ideas) {
 
     div.querySelector(".add-idea-btn").addEventListener("click", async () => {
       if (!currentUser) {
-        alert("Login first");
+        showToast("Login first.", "warning");
         return;
       }
 
@@ -820,14 +859,15 @@ function renderLeadIdeas(ideas) {
 
         if (!response.ok) {
           console.error("Add idea server error:", data);
-          alert(data.error || "Could not add lead.");
+          showToast(data.error || "Could not add lead.", "error");
           return;
         }
 
         await fetchLeads();
+        showToast("Lead idea added successfully.", "success");
       } catch (error) {
         console.error("Add idea connection error:", error);
-        alert("Could not connect to backend.");
+        showToast("Could not connect to backend.", "error");
       }
     });
 
@@ -840,11 +880,12 @@ findLeadsBtn.addEventListener("click", async function () {
   const location = leadLocation.value.trim();
 
   if (!industry || !location) {
-    alert("Enter both industry and location");
+    showToast("Enter both industry and location.", "warning");
     return;
   }
 
   leadIdeas.innerHTML = "Finding leads...";
+  showToast("Finding lead ideas...", "info");
 
   try {
     const response = await fetch(`${BASE_URL}/api/find-leads`, {
@@ -860,15 +901,17 @@ findLeadsBtn.addEventListener("click", async function () {
     }
 
     renderLeadIdeas(data);
+    showToast("Lead ideas generated.", "success");
   } catch (error) {
     console.error("Lead finder error:", error);
     leadIdeas.innerHTML = "<p>Could not generate leads.</p>";
+    showToast("Could not generate leads.", "error");
   }
 });
 
 function exportToCSV() {
   if (leads.length === 0) {
-    alert("No leads to export");
+    showToast("No leads to export.", "warning");
     return;
   }
 
@@ -897,6 +940,7 @@ function exportToCSV() {
   link.click();
 
   URL.revokeObjectURL(url);
+  showToast("CSV exported successfully.", "success");
 }
 
 searchInput.addEventListener("input", renderLeads);
@@ -905,7 +949,7 @@ exportBtn.addEventListener("click", exportToCSV);
 
 async function loadAdminDashboard() {
   if (!isCurrentAdmin()) {
-    alert("Admin access only.");
+    showToast("Admin access only.", "warning");
     showPage("dashboardPage");
     return;
   }
@@ -959,17 +1003,16 @@ async function loadAdminDashboard() {
       adminLeadsList.appendChild(div);
     });
 
+    showToast("Admin dashboard refreshed.", "success");
   } catch (error) {
     console.error("Admin dashboard error:", error);
-    alert("Could not load admin dashboard.");
+    showToast("Could not load admin dashboard.", "error");
   }
 }
 
 if (refreshAdminBtn) {
   refreshAdminBtn.addEventListener("click", loadAdminDashboard);
 }
-let leadStatusChart;
-let outreachChart;
 
 function renderAnalyticsCharts() {
   const leadCanvas = document.getElementById("leadStatusChart");
@@ -1055,7 +1098,6 @@ function renderAnalyticsCharts() {
     }
   });
 }
-const themeToggle = document.getElementById("themeToggle");
 
 function applySavedTheme() {
   const savedTheme = localStorage.getItem("autoclient_theme");
