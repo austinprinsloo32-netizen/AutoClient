@@ -224,7 +224,12 @@ def log_activity(user_id, lead_id, action, details=""):
 
 @app.route("/")
 def home():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(".", "landing.html")
+
+
+@app.route("/app")
+def app_dashboard():
+    return send_from_directory(".", "index.html")
 
 
 @app.route("/api/status")
@@ -910,6 +915,9 @@ def admin_leads():
 # This must stay LAST so it does not block API routes.
 @app.route("/<path:path>")
 def serve_static(path):
+    if os.path.exists(path):
+        return send_from_directory(".", path)
+
     return send_from_directory("static", path)
 
 
