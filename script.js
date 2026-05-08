@@ -2201,7 +2201,9 @@ if (upgradeProBtn) {
 }
 
 if (upgradeAgencyBtn) {
-  upgradeAgencyBtn.addEventListener("click", () => startCheckout("agency"));
+  upgradeAgencyBtn.addEventListener("click", () => {
+    showToast("Agency plan is coming soon.", "info");
+  });
 }
 
 if (manageBillingBtn) {

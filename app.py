@@ -609,13 +609,11 @@ def create_checkout_session():
     if not STRIPE_SECRET_KEY:
         return jsonify({"error": "STRIPE_SECRET_KEY is not configured in Render"}), 500
 
+    if not STRIPE_PRO_PRICE_ID:
+        return jsonify({"error": "STRIPE_PRO_PRICE_ID is not configured in Render"}), 500
+
     data = request.get_json() or {}
-
     user_id = data.get("userId")
-    selected_plan = normalize_plan(data.get("plan", "pro"))
-
-    if selected_plan == "free":
-        selected_plan = "pro"
 
     if not user_id:
         return jsonify({"error": "userId is required"}), 400
@@ -625,52 +623,24 @@ def create_checkout_session():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    if selected_plan == "agency":
-        price_id = STRIPE_AGENCY_PRICE_ID
-    else:
-        selected_plan = "pro"
-        price_id = STRIPE_PRO_PRICE_ID
-
-    if not price_id:
-        return jsonify({"error": f"Stripe price ID for {selected_plan} is not configured in Render"}), 500
-
     try:
-        stripe_customer_id = get_field(user, "stripe_customer_id", "")
-
-        customer_data = None
-
-        if not stripe_customer_id:
-            customer_data = {
-                "email": user["email"],
-                "name": user["name"],
-                "metadata": {
-                    "userId": str(user_id)
-                }
-            }
-
         checkout_session = stripe.checkout.Session.create(
             mode="subscription",
-            customer=stripe_customer_id if stripe_customer_id else None,
-            customer_email=None if stripe_customer_id else user["email"],
-            customer_creation="always" if not stripe_customer_id else None,
-            customer_update={
-                "name": "auto",
-                "address": "auto"
-            } if stripe_customer_id else None,
+            customer_email=user["email"],
             line_items=[
                 {
-                    "price": price_id,
+                    "price": STRIPE_PRO_PRICE_ID,
                     "quantity": 1
                 }
             ],
             metadata={
                 "userId": str(user_id),
-                "plan": selected_plan
+                "plan": "pro"
             },
             subscription_data={
                 "metadata": {
                     "userId": str(user_id),
-                    "plan": selected_plan
+                    "plan": "pro"
                 }
             },
             success_url=f"{FRONTEND_URL}/index.html?billing=success",
@@ -681,8 +651,7 @@ def create_checkout_session():
 
     except Exception as e:
         print("Stripe checkout error:", e)
-        return jsonify({"error": "Could not create checkout session"}), 500
-
+        return jsonify({"error": "Checkout session failed"}), 500
 
 @app.route("/api/create-billing-portal-session", methods=["POST"])
 def create_billing_portal_session():
