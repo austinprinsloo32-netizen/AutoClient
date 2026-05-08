@@ -516,30 +516,35 @@ def update_lead(lead_id):
 
         lead_dict = row_to_dict(lead)
 
-        if lead_dict:
-            if old_status and new_status and old_status != new_status:
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Lead Status Changed",
-                    f"{lead_dict['businessName']} moved from {old_status} to {new_status}."
-                )
-            elif data.get("nextFollowUp"):
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Follow-up Scheduled",
-                    f"Next follow-up set for {data.get('nextFollowUp')}."
-                )
-            else:
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Lead Updated",
-                    f"{lead_dict['businessName']} was updated."
-                )
+    if lead_dict:
+        business_name = (
+            lead_dict.get("businessName")
+            or lead_dict.get("businessname")
+            or data.get("businessName")
+            or "Lead"
+        )
 
-        return jsonify(lead_dict)
+        if old_status and new_status and old_status != new_status:
+            log_activity(
+                data.get("userId"),
+                lead_id,
+                "Lead Status Changed",
+                f"{business_name} moved from {old_status} to {new_status}."
+            )
+        elif data.get("nextFollowUp"):
+            log_activity(
+                data.get("userId"),
+                lead_id,
+                "Follow-up Scheduled",
+                f"Next follow-up set for {data.get('nextFollowUp')}."
+            )
+        else:
+            log_activity(
+                data.get("userId"),
+                lead_id,
+                "Lead Updated",
+                f"{business_name} was updated."
+            )
 
     execute_query("""
         UPDATE leads
