@@ -11,7 +11,6 @@ const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
 const authSection = document.getElementById("authSection");
 const appSection = document.getElementById("appSection");
-
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -103,6 +102,160 @@ const pageInfo = {
   }
 };
 
+function injectSmartCRMStyles() {
+  if (document.getElementById("smartCrmStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "smartCrmStyles";
+  style.textContent = `
+    .smart-dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 0;
+    }
+
+    .smart-widget {
+      background: rgba(255,255,255,0.96);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+      display: grid;
+      gap: 8px;
+    }
+
+    .smart-widget span {
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .smart-widget strong {
+      font-size: 26px;
+      line-height: 1;
+      color: var(--navy);
+    }
+
+    .smart-widget p {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .lead-score-badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 900;
+      margin-top: 8px;
+    }
+
+    .score-hot {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .score-warm {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .score-cold {
+      background: #e0f2fe;
+      color: #075985;
+      border: 1px solid #bae6fd;
+    }
+
+    .notification-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .notification-item {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .notification-item strong {
+      font-size: 14px;
+    }
+
+    .notification-item span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .notification-danger {
+      border-left-color: #ef4444;
+    }
+
+    .notification-warning {
+      border-left-color: #f59e0b;
+    }
+
+    .notification-success {
+      border-left-color: #22c55e;
+    }
+
+    body.dark-mode .smart-widget,
+    body.dark-mode .notification-item {
+      background: #0f172a;
+      border-color: #1e293b;
+      color: #e5e7eb;
+    }
+
+    body.dark-mode .smart-widget strong,
+    body.dark-mode .notification-item strong {
+      color: #f8fafc;
+    }
+
+    body.dark-mode .score-hot {
+      background: #450a0a;
+      color: #fecaca;
+      border-color: #7f1d1d;
+    }
+
+    body.dark-mode .score-warm {
+      background: #451a03;
+      color: #fde68a;
+      border-color: #92400e;
+    }
+
+    body.dark-mode .score-cold {
+      background: #082f49;
+      color: #bae6fd;
+      border-color: #075985;
+    }
+
+    @media (max-width: 1050px) {
+      .smart-dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .smart-dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
 function showToast(message, type = "info") {
   const toastContainer = document.getElementById("toastContainer");
 
@@ -168,6 +321,299 @@ function isCurrentAdmin() {
     currentUser.email &&
     currentUser.email.toLowerCase() === ADMIN_EMAIL_FRONTEND
   );
+}
+
+function isToday(dateString) {
+  if (!dateString) return false;
+
+  const today = new Date();
+  const targetDate = new Date(dateString);
+
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+
+  return today.getTime() === targetDate.getTime();
+}
+
+function isOverdue(dateString) {
+  if (!dateString) return false;
+
+  const today = new Date();
+  const followUpDate = new Date(dateString);
+
+  today.setHours(0, 0, 0, 0);
+  followUpDate.setHours(0, 0, 0, 0);
+
+  return followUpDate < today;
+}
+
+function getLeadActivityCount(leadId) {
+  return activities.filter(activity => Number(activity.leadId) === Number(leadId)).length;
+}
+
+function getLeadScore(lead) {
+  const activityCount = getLeadActivityCount(lead.id);
+  const status = lead.status || "New";
+  const priority = lead.priority || "Cold";
+
+  let score = 0;
+  let reasons = [];
+
+  if (priority === "Hot") {
+    score += 35;
+    reasons.push("High priority");
+  }
+
+  if (priority === "Warm") {
+    score += 18;
+    reasons.push("Warm priority");
+  }
+
+  if (status === "Interested") {
+    score += 40;
+    reasons.push("Interested");
+  }
+
+  if (status === "Contacted") {
+    score += 22;
+    reasons.push("Contacted");
+  }
+
+  if (status === "Replied") {
+    score += 30;
+    reasons.push("Replied");
+  }
+
+  if (status === "Closed") {
+    score += 50;
+    reasons.push("Closed");
+  }
+
+  if (lead.nextFollowUp) {
+    score += 12;
+    reasons.push("Follow-up scheduled");
+  }
+
+  if (isToday(lead.nextFollowUp)) {
+    score += 18;
+    reasons.push("Follow-up today");
+  }
+
+  if (isOverdue(lead.nextFollowUp)) {
+    score -= 15;
+    reasons.push("Overdue");
+  }
+
+  if (activityCount >= 3) {
+    score += 20;
+    reasons.push("Active lead");
+  } else if (activityCount > 0) {
+    score += 10;
+    reasons.push("Recent activity");
+  }
+
+  if (status === "Rejected") {
+    score -= 40;
+    reasons.push("Rejected");
+  }
+
+  if (score >= 55) {
+    return {
+      label: "🔥 HOT",
+      level: "hot",
+      score,
+      reason: reasons.slice(0, 2).join(" • ") || "High opportunity"
+    };
+  }
+
+  if (score >= 25) {
+    return {
+      label: "🌤 WARM",
+      level: "warm",
+      score,
+      reason: reasons.slice(0, 2).join(" • ") || "Needs follow-up"
+    };
+  }
+
+  return {
+    label: "❄ COLD",
+    level: "cold",
+    score,
+    reason: reasons.slice(0, 2).join(" • ") || "Needs attention"
+  };
+}
+
+function getSmartMetrics() {
+  const hotLeads = leads.filter(lead => getLeadScore(lead).level === "hot");
+  const warmLeads = leads.filter(lead => getLeadScore(lead).level === "warm");
+  const coldLeads = leads.filter(lead => getLeadScore(lead).level === "cold");
+  const overdueFollowUps = leads.filter(lead => isOverdue(lead.nextFollowUp));
+  const todayFollowUps = leads.filter(lead => isToday(lead.nextFollowUp));
+  const activeLeads = leads.filter(lead =>
+    ["Contacted", "Replied", "Interested", "Closed"].includes(lead.status)
+  );
+
+  const closed = leads.filter(lead => lead.status === "Closed").length;
+  const conversionRate = leads.length ? Math.round((closed / leads.length) * 100) : 0;
+  const pipelineHealth = leads.length ? Math.round((activeLeads.length / leads.length) * 100) : 0;
+
+  return {
+    hotLeads,
+    warmLeads,
+    coldLeads,
+    overdueFollowUps,
+    todayFollowUps,
+    activeLeads,
+    conversionRate,
+    pipelineHealth
+  };
+}
+
+function renderSmartDashboardWidgets() {
+  const dashboardPage = document.getElementById("dashboardPage");
+  if (!dashboardPage) return;
+
+  let smartGrid = document.getElementById("smartDashboardGrid");
+
+  if (!smartGrid) {
+    smartGrid = document.createElement("div");
+    smartGrid.id = "smartDashboardGrid";
+    smartGrid.className = "smart-dashboard-grid";
+
+    const dashboardStats = dashboardPage.querySelector(".dashboard");
+    if (dashboardStats) {
+      dashboardStats.insertAdjacentElement("afterend", smartGrid);
+    } else {
+      dashboardPage.appendChild(smartGrid);
+    }
+  }
+
+  const metrics = getSmartMetrics();
+
+  smartGrid.innerHTML = `
+    <div class="smart-widget">
+      <span>🔥 Hot Leads</span>
+      <strong>${metrics.hotLeads.length}</strong>
+      <p>Best opportunities to contact now.</p>
+    </div>
+
+    <div class="smart-widget">
+      <span>⏰ Due Today</span>
+      <strong>${metrics.todayFollowUps.length}</strong>
+      <p>Follow-ups scheduled for today.</p>
+    </div>
+
+    <div class="smart-widget">
+      <span>⚠️ Overdue</span>
+      <strong>${metrics.overdueFollowUps.length}</strong>
+      <p>Follow-ups that need attention.</p>
+    </div>
+
+    <div class="smart-widget">
+      <span>📈 Pipeline Health</span>
+      <strong>${metrics.pipelineHealth}%</strong>
+      <p>${metrics.conversionRate}% conversion rate.</p>
+    </div>
+  `;
+}
+
+function getNotifications() {
+  const metrics = getSmartMetrics();
+  const notifications = [];
+
+  if (metrics.overdueFollowUps.length > 0) {
+    notifications.push({
+      type: "danger",
+      title: `⚠️ ${metrics.overdueFollowUps.length} overdue follow-up(s)`,
+      message: "These leads need attention before they go cold."
+    });
+  }
+
+  if (metrics.todayFollowUps.length > 0) {
+    notifications.push({
+      type: "warning",
+      title: `⏰ ${metrics.todayFollowUps.length} follow-up(s) due today`,
+      message: "Contact these leads today to keep your pipeline active."
+    });
+  }
+
+  if (metrics.hotLeads.length > 0) {
+    notifications.push({
+      type: "success",
+      title: `🔥 ${metrics.hotLeads.length} hot lead(s) detected`,
+      message: "Prioritize these opportunities first."
+    });
+  }
+
+  if (leads.length > 0 && metrics.pipelineHealth < 35) {
+    notifications.push({
+      type: "warning",
+      title: "📉 Pipeline needs movement",
+      message: "Move more leads from New into Contacted or Interested."
+    });
+  }
+
+  if (leads.length === 0) {
+    notifications.push({
+      type: "warning",
+      title: "📌 No leads yet",
+      message: "Add your first lead or use Quick Lead Finder."
+    });
+  }
+
+  if (notifications.length === 0) {
+    notifications.push({
+      type: "success",
+      title: "✅ Pipeline looks healthy",
+      message: "No urgent CRM issues right now."
+    });
+  }
+
+  return notifications;
+}
+
+function renderNotifications() {
+  const dashboardPage = document.getElementById("dashboardPage");
+  if (!dashboardPage) return;
+
+  let panelCard = document.getElementById("notificationCard");
+
+  if (!panelCard) {
+    panelCard = document.createElement("div");
+    panelCard.id = "notificationCard";
+    panelCard.className = "card";
+
+    panelCard.innerHTML = `
+      <div class="section-heading">
+        <span class="step">🔔</span>
+        <div>
+          <h2>Smart Notifications</h2>
+          <p>AutoClient alerts based on follow-ups, lead scores, and pipeline health.</p>
+        </div>
+      </div>
+      <div id="notificationPanel" class="notification-panel"></div>
+    `;
+
+    const smartGrid = document.getElementById("smartDashboardGrid");
+
+    if (smartGrid) {
+      smartGrid.insertAdjacentElement("afterend", panelCard);
+    } else {
+      dashboardPage.appendChild(panelCard);
+    }
+  }
+
+  const panel = document.getElementById("notificationPanel");
+  if (!panel) return;
+
+  const notifications = getNotifications();
+
+  panel.innerHTML = notifications.map(notification => `
+    <div class="notification-item notification-${notification.type}">
+      <strong>${notification.title}</strong>
+      <span>${notification.message}</span>
+    </div>
+  `).join("");
 }
 
 async function logActivity(leadId, action, details) {
@@ -461,6 +907,8 @@ function renderAll() {
   renderAnalyticsCharts();
   renderKanbanBoard();
   renderRecentActivity();
+  renderSmartDashboardWidgets();
+  renderNotifications();
 }
 
 function animateCounter(element, target, duration = 700) {
@@ -493,13 +941,18 @@ function updateDashboard() {
   animateCounter(interestedLeads, leads.filter(lead => lead.status === "Interested").length);
   animateCounter(closedLeads, leads.filter(lead => lead.status === "Closed").length);
 
+  const metrics = getSmartMetrics();
+
   if (leads.length === 0) {
     nextActionText.textContent = "Add your first lead or use Quick Lead Finder.";
+  } else if (metrics.hotLeads.length > 0) {
+    nextActionText.textContent = `Focus on ${metrics.hotLeads.length} hot lead(s) first.`;
+  } else if (metrics.overdueFollowUps.length > 0) {
+    nextActionText.textContent = `You have ${metrics.overdueFollowUps.length} overdue follow-up(s).`;
+  } else if (metrics.todayFollowUps.length > 0) {
+    nextActionText.textContent = `${metrics.todayFollowUps.length} follow-up(s) are due today.`;
   } else {
-    const overdue = leads.filter(lead => isOverdue(lead.nextFollowUp)).length;
-    nextActionText.textContent = overdue > 0
-      ? `You have ${overdue} overdue follow-up(s).`
-      : "Generate outreach for your newest leads.";
+    nextActionText.textContent = "Generate outreach for your newest leads.";
   }
 }
 
@@ -519,12 +972,13 @@ function renderRecentLeads() {
   }
 
   recent.forEach(lead => {
+    const score = getLeadScore(lead);
     const div = document.createElement("div");
     div.className = "mini-item";
 
     div.innerHTML = `
       <strong>${lead.businessName}</strong>
-      <span>${lead.status || "New"} • ${lead.priority || "Cold"} Lead</span>
+      <span>${score.label} • ${lead.status || "New"} • ${lead.priority || "Cold"} Lead</span>
     `;
 
     recentLeads.appendChild(div);
@@ -537,6 +991,7 @@ function renderAnalytics() {
   const interested = leads.filter(lead => lead.status === "Interested").length;
   const closed = leads.filter(lead => lead.status === "Closed").length;
   const overdue = leads.filter(lead => isOverdue(lead.nextFollowUp)).length;
+  const hot = leads.filter(lead => getLeadScore(lead).level === "hot").length;
 
   const contactedRate = total ? Math.round((contacted / total) * 100) : 0;
   const interestedRate = total ? Math.round((interested / total) * 100) : 0;
@@ -547,6 +1002,7 @@ function renderAnalytics() {
     <div class="analytics-item"><strong>${interestedRate}%</strong><span>Interested Rate</span></div>
     <div class="analytics-item"><strong>${closeRate}%</strong><span>Close Rate</span></div>
     <div class="analytics-item"><strong>${overdue}</strong><span>Overdue Follow-ups</span></div>
+    <div class="analytics-item"><strong>${hot}</strong><span>Hot Leads</span></div>
   `;
 }
 
@@ -573,18 +1029,6 @@ function getFilteredLeads() {
     });
 }
 
-function isOverdue(dateString) {
-  if (!dateString) return false;
-
-  const today = new Date();
-  const followUpDate = new Date(dateString);
-
-  today.setHours(0, 0, 0, 0);
-  followUpDate.setHours(0, 0, 0, 0);
-
-  return followUpDate < today;
-}
-
 function renderLeads() {
   if (!leadList) return;
 
@@ -603,6 +1047,7 @@ function renderLeads() {
 
   filteredLeads.forEach(({ lead, index }) => {
     const div = document.createElement("div");
+    const score = getLeadScore(lead);
 
     div.className = isOverdue(lead.nextFollowUp)
       ? "lead-card overdue-lead"
@@ -613,11 +1058,15 @@ function renderLeads() {
         <div>
           <h3>${lead.businessName}</h3>
           <span class="priority-badge">${lead.priority || "Cold"} Lead</span>
+          <span class="lead-score-badge score-${score.level}" title="${score.reason}">
+            ${score.label} • ${score.score}
+          </span>
         </div>
         <span class="status-badge">${lead.status || "New"}</span>
       </div>
 
       <div class="lead-meta">
+        <p><strong>Score Reason:</strong> ${score.reason}</p>
         <p><strong>Link:</strong> ${lead.link ? `<a href="${lead.link}" target="_blank">Open</a>` : "N/A"}</p>
         <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
         <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
@@ -1428,6 +1877,8 @@ function renderKanbanBoard() {
       ? lead.status
       : "New";
 
+    const score = getLeadScore(lead);
+
     const card = document.createElement("div");
     card.className = "kanban-card";
     card.draggable = true;
@@ -1437,6 +1888,7 @@ function renderKanbanBoard() {
       <h4>${lead.businessName}</h4>
       <p>${lead.contact || "No contact info"}</p>
       <span class="kanban-priority">${lead.priority || "Cold"} Lead</span>
+      <span class="lead-score-badge score-${score.level}">${score.label}</span>
     `;
 
     card.addEventListener("dragstart", function () {
@@ -1481,5 +1933,6 @@ function renderKanbanBoard() {
   });
 }
 
+injectSmartCRMStyles();
 applySavedTheme();
 checkAuth();
