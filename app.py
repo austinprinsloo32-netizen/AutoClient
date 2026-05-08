@@ -1,4 +1,5 @@
 import requests
+import stripe
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import sqlite3
@@ -23,6 +24,12 @@ ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "Austinprinsloo32@gmail.com").lower(
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_PRO_PRICE_ID = os.environ.get("STRIPE_PRO_PRICE_ID")
+
+if STRIPE_SECRET_KEY:
+    stripe.api_key = STRIPE_SECRET_KEY
 
 
 def get_db_connection():
@@ -70,7 +77,6 @@ def get_field(row, camel_key, fallback=""):
         return fallback
 
     lower_key = camel_key.lower()
-
     return row.get(camel_key) or row.get(lower_key) or fallback
 
 
@@ -807,6 +813,130 @@ def send_email():
         return jsonify({"error": "Email sending failed"}), 500
 
 
+@app.route("/api/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    if not STRIPE_SECRET_KEY:
+        return jsonify({"error": "STRIPE_SECRET_KEY is not configured in Render"}), 500
+
+    if not STRIPE_PRO_PRICE_ID:
+        return jsonify({"error": "STRIPE_PRO_PRICE_ID is not configured in Render"}), 500
+
+    try:
+        base_url = request.host_url.rstrip("/")
+
+        checkout_session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[
+                {
+                    "price": STRIPE_PRO_PRICE_ID,
+                    "quantity": 1
+                }
+            ],
+            success_url=f"{base_url}/billing-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/billing-cancelled"
+        )
+
+        return jsonify({"url": checkout_session.url})
+
+    except Exception as e:
+        print("Stripe checkout error:", e)
+        return jsonify({"error": "Could not create checkout session"}), 500
+
+
+@app.route("/billing-success")
+def billing_success():
+    return """
+    <html>
+      <head>
+        <title>Payment Successful</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background: #f8fafc;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #0f172a;
+          }
+          .card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(15,23,42,0.12);
+            text-align: center;
+            max-width: 520px;
+          }
+          a {
+            display: inline-block;
+            margin-top: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 14px 22px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 800;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>✅ Payment Successful</h1>
+          <p>Your AutoClient Pro test subscription was created successfully.</p>
+          <a href="/app">Open AutoClient</a>
+        </div>
+      </body>
+    </html>
+    """
+
+
+@app.route("/billing-cancelled")
+def billing_cancelled():
+    return """
+    <html>
+      <head>
+        <title>Payment Cancelled</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background: #f8fafc;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #0f172a;
+          }
+          .card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(15,23,42,0.12);
+            text-align: center;
+            max-width: 520px;
+          }
+          a {
+            display: inline-block;
+            margin-top: 20px;
+            background: #2563eb;
+            color: white;
+            padding: 14px 22px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 800;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Payment Cancelled</h1>
+          <p>No payment was made. You can return to the pricing page and try again.</p>
+          <a href="/">Back to Landing Page</a>
+        </div>
+      </body>
+    </html>
+    """
+
+
 @app.route("/api/find-leads", methods=["POST"])
 def find_leads():
     data = request.get_json()
@@ -912,7 +1042,6 @@ def admin_leads():
     return jsonify([row_to_dict(lead) for lead in leads])
 
 
-# This must stay LAST so it does not block API routes.
 @app.route("/<path:path>")
 def serve_static(path):
     if os.path.exists(path):

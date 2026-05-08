@@ -51,3 +51,37 @@ const revealObserver = new IntersectionObserver(entries => {
 });
 
 revealItems.forEach(item => revealObserver.observe(item));
+
+const proCheckoutBtn = document.getElementById("proCheckoutBtn");
+
+if (proCheckoutBtn) {
+  proCheckoutBtn.addEventListener("click", async () => {
+    proCheckoutBtn.textContent = "Opening Checkout...";
+    proCheckoutBtn.disabled = true;
+
+    try {
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Could not start checkout.");
+        proCheckoutBtn.textContent = "Try Pro";
+        proCheckoutBtn.disabled = false;
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Could not connect to checkout.");
+      proCheckoutBtn.textContent = "Try Pro";
+      proCheckoutBtn.disabled = false;
+    }
+  });
+}
