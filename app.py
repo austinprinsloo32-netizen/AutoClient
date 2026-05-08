@@ -438,7 +438,7 @@ def add_lead():
             data.get("userId"),
             lead_dict["id"],
             "Lead Created",
-            f"{lead_dict['businessName']} was added to your CRM."
+            f"{lead_dict.get('businessName') or lead_dict.get('businessname')} was added to your CRM."
         )
 
         return jsonify(lead_dict), 201
