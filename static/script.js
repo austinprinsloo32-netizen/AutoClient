@@ -122,6 +122,17 @@ function showToast(message, type = "info") {
   }, 3200);
 }
 
+async function readJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    console.error("Response was not valid JSON:", error);
+    return {
+      error: "Server returned an invalid response. Check Render logs."
+    };
+  }
+}
+
 function normalizeLead(lead) {
   return {
     id: lead.id,
@@ -187,7 +198,7 @@ async function fetchActivities() {
 
   try {
     const response = await fetch(`${ACTIVITIES_URL}?userId=${currentUser.id}`);
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Activity fetch error:", data);
@@ -337,10 +348,11 @@ registerForm.addEventListener("submit", async function (e) {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       showToast(data.error || "Registration failed.", "error");
+      alert(data.error || "Registration failed.");
       return;
     }
 
@@ -355,6 +367,7 @@ registerForm.addEventListener("submit", async function (e) {
   } catch (error) {
     console.error("Register error:", error);
     showToast("Could not register. Make sure backend is running.", "error");
+    alert("Register connection error. Check Console and Render logs.");
   }
 });
 
@@ -376,10 +389,11 @@ loginForm.addEventListener("submit", async function (e) {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       showToast(data.error || "Login failed.", "error");
+      alert(data.error || "Login failed.");
       return;
     }
 
@@ -394,6 +408,7 @@ loginForm.addEventListener("submit", async function (e) {
   } catch (error) {
     console.error("Login error:", error);
     showToast("Could not login. Make sure backend is running.", "error");
+    alert("Login connection error. Check Console and Render logs.");
   }
 });
 
@@ -417,7 +432,7 @@ async function fetchLeads() {
 
   try {
     const response = await fetch(`${API_URL}?userId=${currentUser.id}`);
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Fetch leads server error:", data);
@@ -657,11 +672,11 @@ leadForm.addEventListener("submit", async function (e) {
 
   const leadData = {
     userId: currentUser.id,
-    businessName,
-    link: leadLink,
-    contact: contactInfo,
-    priority,
-    notes,
+    businessName: businessName || "Untitled Lead",
+    link: leadLink || "",
+    contact: contactInfo || "",
+    priority: priority || "Cold",
+    notes: notes || "",
     status: "New",
     createdAt: new Date().toLocaleString(),
     lastContacted: "",
@@ -700,10 +715,11 @@ leadForm.addEventListener("submit", async function (e) {
       });
     }
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Save lead server error:", data);
+      alert(data.error || "Could not save lead. Check Render logs.");
       showToast(data.error || "Could not save lead.", "error");
       return;
     }
@@ -716,6 +732,7 @@ leadForm.addEventListener("submit", async function (e) {
     showToast(wasEditing ? "Lead updated successfully." : "Lead saved successfully.", "success");
   } catch (error) {
     console.error("Save lead connection error:", error);
+    alert("Could not connect to backend. Check Console and Render logs.");
     showToast("Could not connect to backend.", "error");
   }
 });
@@ -745,7 +762,7 @@ async function deleteLead(index) {
       method: "DELETE"
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Delete lead server error:", data);
@@ -777,7 +794,7 @@ async function updateStatus(index, newStatus) {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Update status server error:", data);
@@ -824,7 +841,7 @@ async function updateLead(leadId, payload) {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       console.error("Update lead server error:", data);
@@ -947,7 +964,7 @@ async function handleGenerate(index) {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(data.error || "Message failed");
@@ -1073,11 +1090,11 @@ function renderLeadIdeas(ideas) {
 
       const newLead = {
         userId: currentUser.id,
-        businessName: idea.businessName,
+        businessName: idea.businessName || "Untitled Lead",
         link: googleSearchUrl,
         contact: "",
         priority: "Warm",
-        notes: idea.notes,
+        notes: idea.notes || "",
         status: "New",
         createdAt: new Date().toLocaleString(),
         lastContacted: "",
@@ -1093,10 +1110,11 @@ function renderLeadIdeas(ideas) {
           body: JSON.stringify(newLead)
         });
 
-        const data = await response.json();
+        const data = await readJsonResponse(response);
 
         if (!response.ok) {
           console.error("Add idea server error:", data);
+          alert(data.error || "Could not add lead idea. Check Render logs.");
           showToast(data.error || "Could not add lead.", "error");
           return;
         }
@@ -1105,6 +1123,7 @@ function renderLeadIdeas(ideas) {
         showToast("Lead idea added successfully.", "success");
       } catch (error) {
         console.error("Add idea connection error:", error);
+        alert("Could not connect to backend while adding lead idea.");
         showToast("Could not connect to backend.", "error");
       }
     });
@@ -1138,7 +1157,7 @@ findLeadsBtn.addEventListener("click", async function () {
       })
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(data.error || "Failed");
@@ -1223,9 +1242,9 @@ async function loadAdminDashboard() {
     const usersRes = await fetch(`${BASE_URL}/api/admin/users?userId=${currentUser.id}`);
     const leadsRes = await fetch(`${BASE_URL}/api/admin/leads?userId=${currentUser.id}`);
 
-    const stats = await statsRes.json();
-    const users = await usersRes.json();
-    const allLeads = await leadsRes.json();
+    const stats = await readJsonResponse(statsRes);
+    const users = await readJsonResponse(usersRes);
+    const allLeads = await readJsonResponse(leadsRes);
 
     if (!statsRes.ok || !usersRes.ok || !leadsRes.ok) {
       throw new Error("Admin request failed");
