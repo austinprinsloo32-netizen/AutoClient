@@ -30,12 +30,11 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_PRO_PRICE_ID = os.environ.get("STRIPE_PRO_PRICE_ID")
-STRIPE_AGENCY_PRICE_ID = os.environ.get("STRIPE_AGENCY_PRICE_ID")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL",
-    "https://austinprinsloo32-netizen.github.io/AutoClient"
+    "https://autoclient-v2.onrender.com"
 ).rstrip("/")
 
 if STRIPE_SECRET_KEY:
@@ -75,6 +74,8 @@ PLAN_LIMITS = {
     }
 }
 
+
+# ================= DATABASE =================
 
 def get_db_connection():
     if USING_POSTGRES:
@@ -393,16 +394,6 @@ def update_subscription_by_stripe_id(stripe_subscription_id, plan, subscription_
         ), commit=True)
 
 
-def plan_from_price_id(price_id):
-    if STRIPE_AGENCY_PRICE_ID and price_id == STRIPE_AGENCY_PRICE_ID:
-        return "agency"
-
-    if STRIPE_PRO_PRICE_ID and price_id == STRIPE_PRO_PRICE_ID:
-        return "pro"
-
-    return "free"
-
-
 def is_admin_user(user_id):
     user = get_user_by_id(user_id)
 
@@ -433,6 +424,8 @@ def log_activity(user_id, lead_id, action, details=""):
         print("Activity log error:", e)
 
 
+# ================= BASIC ROUTES =================
+
 @app.route("/")
 def home():
     return send_from_directory(".", "landing.html")
@@ -450,6 +443,7 @@ def status():
         "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
         "status": "success",
         "stripeConfigured": bool(STRIPE_SECRET_KEY),
+        "stripeWebhookConfigured": bool(STRIPE_WEBHOOK_SECRET),
         "billing": "enabled"
     })
 
@@ -653,6 +647,7 @@ def create_checkout_session():
         print("Stripe checkout error:", e)
         return jsonify({"error": "Checkout session failed"}), 500
 
+
 @app.route("/api/create-billing-portal-session", methods=["POST"])
 def create_billing_portal_session():
     if not STRIPE_SECRET_KEY:
@@ -691,11 +686,11 @@ def create_billing_portal_session():
 
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
-    payload = request.data
-    sig_header = request.headers.get("Stripe-Signature")
-
     if not STRIPE_WEBHOOK_SECRET:
         return jsonify({"error": "STRIPE_WEBHOOK_SECRET is not configured"}), 500
+
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature")
 
     try:
         event = stripe.Webhook.construct_event(
@@ -732,10 +727,12 @@ def stripe_webhook():
                 f"User upgraded to {plan.upper()} plan."
             )
 
+            print(f"User {user_id} upgraded to {plan}")
+
     elif event_type == "customer.subscription.created":
         subscription_id = data_object.get("id")
         customer_id = data_object.get("customer")
-        status = data_object.get("status", "active")
+        status_value = data_object.get("status", "active")
         metadata = data_object.get("metadata", {})
         user_id = metadata.get("userId")
         plan = normalize_plan(metadata.get("plan", "pro"))
@@ -746,24 +743,19 @@ def stripe_webhook():
                 plan=plan,
                 stripe_customer_id=customer_id,
                 stripe_subscription_id=subscription_id,
-                subscription_status=status
+                subscription_status=status_value
             )
 
     elif event_type == "customer.subscription.updated":
         subscription_id = data_object.get("id")
-        status = data_object.get("status")
-        items = data_object.get("items", {}).get("data", [])
+        status_value = data_object.get("status")
 
-        plan = "free"
-
-        if status in ["active", "trialing"] and items:
-            price_id = items[0].get("price", {}).get("id")
-            plan = plan_from_price_id(price_id)
+        plan = "pro" if status_value in ["active", "trialing"] else "free"
 
         update_subscription_by_stripe_id(
             stripe_subscription_id=subscription_id,
             plan=plan,
-            subscription_status=status
+            subscription_status=status_value
         )
 
     elif event_type == "customer.subscription.deleted":
@@ -779,24 +771,11 @@ def stripe_webhook():
         subscription_id = data_object.get("subscription")
 
         if subscription_id:
-            try:
-                subscription = stripe.Subscription.retrieve(subscription_id)
-                items = subscription.get("items", {}).get("data", [])
-                status = subscription.get("status", "active")
-
-                plan = "pro"
-
-                if items:
-                    price_id = items[0].get("price", {}).get("id")
-                    plan = plan_from_price_id(price_id)
-
-                update_subscription_by_stripe_id(
-                    stripe_subscription_id=subscription_id,
-                    plan=plan,
-                    subscription_status=status
-                )
-            except Exception as e:
-                print("Invoice success subscription lookup error:", e)
+            update_subscription_by_stripe_id(
+                stripe_subscription_id=subscription_id,
+                plan="pro",
+                subscription_status="active"
+            )
 
     elif event_type == "invoice.payment_failed":
         subscription_id = data_object.get("subscription")
@@ -809,42 +788,6 @@ def stripe_webhook():
             )
 
     return jsonify({"received": True})
-
-
-@app.route("/billing-success")
-def billing_success():
-    return """
-    <html>
-      <head>
-        <title>Payment Successful</title>
-      </head>
-      <body style="font-family:Arial;display:grid;place-items:center;min-height:100vh;background:#f8fafc;">
-        <div style="background:white;padding:40px;border-radius:24px;text-align:center;box-shadow:0 20px 50px rgba(15,23,42,.12);">
-          <h1>✅ Payment Successful</h1>
-          <p>Your AutoClient subscription was created successfully.</p>
-          <a href="/app" style="display:inline-block;margin-top:20px;background:#2563eb;color:white;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:800;">Open AutoClient</a>
-        </div>
-      </body>
-    </html>
-    """
-
-
-@app.route("/billing-cancelled")
-def billing_cancelled():
-    return """
-    <html>
-      <head>
-        <title>Payment Cancelled</title>
-      </head>
-      <body style="font-family:Arial;display:grid;place-items:center;min-height:100vh;background:#f8fafc;">
-        <div style="background:white;padding:40px;border-radius:24px;text-align:center;box-shadow:0 20px 50px rgba(15,23,42,.12);">
-          <h1>Payment Cancelled</h1>
-          <p>No payment was made.</p>
-          <a href="/" style="display:inline-block;margin-top:20px;background:#2563eb;color:white;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:800;">Back to Landing Page</a>
-        </div>
-      </body>
-    </html>
-    """
 
 
 # ================= ACTIVITIES =================
@@ -1182,7 +1125,7 @@ def generate_message():
     user_id = data.get("userId")
 
     if user_id and not user_has_feature(user_id, "ai_outreach"):
-        return jsonify({"error": "AI outreach is available on Pro or Agency plans."}), 403
+        return jsonify({"error": "AI outreach is available on Pro plan."}), 403
 
     business = data.get("businessName")
     service = data.get("service", "my services")
@@ -1261,7 +1204,7 @@ def send_email():
     user_id = data.get("userId")
 
     if user_id and not user_has_feature(user_id, "email_integration"):
-        return jsonify({"error": "Email sending is available on Pro or Agency plans."}), 403
+        return jsonify({"error": "Email sending is available on Pro plan."}), 403
 
     lead_id = data.get("leadId")
     to_email = data.get("to", "").strip()
@@ -1392,7 +1335,6 @@ def admin_stats():
     interested = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'", fetchone=True)
     closed = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'", fetchone=True)
     pro_users = execute_query("SELECT COUNT(*) AS count FROM users WHERE plan = 'pro'", fetchone=True)
-    agency_users = execute_query("SELECT COUNT(*) AS count FROM users WHERE plan = 'agency'", fetchone=True)
 
     return jsonify({
         "totalUsers": row_to_dict(total_users)["count"],
@@ -1400,8 +1342,7 @@ def admin_stats():
         "newLeads": row_to_dict(new_leads)["count"],
         "interestedLeads": row_to_dict(interested)["count"],
         "closedLeads": row_to_dict(closed)["count"],
-        "proUsers": row_to_dict(pro_users)["count"],
-        "agencyUsers": row_to_dict(agency_users)["count"]
+        "proUsers": row_to_dict(pro_users)["count"]
     })
 
 
