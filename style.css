@@ -1150,3 +1150,106 @@ body.dark-mode .activity-item {
   border-color: #1e293b;
   border-left-color: #2563eb;
 }
+/* ================================
+   SMART SCORING UI POLISH
+================================ */
+
+.priority-badge {
+  background: #e2e8f0;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.lead-score-badge {
+  margin-left: 8px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.score-hot {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.score-warm {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.score-cold {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #7dd3fc;
+}
+
+.status-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+/* Dark mode badge visibility fixes */
+
+body.dark-mode .priority-badge {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+}
+
+body.dark-mode .status-badge {
+  background: #172554;
+  color: #bfdbfe;
+  border: 1px solid #2563eb;
+}
+
+body.dark-mode .score-hot {
+  background: #7f1d1d;
+  color: #fee2e2;
+  border: 1px solid #ef4444;
+}
+
+body.dark-mode .score-warm {
+  background: #78350f;
+  color: #fef3c7;
+  border: 1px solid #f59e0b;
+}
+
+body.dark-mode .score-cold {
+  background: #075985;
+  color: #e0f2fe;
+  border: 1px solid #38bdf8;
+}
+
+body.dark-mode .lead-meta {
+  color: #cbd5e1;
+}
+
+body.dark-mode .lead-meta strong {
+  color: #f8fafc;
+}
+
+body.dark-mode .lead-card select {
+  background: #020617;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+body.dark-mode .kanban-priority {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+}
+
+/* Better label naming feel */
+
+.priority-badge::before {
+  content: "Priority: ";
+  font-weight: 900;
+}
+
+.lead-score-badge::before {
+  content: "Score: ";
+  font-weight: 900;
+}
