@@ -61,6 +61,15 @@ def placeholder():
     return "%s" if USING_POSTGRES else "?"
 
 
+def get_field(row, camel_key, fallback=""):
+    if not row:
+        return fallback
+
+    lower_key = camel_key.lower()
+
+    return row.get(camel_key) or row.get(lower_key) or fallback
+
+
 def add_column_if_missing(table_name, column_name, column_type):
     if USING_POSTGRES:
         existing = execute_query("""
@@ -325,7 +334,7 @@ def login():
             "id": user["id"],
             "name": user["name"],
             "email": user["email"],
-            "createdAt": user.get("createdAt", ""),
+            "createdAt": get_field(user, "createdAt"),
             "isAdmin": user["email"].lower() == ADMIN_EMAIL
         }
     })
@@ -433,12 +442,13 @@ def add_lead():
         ), fetchone=True, commit=True)
 
         lead_dict = row_to_dict(lead)
+        business_name = get_field(lead_dict, "businessName", data.get("businessName"))
 
         log_activity(
             data.get("userId"),
             lead_dict["id"],
             "Lead Created",
-            f"{lead_dict.get('businessName') or lead_dict.get('businessname')} was added to your CRM."
+            f"{business_name} was added to your CRM."
         )
 
         return jsonify(lead_dict), 201
@@ -484,21 +494,30 @@ def add_lead():
 def update_lead(lead_id):
     data = request.get_json()
 
+    p = placeholder()
+
     old_lead = execute_query(
-        f"SELECT * FROM leads WHERE id = {placeholder()}",
+        f"SELECT * FROM leads WHERE id = {p}",
         (lead_id,),
         fetchone=True
     )
-    old_lead = row_to_dict(old_lead)
 
+    old_lead = row_to_dict(old_lead)
     old_status = old_lead.get("status") if old_lead else None
     new_status = data.get("status")
 
     if USING_POSTGRES:
         lead = execute_query("""
             UPDATE leads
-            SET businessName=%s, link=%s, contact=%s, priority=%s, notes=%s,
-                status=%s, createdAt=%s, lastContacted=%s, nextFollowUp=%s
+            SET businessName=%s,
+                link=%s,
+                contact=%s,
+                priority=%s,
+                notes=%s,
+                status=%s,
+                createdAt=%s,
+                lastContacted=%s,
+                nextFollowUp=%s
             WHERE id=%s
             RETURNING *
         """, (
@@ -516,40 +535,48 @@ def update_lead(lead_id):
 
         lead_dict = row_to_dict(lead)
 
-    if lead_dict:
-        business_name = (
-            lead_dict.get("businessName")
-            or lead_dict.get("businessname")
-            or data.get("businessName")
-            or "Lead"
-        )
+        if lead_dict:
+            business_name = get_field(
+                lead_dict,
+                "businessName",
+                data.get("businessName") or "Lead"
+            )
 
-        if old_status and new_status and old_status != new_status:
-            log_activity(
-                data.get("userId"),
-                lead_id,
-                "Lead Status Changed",
-                f"{business_name} moved from {old_status} to {new_status}."
-            )
-        elif data.get("nextFollowUp"):
-            log_activity(
-                data.get("userId"),
-                lead_id,
-                "Follow-up Scheduled",
-                f"Next follow-up set for {data.get('nextFollowUp')}."
-            )
-        else:
-            log_activity(
-                data.get("userId"),
-                lead_id,
-                "Lead Updated",
-                f"{business_name} was updated."
-            )
+            if old_status and new_status and old_status != new_status:
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Lead Status Changed",
+                    f"{business_name} moved from {old_status} to {new_status}."
+                )
+            elif data.get("nextFollowUp"):
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Follow-up Scheduled",
+                    f"Next follow-up set for {data.get('nextFollowUp')}."
+                )
+            else:
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Lead Updated",
+                    f"{business_name} was updated."
+                )
+
+        return jsonify(lead_dict)
 
     execute_query("""
         UPDATE leads
-        SET businessName=?, link=?, contact=?, priority=?, notes=?,
-            status=?, createdAt=?, lastContacted=?, nextFollowUp=?
+        SET businessName=?,
+            link=?,
+            contact=?,
+            priority=?,
+            notes=?,
+            status=?,
+            createdAt=?,
+            lastContacted=?,
+            nextFollowUp=?
         WHERE id=?
     """, (
         data.get("businessName"),
@@ -564,12 +591,14 @@ def update_lead(lead_id):
         lead_id
     ), commit=True)
 
+    business_name = data.get("businessName") or "Lead"
+
     if old_status and new_status and old_status != new_status:
         log_activity(
             data.get("userId"),
             lead_id,
             "Lead Status Changed",
-            f"{data.get('businessName')} moved from {old_status} to {new_status}."
+            f"{business_name} moved from {old_status} to {new_status}."
         )
     elif data.get("nextFollowUp"):
         log_activity(
@@ -583,7 +612,7 @@ def update_lead(lead_id):
             data.get("userId"),
             lead_id,
             "Lead Updated",
-            f"{data.get('businessName')} was updated."
+            f"{business_name} was updated."
         )
 
     return jsonify({"message": "Lead updated"})
@@ -598,14 +627,18 @@ def delete_lead(lead_id):
         (lead_id,),
         fetchone=True
     )
+
     lead = row_to_dict(lead)
 
     if lead:
+        user_id = get_field(lead, "userId")
+        business_name = get_field(lead, "businessName", "Lead")
+
         log_activity(
-            lead.get("userId"),
+            user_id,
             lead_id,
             "Lead Deleted",
-            f"{lead.get('businessName')} was deleted from your CRM."
+            f"{business_name} was deleted from your CRM."
         )
 
     execute_query(
