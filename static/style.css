@@ -1106,4 +1106,42 @@ body.dark-mode a {
   color: #0891b2;
 }
 
+/* ================================
+   ACTIVITY TIMELINE
+================================ */
 
+.activity-feed {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.activity-item strong {
+  font-size: 14px;
+}
+
+.activity-item span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+body.dark-mode .activity-item {
+  background: #020617;
+  border-color: #1e293b;
+  border-left-color: #2563eb;
+}

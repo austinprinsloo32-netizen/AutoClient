@@ -114,11 +114,35 @@
           </div>
 
           <div class="dashboard">
-            <div class="stat-card"><span>Total</span><h3 id="totalLeads">0</h3><p>Total Leads</p></div>
-            <div class="stat-card"><span>New</span><h3 id="newLeads">0</h3><p>New</p></div>
-            <div class="stat-card"><span>Sent</span><h3 id="contactedLeads">0</h3><p>Contacted</p></div>
-            <div class="stat-card"><span>Hot</span><h3 id="interestedLeads">0</h3><p>Interested</p></div>
-            <div class="stat-card"><span>Won</span><h3 id="closedLeads">0</h3><p>Closed</p></div>
+            <div class="stat-card">
+              <span>Total</span>
+              <h3 id="totalLeads">0</h3>
+              <p>Total Leads</p>
+            </div>
+
+            <div class="stat-card">
+              <span>New</span>
+              <h3 id="newLeads">0</h3>
+              <p>New</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Sent</span>
+              <h3 id="contactedLeads">0</h3>
+              <p>Contacted</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Hot</span>
+              <h3 id="interestedLeads">0</h3>
+              <p>Interested</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Won</span>
+              <h3 id="closedLeads">0</h3>
+              <p>Closed</p>
+            </div>
           </div>
 
           <div class="two-grid">
@@ -152,6 +176,37 @@
               <div id="recentLeads" class="mini-list"></div>
             </div>
           </div>
+
+          <div class="two-grid">
+            <div class="card">
+              <div class="section-heading">
+                <span class="step">📌</span>
+                <div>
+                  <h2>Recent Activity</h2>
+                  <p>Latest CRM actions inside your workspace.</p>
+                </div>
+              </div>
+
+              <div id="recentActivity" class="activity-feed"></div>
+            </div>
+
+            <div class="card">
+              <div class="section-heading">
+                <span class="step">🎯</span>
+                <div>
+                  <h2>CRM Focus</h2>
+                  <p>Your current workflow summary.</p>
+                </div>
+              </div>
+
+              <div class="mini-list">
+                <div class="mini-item">
+                  <strong>Keep your pipeline moving</strong>
+                  <span>Review overdue follow-ups, contact new leads, and move interested prospects forward.</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section id="leadsPage" class="page-section">
@@ -160,6 +215,7 @@
               <h2>Lead Folder</h2>
               <p>All saved leads are managed from this dedicated CRM folder.</p>
             </div>
+
             <button id="exportBtn" class="dark-btn">Export CSV</button>
           </div>
 
@@ -213,44 +269,37 @@
           </div>
 
           <div id="leadList" class="lead-list"></div>
+
           <div class="kanban-wrapper">
-  <div class="kanban-header">
-    <h2>CRM Pipeline</h2>
-    <p>Track lead progress visually across your sales pipeline.</p>
-  </div>
+            <div class="kanban-header">
+              <h2>CRM Pipeline</h2>
+              <p>Track lead progress visually across your sales pipeline.</p>
+            </div>
 
-  <div class="kanban-board">
+            <div class="kanban-board">
 
-    <div class="kanban-column">
-      <div class="kanban-title new-title">
-        New
-      </div>
-      <div id="kanban-new" class="kanban-dropzone"></div>
-    </div>
+              <div class="kanban-column">
+                <div class="kanban-title new-title">New</div>
+                <div id="kanban-new" class="kanban-dropzone"></div>
+              </div>
 
-    <div class="kanban-column">
-      <div class="kanban-title contacted-title">
-        Contacted
-      </div>
-      <div id="kanban-contacted" class="kanban-dropzone"></div>
-    </div>
+              <div class="kanban-column">
+                <div class="kanban-title contacted-title">Contacted</div>
+                <div id="kanban-contacted" class="kanban-dropzone"></div>
+              </div>
 
-    <div class="kanban-column">
-      <div class="kanban-title interested-title">
-        Interested
-      </div>
-      <div id="kanban-interested" class="kanban-dropzone"></div>
-    </div>
+              <div class="kanban-column">
+                <div class="kanban-title interested-title">Interested</div>
+                <div id="kanban-interested" class="kanban-dropzone"></div>
+              </div>
 
-    <div class="kanban-column">
-      <div class="kanban-title closed-title">
-        Closed
-      </div>
-      <div id="kanban-closed" class="kanban-dropzone"></div>
-    </div>
+              <div class="kanban-column">
+                <div class="kanban-title closed-title">Closed</div>
+                <div id="kanban-closed" class="kanban-dropzone"></div>
+              </div>
 
-  </div>
-</div> 
+            </div>
+          </div>
         </section>
 
         <section id="outreachPage" class="page-section">
@@ -322,15 +371,40 @@
               <h2>Admin Dashboard</h2>
               <p>Owner-only overview of users, leads, and platform activity.</p>
             </div>
+
             <button id="refreshAdminBtn" class="primary-btn">Refresh Admin Data</button>
           </div>
 
           <div class="dashboard admin-dashboard">
-            <div class="stat-card"><span>Users</span><h3 id="adminTotalUsers">0</h3><p>Total Users</p></div>
-            <div class="stat-card"><span>Leads</span><h3 id="adminTotalLeads">0</h3><p>Total Leads</p></div>
-            <div class="stat-card"><span>New</span><h3 id="adminNewLeads">0</h3><p>New Leads</p></div>
-            <div class="stat-card"><span>Hot</span><h3 id="adminInterestedLeads">0</h3><p>Interested</p></div>
-            <div class="stat-card"><span>Won</span><h3 id="adminClosedLeads">0</h3><p>Closed</p></div>
+            <div class="stat-card">
+              <span>Users</span>
+              <h3 id="adminTotalUsers">0</h3>
+              <p>Total Users</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Leads</span>
+              <h3 id="adminTotalLeads">0</h3>
+              <p>Total Leads</p>
+            </div>
+
+            <div class="stat-card">
+              <span>New</span>
+              <h3 id="adminNewLeads">0</h3>
+              <p>New Leads</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Hot</span>
+              <h3 id="adminInterestedLeads">0</h3>
+              <p>Interested</p>
+            </div>
+
+            <div class="stat-card">
+              <span>Won</span>
+              <h3 id="adminClosedLeads">0</h3>
+              <p>Closed</p>
+            </div>
           </div>
 
           <div class="two-grid">
@@ -367,8 +441,8 @@
       </section>
     </main>
   </div>
-  <div id="toastContainer" class="toast-container"></div>
 
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="script.js"></script>

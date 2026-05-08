@@ -4,6 +4,9 @@ const BASE_URL =
     : "";
 
 const API_URL = `${BASE_URL}/api/leads`;
+const ACTIVITIES_URL = `${BASE_URL}/api/activities`;
+const ACTIVITY_LOG_URL = `${BASE_URL}/api/activities/log`;
+
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
 const authSection = document.getElementById("authSection");
@@ -22,6 +25,7 @@ const leadLocation = document.getElementById("leadLocation");
 const leadForm = document.getElementById("leadForm");
 const leadList = document.getElementById("leadList");
 const recentLeads = document.getElementById("recentLeads");
+const recentActivity = document.getElementById("recentActivity");
 
 const serviceInput = document.getElementById("serviceInput");
 const messageOutput = document.getElementById("messageOutput");
@@ -66,6 +70,7 @@ const settingsUserRole = document.getElementById("settingsUserRole");
 const themeToggle = document.getElementById("themeToggle");
 
 let leads = [];
+let activities = [];
 let editIndex = null;
 let leadStatusChart;
 let outreachChart;
@@ -129,7 +134,20 @@ function normalizeLead(lead) {
     status: lead.status || "New",
     createdAt: lead.createdAt || lead.createdat || "",
     lastContacted: lead.lastContacted || lead.lastcontacted || "",
-    nextFollowUp: lead.nextFollowUp || lead.nextfollowup || ""
+    nextFollowUp: lead.nextFollowUp || lead.nextfollowup || "",
+    ownerName: lead.ownerName || lead.ownername || "",
+    ownerEmail: lead.ownerEmail || lead.owneremail || ""
+  };
+}
+
+function normalizeActivity(activity) {
+  return {
+    id: activity.id,
+    userId: activity.userId || activity.userid,
+    leadId: activity.leadId || activity.leadid,
+    action: activity.action || "Activity",
+    details: activity.details || "",
+    createdAt: activity.createdAt || activity.createdat || ""
   };
 }
 
@@ -141,6 +159,77 @@ function isCurrentAdmin() {
   );
 }
 
+async function logActivity(leadId, action, details) {
+  if (!currentUser) return;
+
+  try {
+    await fetch(ACTIVITY_LOG_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        leadId,
+        action,
+        details
+      })
+    });
+
+    await fetchActivities();
+  } catch (error) {
+    console.error("Activity log error:", error);
+  }
+}
+
+async function fetchActivities() {
+  if (!currentUser) return;
+
+  try {
+    const response = await fetch(`${ACTIVITIES_URL}?userId=${currentUser.id}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Activity fetch error:", data);
+      return;
+    }
+
+    activities = data.map(normalizeActivity);
+    renderRecentActivity();
+  } catch (error) {
+    console.error("Fetch activities error:", error);
+  }
+}
+
+function renderRecentActivity() {
+  if (!recentActivity) return;
+
+  recentActivity.innerHTML = "";
+
+  if (!activities.length) {
+    recentActivity.innerHTML = `
+      <div class="activity-item">
+        <strong>No recent activity</strong>
+        <span>Your CRM actions will appear here.</span>
+      </div>
+    `;
+    return;
+  }
+
+  activities.slice(0, 8).forEach(activity => {
+    const div = document.createElement("div");
+    div.className = "activity-item";
+
+    div.innerHTML = `
+      <strong>${activity.action}</strong>
+      <span>${activity.details || "No details available."}</span>
+      <div class="activity-time">${activity.createdAt || "Just now"}</div>
+    `;
+
+    recentActivity.appendChild(div);
+  });
+}
+
 function showPage(pageId) {
   if (pageId === "adminPage" && !isCurrentAdmin()) {
     showToast("Admin access only.", "warning");
@@ -148,20 +237,28 @@ function showPage(pageId) {
   }
 
   pageSections.forEach(section => section.classList.remove("active-page"));
-  document.getElementById(pageId).classList.add("active-page");
+
+  const targetPage = document.getElementById(pageId);
+  if (targetPage) {
+    targetPage.classList.add("active-page");
+  }
 
   navLinks.forEach(link => {
     link.classList.toggle("active", link.dataset.page === pageId);
   });
 
-  pageTitle.textContent = pageInfo[pageId].title;
-  pageSubtitle.textContent = pageInfo[pageId].subtitle;
+  if (pageInfo[pageId]) {
+    pageTitle.textContent = pageInfo[pageId].title;
+    pageSubtitle.textContent = pageInfo[pageId].subtitle;
+  }
 
   if (pageId === "adminPage") {
     loadAdminDashboard();
   }
 
-  sidebar.classList.remove("open");
+  if (sidebar) {
+    sidebar.classList.remove("open");
+  }
 }
 
 navLinks.forEach(link => {
@@ -172,9 +269,11 @@ document.querySelectorAll("[data-page-jump]").forEach(button => {
   button.addEventListener("click", () => showPage(button.dataset.pageJump));
 });
 
-mobileMenuBtn.addEventListener("click", () => {
-  sidebar.classList.toggle("open");
-});
+if (mobileMenuBtn && sidebar) {
+  mobileMenuBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+  });
+}
 
 function showAuth() {
   authSection.style.display = "grid";
@@ -228,8 +327,14 @@ registerForm.addEventListener("submit", async function (e) {
   try {
     const response = await fetch(`${BASE_URL}/api/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password
+      })
     });
 
     const data = await response.json();
@@ -244,6 +349,7 @@ registerForm.addEventListener("submit", async function (e) {
 
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     registerForm.reset();
+
     showToast("Account created successfully.", "success");
     showApp();
   } catch (error) {
@@ -261,8 +367,13 @@ loginForm.addEventListener("submit", async function (e) {
   try {
     const response = await fetch(`${BASE_URL}/api/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
     });
 
     const data = await response.json();
@@ -277,6 +388,7 @@ loginForm.addEventListener("submit", async function (e) {
 
     localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
     loginForm.reset();
+
     showToast("Logged in successfully.", "success");
     showApp();
   } catch (error) {
@@ -288,10 +400,15 @@ loginForm.addEventListener("submit", async function (e) {
 logoutBtn.addEventListener("click", function () {
   currentUser = null;
   leads = [];
+  activities = [];
+
   localStorage.removeItem("autoclient_user");
+
   renderLeads();
+  renderRecentActivity();
   showAuth();
   showPage("dashboardPage");
+
   showToast("Logged out successfully.", "info");
 });
 
@@ -310,6 +427,9 @@ async function fetchLeads() {
     }
 
     leads = data.map(normalizeLead);
+
+    await fetchActivities();
+
     renderAll();
   } catch (error) {
     console.error("Fetch leads connection error:", error);
@@ -325,6 +445,7 @@ function renderAll() {
   renderAnalytics();
   renderAnalyticsCharts();
   renderKanbanBoard();
+  renderRecentActivity();
 }
 
 function animateCounter(element, target, duration = 700) {
@@ -373,17 +494,24 @@ function renderRecentLeads() {
   const recent = leads.slice(0, 5);
 
   if (recent.length === 0) {
-    recentLeads.innerHTML = `<div class="mini-item"><strong>No recent leads</strong><span>Add a lead to see it here.</span></div>`;
+    recentLeads.innerHTML = `
+      <div class="mini-item">
+        <strong>No recent leads</strong>
+        <span>Add a lead to see it here.</span>
+      </div>
+    `;
     return;
   }
 
   recent.forEach(lead => {
     const div = document.createElement("div");
     div.className = "mini-item";
+
     div.innerHTML = `
       <strong>${lead.businessName}</strong>
       <span>${lead.status || "New"} • ${lead.priority || "Cold"} Lead</span>
     `;
+
     recentLeads.appendChild(div);
   });
 }
@@ -412,7 +540,10 @@ function getFilteredLeads() {
   const selectedStatus = filterStatus.value;
 
   return leads
-    .map((lead, index) => ({ lead, index }))
+    .map((lead, index) => ({
+      lead,
+      index
+    }))
     .filter(({ lead }) => {
       const matchesSearch =
         lead.businessName.toLowerCase().includes(searchTerm) ||
@@ -420,7 +551,9 @@ function getFilteredLeads() {
         (lead.notes || "").toLowerCase().includes(searchTerm) ||
         (lead.link || "").toLowerCase().includes(searchTerm);
 
-      const matchesStatus = selectedStatus === "all" || lead.status === selectedStatus;
+      const matchesStatus =
+        selectedStatus === "all" || lead.status === selectedStatus;
+
       return matchesSearch && matchesStatus;
     });
 }
@@ -455,6 +588,7 @@ function renderLeads() {
 
   filteredLeads.forEach(({ lead, index }) => {
     const div = document.createElement("div");
+
     div.className = isOverdue(lead.nextFollowUp)
       ? "lead-card overdue-lead"
       : "lead-card";
@@ -519,6 +653,8 @@ leadForm.addEventListener("submit", async function (e) {
   const priority = document.getElementById("priority").value;
   const notes = document.getElementById("notes").value.trim();
 
+  const wasEditing = editIndex !== null;
+
   const leadData = {
     userId: currentUser.id,
     businessName,
@@ -535,12 +671,14 @@ leadForm.addEventListener("submit", async function (e) {
   try {
     let response;
 
-    if (editIndex !== null) {
+    if (wasEditing) {
       const leadId = leads[editIndex].id;
 
       response = await fetch(`${API_URL}/${leadId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           ...leadData,
           status: leads[editIndex].status,
@@ -555,7 +693,9 @@ leadForm.addEventListener("submit", async function (e) {
     } else {
       response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(leadData)
       });
     }
@@ -569,9 +709,11 @@ leadForm.addEventListener("submit", async function (e) {
     }
 
     leadForm.reset();
+
     await fetchLeads();
+
     showPage("leadsPage");
-    showToast(editIndex === null ? "Lead saved successfully." : "Lead updated successfully.", "success");
+    showToast(wasEditing ? "Lead updated successfully." : "Lead saved successfully.", "success");
   } catch (error) {
     console.error("Save lead connection error:", error);
     showToast("Could not connect to backend.", "error");
@@ -589,6 +731,7 @@ function editLead(index) {
 
   editIndex = index;
   leadForm.querySelector("button[type='submit']").textContent = "Update Lead";
+
   showPage("leadsPage");
   showToast("Lead loaded for editing.", "info");
 }
@@ -624,8 +767,14 @@ async function updateStatus(index, newStatus) {
   try {
     const response = await fetch(`${API_URL}/${lead.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...lead, status: newStatus })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...lead,
+        userId: currentUser.id,
+        status: newStatus
+      })
     });
 
     const data = await response.json();
@@ -656,6 +805,7 @@ function setFollowUp(index) {
 
   updateLead(lead.id, {
     ...lead,
+    userId: currentUser.id,
     nextFollowUp: date,
     lastContacted: new Date().toISOString().split("T")[0]
   });
@@ -665,8 +815,13 @@ async function updateLead(leadId, payload) {
   try {
     const response = await fetch(`${API_URL}/${leadId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...payload,
+        userId: currentUser.id
+      })
     });
 
     const data = await response.json();
@@ -692,7 +847,7 @@ function generateMessage(lead) {
 
   const personalLine = notes
     ? `I noticed this about your business: ${notes}`
-    : `I wanted to reach out because your business looks like it could benefit from extra support.`;
+    : "I wanted to reach out because your business looks like it could benefit from extra support.";
 
   if (style === "casual") {
     return `Hi ${lead.businessName},
@@ -778,13 +933,17 @@ async function handleGenerate(index) {
   try {
     const response = await fetch(`${BASE_URL}/api/generate-message`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         businessName: lead.businessName,
         service: serviceInput.value.trim() || "my services",
         notes: lead.notes || "",
         style: messageStyle.value,
-        userName: currentUser ? currentUser.name : "AutoClient User"
+        userName: currentUser ? currentUser.name : "AutoClient User",
+        userId: currentUser ? currentUser.id : null,
+        leadId: lead.id
       })
     });
 
@@ -795,10 +954,19 @@ async function handleGenerate(index) {
     }
 
     typeText(messageOutput, data.message);
+    await fetchActivities();
+
     showToast("AI outreach message generated.", "success");
   } catch (error) {
     console.error("Message error:", error);
     typeText(messageOutput, generateMessage(lead));
+
+    await logActivity(
+      lead.id,
+      "Fallback Outreach Generated",
+      `Fallback outreach message generated for ${lead.businessName}.`
+    );
+
     showToast("Used fallback outreach generator.", "warning");
   }
 }
@@ -814,6 +982,13 @@ function sendWhatsApp(index) {
     : `https://wa.me/?text=${encodedMessage}`;
 
   window.open(whatsappURL, "_blank");
+
+  logActivity(
+    lead.id,
+    "WhatsApp Outreach Opened",
+    `WhatsApp outreach opened for ${lead.businessName}.`
+  );
+
   showToast("WhatsApp outreach opened.", "success");
 }
 
@@ -826,6 +1001,12 @@ function sendLinkedIn(index) {
   const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
   window.open(searchUrl, "_blank");
 
+  logActivity(
+    lead.id,
+    "LinkedIn Outreach Opened",
+    `LinkedIn search opened and message copied for ${lead.businessName}.`
+  );
+
   showToast("Message copied. Paste it into LinkedIn chat.", "success");
 }
 
@@ -833,7 +1014,11 @@ copyBtn.addEventListener("click", async function () {
   if (!messageOutput.value.trim()) {
     copyBtn.textContent = "No message";
     showToast("No outreach message to copy.", "warning");
-    setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
+
+    setTimeout(() => {
+      copyBtn.textContent = "Copy Message";
+    }, 1500);
+
     return;
   }
 
@@ -845,8 +1030,18 @@ copyBtn.addEventListener("click", async function () {
   }
 
   copyBtn.textContent = "Copied!";
+
+  await logActivity(
+    null,
+    "Message Copied",
+    "An outreach message was copied to clipboard."
+  );
+
   showToast("Message copied successfully.", "success");
-  setTimeout(() => copyBtn.textContent = "Copy Message", 1500);
+
+  setTimeout(() => {
+    copyBtn.textContent = "Copy Message";
+  }, 1500);
 });
 
 function renderLeadIdeas(ideas) {
@@ -892,7 +1087,9 @@ function renderLeadIdeas(ideas) {
       try {
         const response = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify(newLead)
         });
 
@@ -931,8 +1128,14 @@ findLeadsBtn.addEventListener("click", async function () {
   try {
     const response = await fetch(`${BASE_URL}/api/find-leads`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ industry, location })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        industry,
+        location,
+        userId: currentUser ? currentUser.id : null
+      })
     });
 
     const data = await response.json();
@@ -942,6 +1145,8 @@ findLeadsBtn.addEventListener("click", async function () {
     }
 
     renderLeadIdeas(data);
+    await fetchActivities();
+
     showToast("Lead ideas generated.", "success");
   } catch (error) {
     console.error("Lead finder error:", error);
@@ -956,7 +1161,15 @@ function exportToCSV() {
     return;
   }
 
-  const headers = ["Business Name", "Link", "Contact", "Priority", "Status", "Notes", "Created"];
+  const headers = [
+    "Business Name",
+    "Link",
+    "Contact",
+    "Priority",
+    "Status",
+    "Notes",
+    "Created"
+  ];
 
   const rows = leads.map(lead => [
     lead.businessName,
@@ -972,7 +1185,10 @@ function exportToCSV() {
     .map(row => row.map(value => `"${String(value || "").replace(/"/g, '""')}"`).join(","))
     .join("\n");
 
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;"
+  });
+
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
@@ -981,6 +1197,13 @@ function exportToCSV() {
   link.click();
 
   URL.revokeObjectURL(url);
+
+  logActivity(
+    null,
+    "CSV Exported",
+    "Lead data was exported as a CSV file."
+  );
+
   showToast("CSV exported successfully.", "success");
 }
 
@@ -1021,11 +1244,13 @@ async function loadAdminDashboard() {
     users.forEach(user => {
       const div = document.createElement("div");
       div.className = "table-row";
+
       div.innerHTML = `
         <strong>${user.name}</strong>
         <span>${user.email}</span>
         <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
       `;
+
       adminUsersList.appendChild(div);
     });
 
@@ -1036,11 +1261,13 @@ async function loadAdminDashboard() {
     allLeads.slice(0, 30).map(normalizeLead).forEach(lead => {
       const div = document.createElement("div");
       div.className = "table-row";
+
       div.innerHTML = `
         <strong>${lead.businessName}</strong>
         <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
         <span>Owner: ${lead.ownerName || "Unknown"} — ${lead.ownerEmail || "N/A"}</span>
       `;
+
       adminLeadsList.appendChild(div);
     });
 
@@ -1115,7 +1342,7 @@ function renderAnalyticsCharts() {
           leadCounts.Contacted,
           leadCounts.Interested,
           leadCounts.Closed,
-          document.querySelectorAll(".overdue-lead").length
+          leads.filter(lead => isOverdue(lead.nextFollowUp)).length
         ],
         backgroundColor: "#2563eb",
         borderRadius: 12
@@ -1164,6 +1391,7 @@ if (themeToggle) {
     renderAnalyticsCharts();
   });
 }
+
 function renderKanbanBoard() {
   const columns = {
     New: document.getElementById("kanban-new"),
@@ -1225,6 +1453,7 @@ function renderKanbanBoard() {
 
       await updateLead(lead.id, {
         ...lead,
+        userId: currentUser.id,
         status: newStatus
       });
 

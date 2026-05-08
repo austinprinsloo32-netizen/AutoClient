@@ -114,6 +114,18 @@ def init_db():
                 nextFollowUp TEXT
             )
         """, commit=True)
+
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS activities (
+                id SERIAL PRIMARY KEY,
+                userId INTEGER,
+                leadId INTEGER,
+                action TEXT NOT NULL,
+                details TEXT,
+                createdAt TEXT
+            )
+        """, commit=True)
+
     else:
         execute_query("""
             CREATE TABLE IF NOT EXISTS users (
@@ -141,6 +153,17 @@ def init_db():
             )
         """, commit=True)
 
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER,
+                leadId INTEGER,
+                action TEXT NOT NULL,
+                details TEXT,
+                createdAt TEXT
+            )
+        """, commit=True)
+
     add_column_if_missing("leads", "lastContacted", "TEXT")
     add_column_if_missing("leads", "nextFollowUp", "TEXT")
 
@@ -163,6 +186,27 @@ def is_admin_user(user_id):
         return False
 
     return user["email"].lower() == ADMIN_EMAIL
+
+
+def log_activity(user_id, lead_id, action, details=""):
+    if not user_id:
+        return
+
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        if USING_POSTGRES:
+            execute_query("""
+                INSERT INTO activities (userId, leadId, action, details, createdAt)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, lead_id, action, details, created_at), commit=True)
+        else:
+            execute_query("""
+                INSERT INTO activities (userId, leadId, action, details, createdAt)
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, lead_id, action, details, created_at), commit=True)
+    except Exception as e:
+        print("Activity log error:", e)
 
 
 @app.route("/")
@@ -227,6 +271,13 @@ def register():
 
         user["isAdmin"] = email == ADMIN_EMAIL
 
+        log_activity(
+            user["id"],
+            None,
+            "Account Created",
+            f"{name} joined AutoClient."
+        )
+
         return jsonify({
             "message": "User registered successfully",
             "user": user
@@ -262,6 +313,13 @@ def login():
     if user is None or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
+    log_activity(
+        user["id"],
+        None,
+        "User Login",
+        f"{user['name']} logged into AutoClient."
+    )
+
     return jsonify({
         "user": {
             "id": user["id"],
@@ -271,6 +329,52 @@ def login():
             "isAdmin": user["email"].lower() == ADMIN_EMAIL
         }
     })
+
+
+# ================= ACTIVITIES =================
+
+@app.route("/api/activities", methods=["GET"])
+def get_activities():
+    user_id = request.args.get("userId")
+
+    if not user_id:
+        return jsonify({"error": "userId is required"}), 400
+
+    p = placeholder()
+
+    activities = execute_query(
+        f"""
+        SELECT *
+        FROM activities
+        WHERE userId = {p}
+        ORDER BY id DESC
+        LIMIT 20
+        """,
+        (user_id,),
+        fetchall=True
+    )
+
+    return jsonify([row_to_dict(activity) for activity in activities])
+
+
+@app.route("/api/activities/log", methods=["POST"])
+def create_activity():
+    data = request.get_json()
+
+    user_id = data.get("userId")
+    lead_id = data.get("leadId")
+    action = data.get("action", "").strip()
+    details = data.get("details", "").strip()
+
+    if not user_id:
+        return jsonify({"error": "userId is required"}), 400
+
+    if not action:
+        return jsonify({"error": "Action is required"}), 400
+
+    log_activity(user_id, lead_id, action, details)
+
+    return jsonify({"message": "Activity logged successfully"}), 201
 
 
 # ================= LEADS =================
@@ -328,7 +432,16 @@ def add_lead():
             next_follow_up
         ), fetchone=True, commit=True)
 
-        return jsonify(row_to_dict(lead)), 201
+        lead_dict = row_to_dict(lead)
+
+        log_activity(
+            data.get("userId"),
+            lead_dict["id"],
+            "Lead Created",
+            f"{lead_dict['businessName']} was added to your CRM."
+        )
+
+        return jsonify(lead_dict), 201
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -357,12 +470,29 @@ def add_lead():
     cursor.close()
     conn.close()
 
+    log_activity(
+        data.get("userId"),
+        lead_id,
+        "Lead Created",
+        f"{data.get('businessName')} was added to your CRM."
+    )
+
     return jsonify({"id": lead_id, **data}), 201
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
     data = request.get_json()
+
+    old_lead = execute_query(
+        f"SELECT * FROM leads WHERE id = {placeholder()}",
+        (lead_id,),
+        fetchone=True
+    )
+    old_lead = row_to_dict(old_lead)
+
+    old_status = old_lead.get("status") if old_lead else None
+    new_status = data.get("status")
 
     if USING_POSTGRES:
         lead = execute_query("""
@@ -384,7 +514,32 @@ def update_lead(lead_id):
             lead_id
         ), fetchone=True, commit=True)
 
-        return jsonify(row_to_dict(lead))
+        lead_dict = row_to_dict(lead)
+
+        if lead_dict:
+            if old_status and new_status and old_status != new_status:
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Lead Status Changed",
+                    f"{lead_dict['businessName']} moved from {old_status} to {new_status}."
+                )
+            elif data.get("nextFollowUp"):
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Follow-up Scheduled",
+                    f"Next follow-up set for {data.get('nextFollowUp')}."
+                )
+            else:
+                log_activity(
+                    data.get("userId"),
+                    lead_id,
+                    "Lead Updated",
+                    f"{lead_dict['businessName']} was updated."
+                )
+
+        return jsonify(lead_dict)
 
     execute_query("""
         UPDATE leads
@@ -404,12 +559,49 @@ def update_lead(lead_id):
         lead_id
     ), commit=True)
 
+    if old_status and new_status and old_status != new_status:
+        log_activity(
+            data.get("userId"),
+            lead_id,
+            "Lead Status Changed",
+            f"{data.get('businessName')} moved from {old_status} to {new_status}."
+        )
+    elif data.get("nextFollowUp"):
+        log_activity(
+            data.get("userId"),
+            lead_id,
+            "Follow-up Scheduled",
+            f"Next follow-up set for {data.get('nextFollowUp')}."
+        )
+    else:
+        log_activity(
+            data.get("userId"),
+            lead_id,
+            "Lead Updated",
+            f"{data.get('businessName')} was updated."
+        )
+
     return jsonify({"message": "Lead updated"})
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
 def delete_lead(lead_id):
     p = placeholder()
+
+    lead = execute_query(
+        f"SELECT * FROM leads WHERE id = {p}",
+        (lead_id,),
+        fetchone=True
+    )
+    lead = row_to_dict(lead)
+
+    if lead:
+        log_activity(
+            lead.get("userId"),
+            lead_id,
+            "Lead Deleted",
+            f"{lead.get('businessName')} was deleted from your CRM."
+        )
 
     execute_query(
         f"DELETE FROM leads WHERE id = {p}",
@@ -431,6 +623,8 @@ def generate_message():
     notes = data.get("notes", "")
     style = data.get("style", "formal")
     name = data.get("userName", "AutoClient User")
+    user_id = data.get("userId")
+    lead_id = data.get("leadId")
 
     note_line = (
         f"I noticed that {notes}."
@@ -484,6 +678,14 @@ Would you be open to a short conversation?
 Kind regards,
 {name}"""
 
+    if user_id:
+        log_activity(
+            user_id,
+            lead_id,
+            "AI Outreach Generated",
+            f"Outreach message generated for {business}."
+        )
+
     return jsonify({"message": msg})
 
 
@@ -496,6 +698,8 @@ def find_leads():
 
     if not industry or not location:
         return jsonify({"error": "Industry and location are required"}), 400
+
+    user_id = data.get("userId")
 
     lead_templates = [
         f"{industry.title()} in {location}",
@@ -521,6 +725,14 @@ def find_leads():
             "notes": f"Potential {industry} lead in {location}. Check Google, Facebook, or website before contacting.",
             "status": "New"
         })
+
+    if user_id:
+        log_activity(
+            user_id,
+            None,
+            "Lead Ideas Generated",
+            f"Generated lead ideas for {industry} in {location}."
+        )
 
     return jsonify(leads)
 
