@@ -1,3 +1,4 @@
+import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import sqlite3
@@ -19,6 +20,9 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 USING_POSTGRES = bool(DATABASE_URL)
 
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "Austinprinsloo32@gmail.com").lower()
+
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
 
 def get_db_connection():
@@ -725,6 +729,77 @@ Kind regards,
         )
 
     return jsonify({"message": msg})
+
+
+@app.route("/api/send-email", methods=["POST"])
+def send_email():
+    data = request.get_json()
+
+    user_id = data.get("userId")
+    lead_id = data.get("leadId")
+    to_email = data.get("to", "").strip()
+    subject = data.get("subject", "Message from AutoClient").strip()
+    message = data.get("message", "").strip()
+    business_name = data.get("businessName", "Lead")
+
+    if not RESEND_API_KEY:
+        return jsonify({"error": "RESEND_API_KEY is not configured in Render"}), 500
+
+    if not user_id:
+        return jsonify({"error": "userId is required"}), 400
+
+    if not to_email:
+        return jsonify({"error": "Recipient email is required"}), 400
+
+    if "@" not in to_email:
+        return jsonify({"error": "Invalid recipient email address"}), 400
+
+    if not message:
+        return jsonify({"error": "Email message is required"}), 400
+
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "from": RESEND_FROM_EMAIL,
+                "to": [to_email],
+                "subject": subject,
+                "text": message
+            },
+            timeout=15
+        )
+
+        try:
+            result = response.json()
+        except Exception:
+            result = {"raw": response.text}
+
+        if response.status_code >= 400:
+            print("Resend error:", result)
+            return jsonify({
+                "error": result.get("message", "Email failed to send"),
+                "details": result
+            }), response.status_code
+
+        log_activity(
+            user_id,
+            lead_id,
+            "Email Sent",
+            f"Email sent to {business_name} at {to_email}."
+        )
+
+        return jsonify({
+            "message": "Email sent successfully",
+            "resend": result
+        }), 200
+
+    except Exception as e:
+        print("Email send error:", e)
+        return jsonify({"error": "Email sending failed"}), 500
 
 
 @app.route("/api/find-leads", methods=["POST"])

@@ -6,6 +6,7 @@ const BASE_URL =
 const API_URL = `${BASE_URL}/api/leads`;
 const ACTIVITIES_URL = `${BASE_URL}/api/activities`;
 const ACTIVITY_LOG_URL = `${BASE_URL}/api/activities/log`;
+const SEND_EMAIL_URL = `${BASE_URL}/api/send-email`;
 
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
@@ -172,6 +173,11 @@ function injectSmartCRMStyles() {
       background: #e0f2fe;
       color: #075985;
       border: 1px solid #bae6fd;
+    }
+
+    .email-btn {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
     }
 
     .notification-panel {
@@ -1090,6 +1096,7 @@ function renderLeads() {
 
       <div class="lead-actions">
         <button class="primary-btn" onclick="handleGenerate(${index})">AI Outreach</button>
+        <button class="email-btn" onclick="sendEmail(${index})">Email</button>
         <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
         <button class="linkedin-btn" onclick="sendLinkedIn(${index})">LinkedIn</button>
         <button class="secondary-btn" onclick="setFollowUp(${index})">Follow-up</button>
@@ -1434,6 +1441,70 @@ async function handleGenerate(index) {
     );
 
     showToast("Used fallback outreach generator.", "warning");
+  }
+}
+
+async function sendEmail(index) {
+  const lead = leads[index];
+
+  if (!currentUser) {
+    showToast("Please login first.", "warning");
+    return;
+  }
+
+  const defaultEmail = lead.contact && lead.contact.includes("@") ? lead.contact : "";
+  const email = prompt("Enter recipient email address:", defaultEmail);
+
+  if (!email) return;
+
+  if (!email.includes("@")) {
+    showToast("Please enter a valid email address.", "warning");
+    return;
+  }
+
+  const subject = prompt(
+    "Email subject:",
+    `Quick message for ${lead.businessName}`
+  );
+
+  if (!subject) return;
+
+  const message = generateMessage(lead);
+
+  try {
+    showToast("Sending email...", "info");
+
+    const response = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        leadId: lead.id,
+        businessName: lead.businessName,
+        to: email.trim(),
+        subject: subject.trim(),
+        message
+      })
+    });
+
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      console.error("Email send error:", data);
+      alert(data.error || "Email failed. Check Render logs.");
+      showToast(data.error || "Email failed to send.", "error");
+      return;
+    }
+
+    await fetchActivities();
+
+    showToast("Email sent successfully.", "success");
+  } catch (error) {
+    console.error("Send email connection error:", error);
+    alert("Could not connect to email backend. Check Render logs.");
+    showToast("Could not connect to email backend.", "error");
   }
 }
 
