@@ -7,6 +7,9 @@ const API_URL = `${BASE_URL}/api/leads`;
 const ACTIVITIES_URL = `${BASE_URL}/api/activities`;
 const ACTIVITY_LOG_URL = `${BASE_URL}/api/activities/log`;
 const SEND_EMAIL_URL = `${BASE_URL}/api/send-email`;
+const MY_PLAN_URL = `${BASE_URL}/api/my-plan`;
+const CHECKOUT_URL = `${BASE_URL}/api/create-checkout-session`;
+const BILLING_PORTAL_URL = `${BASE_URL}/api/create-billing-portal-session`;
 
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
@@ -76,6 +79,21 @@ let leadStatusChart;
 let outreachChart;
 let currentUser = JSON.parse(localStorage.getItem("autoclient_user")) || null;
 
+let currentPlan = {
+  plan: "free",
+  planName: "Free",
+  subscriptionStatus: "inactive",
+  features: {
+    max_leads: 10,
+    ai_outreach: false,
+    kanban: false,
+    analytics: false,
+    email_integration: false,
+    lead_finder: true,
+    csv_export: false
+  }
+};
+
 const pageInfo = {
   dashboardPage: {
     title: "Dashboard",
@@ -99,7 +117,7 @@ const pageInfo = {
   },
   settingsPage: {
     title: "Settings",
-    subtitle: "Manage account and app preferences."
+    subtitle: "Manage account, billing, and app preferences."
   }
 };
 
@@ -228,24 +246,6 @@ function injectSmartCRMStyles() {
       color: #f8fafc;
     }
 
-    body.dark-mode .score-hot {
-      background: #450a0a;
-      color: #fecaca;
-      border-color: #7f1d1d;
-    }
-
-    body.dark-mode .score-warm {
-      background: #451a03;
-      color: #fde68a;
-      border-color: #92400e;
-    }
-
-    body.dark-mode .score-cold {
-      background: #082f49;
-      color: #bae6fd;
-      border-color: #075985;
-    }
-
     @media (max-width: 1050px) {
       .smart-dashboard-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -327,6 +327,150 @@ function isCurrentAdmin() {
     currentUser.email &&
     currentUser.email.toLowerCase() === ADMIN_EMAIL_FRONTEND
   );
+}
+
+async function loadUserPlan() {
+  if (!currentUser) return;
+
+  try {
+    const response = await fetch(`${MY_PLAN_URL}?userId=${currentUser.id}`);
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      console.error("Plan fetch error:", data);
+      return;
+    }
+
+    currentPlan = data;
+    renderPlanUI();
+  } catch (error) {
+    console.error("Could not load user plan:", error);
+  }
+}
+
+function renderPlanUI() {
+  const planBadge = document.getElementById("planBadge");
+  const settingsUserPlan = document.getElementById("settingsUserPlan");
+  const subscriptionStatus = document.getElementById("subscriptionStatus");
+  const planLimits = document.getElementById("planLimits");
+
+  if (planBadge) {
+    planBadge.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+    planBadge.className = `plan-badge ${currentPlan.plan}`;
+  }
+
+  if (settingsUserPlan) {
+    settingsUserPlan.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+  }
+
+  if (subscriptionStatus) {
+    subscriptionStatus.textContent = currentPlan.subscriptionStatus || "inactive";
+  }
+
+  if (planLimits) {
+    planLimits.textContent = `Lead limit: ${currentPlan.features.max_leads}`;
+  }
+}
+
+function requireFeature(featureName) {
+  if (!currentPlan || !currentPlan.features || !currentPlan.features[featureName]) {
+    showToast("Upgrade to Pro or Agency to unlock this feature.", "warning");
+    showPage("settingsPage");
+    return false;
+  }
+
+  return true;
+}
+
+function canAddMoreLeads() {
+  const maxLeads = currentPlan.features.max_leads || 10;
+
+  if (leads.length >= maxLeads) {
+    showToast(`Your ${currentPlan.planName || "Free"} plan limit is ${maxLeads} leads. Upgrade to add more.`, "warning");
+    showPage("settingsPage");
+    return false;
+  }
+
+  return true;
+}
+
+async function startCheckout(plan) {
+  if (!currentUser) {
+    showToast("Please login first.", "warning");
+    return;
+  }
+
+  try {
+    showToast(`Opening ${plan.toUpperCase()} checkout...`, "info");
+
+    const response = await fetch(CHECKOUT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        plan
+      })
+    });
+
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      showToast(data.error || "Could not start checkout.", "error");
+      return;
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    console.error("Checkout error:", error);
+    showToast("Could not connect to Stripe checkout.", "error");
+  }
+}
+
+async function openBillingPortal() {
+  if (!currentUser) {
+    showToast("Please login first.", "warning");
+    return;
+  }
+
+  try {
+    const response = await fetch(BILLING_PORTAL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: currentUser.id
+      })
+    });
+
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      showToast(data.error || "Billing portal unavailable.", "warning");
+      return;
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    console.error("Billing portal error:", error);
+    showToast("Could not open billing portal.", "error");
+  }
+}
+
+function handleBillingRedirectNotice() {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("billing") === "success") {
+    showToast("Payment successful. Your plan will update after Stripe confirms the subscription.", "success");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  if (params.get("billing") === "cancelled") {
+    showToast("Checkout cancelled. No payment was made.", "info");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
 }
 
 function isToday(dateString) {
@@ -699,6 +843,11 @@ function showPage(pageId) {
     pageId = "dashboardPage";
   }
 
+  if (pageId === "analyticsPage" && !currentPlan.features.analytics) {
+    showToast("Analytics are available on Pro or Agency plans.", "warning");
+    pageId = "settingsPage";
+  }
+
   pageSections.forEach(section => section.classList.remove("active-page"));
 
   const targetPage = document.getElementById(pageId);
@@ -710,7 +859,7 @@ function showPage(pageId) {
     link.classList.toggle("active", link.dataset.page === pageId);
   });
 
-  if (pageInfo[pageId]) {
+  if (pageInfo[pageId] && pageTitle && pageSubtitle) {
     pageTitle.textContent = pageInfo[pageId].title;
     pageSubtitle.textContent = pageInfo[pageId].subtitle;
   }
@@ -749,7 +898,7 @@ function showAuth() {
   });
 }
 
-function showApp() {
+async function showApp() {
   authSection.style.display = "none";
   appSection.style.display = "grid";
   logoutBtn.style.display = "inline-flex";
@@ -773,7 +922,9 @@ function showApp() {
     showPage("dashboardPage");
   }
 
-  fetchLeads();
+  await loadUserPlan();
+  await fetchLeads();
+  handleBillingRedirectNotice();
 }
 
 function checkAuth() {
@@ -915,6 +1066,7 @@ function renderAll() {
   renderRecentActivity();
   renderSmartDashboardWidgets();
   renderNotifications();
+  renderPlanUI();
 }
 
 function animateCounter(element, target, duration = 700) {
@@ -992,6 +1144,18 @@ function renderRecentLeads() {
 }
 
 function renderAnalytics() {
+  if (!analyticsGrid) return;
+
+  if (!currentPlan.features.analytics) {
+    analyticsGrid.innerHTML = `
+      <div class="analytics-item">
+        <strong>🔒 Locked</strong>
+        <span>Analytics are available on Pro or Agency plans.</span>
+      </div>
+    `;
+    return;
+  }
+
   const total = leads.length;
   const contacted = leads.filter(lead => lead.status === "Contacted").length;
   const interested = leads.filter(lead => lead.status === "Interested").length;
@@ -1115,6 +1279,10 @@ leadForm.addEventListener("submit", async function (e) {
 
   if (!currentUser) {
     showToast("Please login first.", "warning");
+    return;
+  }
+
+  if (editIndex === null && !canAddMoreLeads()) {
     return;
   }
 
@@ -1397,6 +1565,8 @@ function typeText(element, text, speed = 18) {
 }
 
 async function handleGenerate(index) {
+  if (!requireFeature("ai_outreach")) return;
+
   const lead = leads[index];
 
   showPage("outreachPage");
@@ -1433,18 +1603,13 @@ async function handleGenerate(index) {
   } catch (error) {
     console.error("Message error:", error);
     typeText(messageOutput, generateMessage(lead));
-
-    await logActivity(
-      lead.id,
-      "Fallback Outreach Generated",
-      `Fallback outreach message generated for ${lead.businessName}.`
-    );
-
     showToast("Used fallback outreach generator.", "warning");
   }
 }
 
 async function sendEmail(index) {
+  if (!requireFeature("email_integration")) return;
+
   const lead = leads[index];
 
   if (!currentUser) {
@@ -1608,6 +1773,10 @@ function renderLeadIdeas(ideas) {
         return;
       }
 
+      if (!canAddMoreLeads()) {
+        return;
+      }
+
       const newLead = {
         userId: currentUser.id,
         businessName: idea.businessName || "Untitled Lead",
@@ -1695,6 +1864,8 @@ findLeadsBtn.addEventListener("click", async function () {
 });
 
 function exportToCSV() {
+  if (!requireFeature("csv_export")) return;
+
   if (leads.length === 0) {
     showToast("No leads to export.", "warning");
     return;
@@ -1787,6 +1958,7 @@ async function loadAdminDashboard() {
       div.innerHTML = `
         <strong>${user.name}</strong>
         <span>${user.email}</span>
+        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${user.subscription_status || user.subscriptionstatus || "inactive"}</span>
         <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
       `;
 
@@ -1822,6 +1994,8 @@ if (refreshAdminBtn) {
 }
 
 function renderAnalyticsCharts() {
+  if (!currentPlan.features.analytics) return;
+
   const leadCanvas = document.getElementById("leadStatusChart");
   const outreachCanvas = document.getElementById("outreachChart");
 
@@ -1943,6 +2117,20 @@ function renderKanbanBoard() {
     if (column) column.innerHTML = "";
   });
 
+  if (!currentPlan.features.kanban) {
+    Object.values(columns).forEach(column => {
+      if (column) {
+        column.innerHTML = `
+          <div class="kanban-card">
+            <h4>🔒 Kanban Locked</h4>
+            <p>Upgrade to Pro or Agency to use the CRM pipeline.</p>
+          </div>
+        `;
+      }
+    });
+    return;
+  }
+
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
       ? lead.status
@@ -2002,6 +2190,22 @@ function renderKanbanBoard() {
       showToast(`Lead moved to ${newStatus}.`, "success");
     });
   });
+}
+
+const upgradeProBtn = document.getElementById("upgradeProBtn");
+const upgradeAgencyBtn = document.getElementById("upgradeAgencyBtn");
+const manageBillingBtn = document.getElementById("manageBillingBtn");
+
+if (upgradeProBtn) {
+  upgradeProBtn.addEventListener("click", () => startCheckout("pro"));
+}
+
+if (upgradeAgencyBtn) {
+  upgradeAgencyBtn.addEventListener("click", () => startCheckout("agency"));
+}
+
+if (manageBillingBtn) {
+  manageBillingBtn.addEventListener("click", openBillingPortal);
 }
 
 injectSmartCRMStyles();

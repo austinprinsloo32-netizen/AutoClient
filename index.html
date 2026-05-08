@@ -57,6 +57,7 @@
         <div class="top-actions">
           <button id="themeToggle" class="secondary-btn">🌙 Dark</button>
           <button id="mobileMenuBtn" class="secondary-btn">Menu</button>
+          <span id="planBadge" class="plan-badge free">FREE PLAN</span>
           <span class="status-pill">Live</span>
         </div>
       </header>
@@ -426,7 +427,7 @@
               <span class="step">⚙</span>
               <div>
                 <h2>Settings</h2>
-                <p>Account and app settings.</p>
+                <p>Account, billing, and app settings.</p>
               </div>
             </div>
 
@@ -434,7 +435,71 @@
               <p><strong>Current user:</strong> <span id="settingsUserName">N/A</span></p>
               <p><strong>Email:</strong> <span id="settingsUserEmail">N/A</span></p>
               <p><strong>Role:</strong> <span id="settingsUserRole">User</span></p>
+              <p><strong>Plan:</strong> <span id="settingsUserPlan">FREE PLAN</span></p>
+              <p><strong>Subscription:</strong> <span id="subscriptionStatus">inactive</span></p>
+              <p><strong>Limits:</strong> <span id="planLimits">Lead limit: 10</span></p>
             </div>
+          </div>
+
+          <div class="pricing-grid">
+            <div class="pricing-card">
+              <span class="pricing-pill">Free</span>
+              <h2>$0</h2>
+              <p>For testing AutoClient and managing your first few leads.</p>
+
+              <ul>
+                <li>10 leads</li>
+                <li>Basic CRM</li>
+                <li>Quick Lead Finder</li>
+                <li>Manual outreach</li>
+                <li>Basic dashboard</li>
+              </ul>
+            </div>
+
+            <div class="pricing-card featured-plan">
+              <span class="pricing-pill">Pro</span>
+              <h2>$9 / month</h2>
+              <p>For freelancers and small businesses actively finding clients.</p>
+
+              <ul>
+                <li>100 leads</li>
+                <li>AI outreach generation</li>
+                <li>Email integration</li>
+                <li>Analytics dashboard</li>
+                <li>Kanban CRM pipeline</li>
+                <li>CSV export</li>
+              </ul>
+
+              <button id="upgradeProBtn" class="primary-btn">Upgrade to Pro</button>
+            </div>
+
+            <div class="pricing-card">
+              <span class="pricing-pill">Agency</span>
+              <h2>$29 / month</h2>
+              <p>For agencies managing larger client acquisition pipelines.</p>
+
+              <ul>
+                <li>1000 leads</li>
+                <li>Everything in Pro</li>
+                <li>Higher usage limits</li>
+                <li>Agency-ready CRM workflow</li>
+                <li>Subscription management foundation</li>
+              </ul>
+
+              <button id="upgradeAgencyBtn" class="dark-btn">Upgrade to Agency</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-heading">
+              <span class="step">💳</span>
+              <div>
+                <h2>Billing Management</h2>
+                <p>Manage your subscription, payment method, invoices, or cancellation through Stripe.</p>
+              </div>
+            </div>
+
+            <button id="manageBillingBtn" class="secondary-btn">Manage Billing</button>
           </div>
         </section>
 

@@ -1,7 +1,7 @@
-Flask
-flask-cors
-gunicorn
-psycopg2-binary
-Werkzeug
-requests
 stripe
+requests
+flask
+flask-cors
+werkzeug
+psycopg2-binary
+gunicorn
