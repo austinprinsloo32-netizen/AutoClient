@@ -75,8 +75,6 @@ PLAN_LIMITS = {
 }
 
 
-# ================= DATABASE =================
-
 def get_db_connection():
     if USING_POSTGRES:
         if psycopg2 is None:
@@ -424,8 +422,6 @@ def log_activity(user_id, lead_id, action, details=""):
         print("Activity log error:", e)
 
 
-# ================= BASIC ROUTES =================
-
 @app.route("/")
 def home():
     return send_from_directory(".", "landing.html")
@@ -447,8 +443,6 @@ def status():
         "billing": "enabled"
     })
 
-
-# ================= AUTH =================
 
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -581,8 +575,6 @@ def login():
     })
 
 
-# ================= BILLING =================
-
 @app.route("/api/my-plan", methods=["GET"])
 def my_plan():
     user_id = request.args.get("userId")
@@ -703,11 +695,17 @@ def stripe_webhook():
         return jsonify({"error": "Webhook verification failed"}), 400
 
     event_type = event["type"]
-    data_object = event["data"]["object"]
+
+    try:
+        data_object = event["data"]["object"].to_dict_recursive()
+    except Exception:
+        data_object = dict(event["data"]["object"])
 
     if event_type == "checkout.session.completed":
-        user_id = data_object.get("metadata", {}).get("userId")
-        plan = data_object.get("metadata", {}).get("plan", "pro")
+        metadata = data_object.get("metadata", {}) or {}
+
+        user_id = metadata.get("userId")
+        plan = metadata.get("plan", "pro")
         customer_id = data_object.get("customer")
         subscription_id = data_object.get("subscription")
 
@@ -730,12 +728,13 @@ def stripe_webhook():
             print(f"User {user_id} upgraded to {plan}")
 
     elif event_type == "customer.subscription.created":
+        metadata = data_object.get("metadata", {}) or {}
+
+        user_id = metadata.get("userId")
+        plan = normalize_plan(metadata.get("plan", "pro"))
         subscription_id = data_object.get("id")
         customer_id = data_object.get("customer")
         status_value = data_object.get("status", "active")
-        metadata = data_object.get("metadata", {})
-        user_id = metadata.get("userId")
-        plan = normalize_plan(metadata.get("plan", "pro"))
 
         if user_id:
             update_user_subscription(
@@ -790,8 +789,6 @@ def stripe_webhook():
     return jsonify({"received": True})
 
 
-# ================= ACTIVITIES =================
-
 @app.route("/api/activities", methods=["GET"])
 def get_activities():
     user_id = request.args.get("userId")
@@ -835,8 +832,6 @@ def create_activity():
 
     return jsonify({"message": "Activity logged successfully"}), 201
 
-
-# ================= LEADS =================
 
 @app.route("/api/leads", methods=["GET"])
 def get_leads():
@@ -1116,8 +1111,6 @@ def delete_lead(lead_id):
     return jsonify({"message": "Lead deleted"})
 
 
-# ================= OUTREACH =================
-
 @app.route("/api/generate-message", methods=["POST"])
 def generate_message():
     data = request.get_json() or {}
@@ -1319,8 +1312,6 @@ def find_leads():
 
     return jsonify(leads)
 
-
-# ================= ADMIN =================
 
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
