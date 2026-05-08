@@ -685,7 +685,7 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature")
 
     try:
-        event = stripe.Webhook.construct_event(
+        stripe.Webhook.construct_event(
             payload,
             sig_header,
             STRIPE_WEBHOOK_SECRET
@@ -694,12 +694,14 @@ def stripe_webhook():
         print("Stripe webhook verification failed:", e)
         return jsonify({"error": "Webhook verification failed"}), 400
 
-    event_type = event["type"]
-
     try:
-        data_object = event["data"]["object"].to_dict_recursive()
-    except Exception:
-        data_object = dict(event["data"]["object"])
+        event = request.get_json(force=True)
+    except Exception as e:
+        print("Webhook JSON parse failed:", e)
+        return jsonify({"error": "Webhook JSON parse failed"}), 400
+
+    event_type = event.get("type")
+    data_object = event.get("data", {}).get("object", {})
 
     if event_type == "checkout.session.completed":
         metadata = data_object.get("metadata", {}) or {}
