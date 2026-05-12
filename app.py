@@ -629,8 +629,8 @@ def create_checkout_session():
                     "plan": "pro"
                 }
             },
-            success_url=f"{FRONTEND_URL}/index.html?billing=success",
-            cancel_url=f"{FRONTEND_URL}/index.html?billing=cancelled"
+            success_url=f"{FRONTEND_URL}/app?billing=success",
+            cancel_url=f"{FRONTEND_URL}/app?billing=cancelled"
         )
 
         return jsonify({"url": checkout_session.url})
@@ -666,7 +666,7 @@ def create_billing_portal_session():
     try:
         portal_session = stripe.billing_portal.Session.create(
             customer=stripe_customer_id,
-            return_url=f"{FRONTEND_URL}/index.html"
+            return_url=f"{FRONTEND_URL}/app"
         )
 
         return jsonify({"url": portal_session.url})
@@ -685,7 +685,7 @@ def stripe_webhook():
     sig_header = request.headers.get("Stripe-Signature")
 
     try:
-        stripe.Webhook.construct_event(
+        event = stripe.Webhook.construct_event(
             payload,
             sig_header,
             STRIPE_WEBHOOK_SECRET
@@ -693,12 +693,6 @@ def stripe_webhook():
     except Exception as e:
         print("Stripe webhook verification failed:", e)
         return jsonify({"error": "Webhook verification failed"}), 400
-
-    try:
-        event = request.get_json(force=True)
-    except Exception as e:
-        print("Webhook JSON parse failed:", e)
-        return jsonify({"error": "Webhook JSON parse failed"}), 400
 
     event_type = event.get("type")
     data_object = event.get("data", {}).get("object", {})
