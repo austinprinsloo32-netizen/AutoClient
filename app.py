@@ -599,7 +599,7 @@ def create_checkout_session():
         return jsonify({"error": "STRIPE_PRO_PRICE_ID is not configured in Render"}), 500
 
     data = request.get_json() or {}
-    user_id = data.get("userId")
+    user_id = data.get("userId")@app.route("/stripe-webhook", methods=["POST"])
 
     if not user_id:
         return jsonify({"error": "userId is required"}), 400
@@ -694,8 +694,8 @@ def stripe_webhook():
         print("Stripe webhook verification failed:", e)
         return jsonify({"error": "Webhook verification failed"}), 400
 
-    event_type = event.get("type")
-    data_object = event.get("data", {}).get("object", {})
+    event_type = event["type"]
+    data_object = event["data"]["object"]
 
     if event_type == "checkout.session.completed":
         metadata = data_object.get("metadata", {}) or {}
@@ -743,7 +743,7 @@ def stripe_webhook():
 
     elif event_type == "customer.subscription.updated":
         subscription_id = data_object.get("id")
-        status_value = data_object.get("status")
+        status_value = data_object.get("status", "inactive")
 
         plan = "pro" if status_value in ["active", "trialing"] else "free"
 
@@ -753,6 +753,8 @@ def stripe_webhook():
             subscription_status=status_value
         )
 
+        print(f"Subscription updated: {subscription_id} -> {plan} / {status_value}")
+
     elif event_type == "customer.subscription.deleted":
         subscription_id = data_object.get("id")
 
@@ -761,6 +763,8 @@ def stripe_webhook():
             plan="free",
             subscription_status="cancelled"
         )
+
+        print(f"Subscription cancelled: {subscription_id} -> free")
 
     elif event_type == "invoice.payment_succeeded":
         subscription_id = data_object.get("subscription")
@@ -782,7 +786,7 @@ def stripe_webhook():
                 subscription_status="past_due"
             )
 
-    return jsonify({"received": True})
+    return jsonify({"received": True}), 200
 
 
 @app.route("/api/activities", methods=["GET"])
