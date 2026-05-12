@@ -1,17 +1,19 @@
 # 🚀 AutoClient V2
-![AutoClient Banner](images/autoclient-banner.png)
-AI-powered CRM and outreach platform built for freelancers, agencies, startups, and sales teams.
 
-AutoClient helps users manage leads, generate AI-powered outreach messages, track follow-ups, and streamline client communication from a modern SaaS dashboard.
+![AutoClient Banner](images/autoclient-banner.png)
+
+Production-ready SaaS CRM platform built for freelancers, agencies, startups, and small businesses.
+
+AutoClient V2 helps users manage leads, generate AI-powered outreach messages, track CRM workflows, manage subscriptions, and streamline client acquisition from a modern SaaS dashboard.
 
 ---
 
-## 🌐 Live Demo
+# 🌐 Live Demo
 
-### Frontend
+## Frontend
 https://austinprinsloo32-netizen.github.io/AutoClient/
 
-### Full App (Render Deployment)
+## Full SaaS Deployment
 https://autoclient-v2.onrender.com
 
 ---
@@ -22,45 +24,86 @@ https://autoclient-v2.onrender.com
 - User registration and login
 - Secure authentication flow
 - Persistent user sessions
+- Protected dashboard experience
+- Admin role handling
+
+---
 
 ## 📋 CRM Lead Management
-- Add and manage leads
-- Track client details
-- Organize outreach workflows
-- Lead status management
+- Add, edit, and manage leads
+- Lead status tracking
+- CRM workflow organization
+- Cold, warm, and hot lead priority system
+- Follow-up management
+- Recent activity tracking
+
+---
 
 ## 🤖 AI Outreach Generator
-- Generate outreach messages instantly
-- AI-powered messaging assistance
+- AI-generated outreach messaging
 - Faster prospect communication
+- Multiple outreach styles
+- Outreach workflow assistance
+
+---
 
 ## 💬 WhatsApp + LinkedIn Outreach
-- Launch outreach directly from the platform
-- Streamlined communication workflow
-- Multi-platform engagement support
+- Direct outreach launching
+- Multi-platform workflow support
+- Streamlined communication tools
 
-## ⏰ Follow-Up Tracking
-- Track pending follow-ups
-- Overdue lead highlighting
-- Improve response consistency
+---
 
-## 📊 Admin Dashboard
-- Centralized management dashboard
-- Lead monitoring system
-- User and activity overview
+## 📊 Analytics Dashboard
+- Lead status analytics
+- Outreach activity tracking
+- CRM workflow insights
+- Conversion-focused metrics
+- Chart.js visual dashboards
+
+---
+
+## 📌 Kanban CRM Pipeline
+- Visual sales workflow system
+- Drag-and-track CRM pipeline
+- Organized lead progression
+- Better workflow management
+
+---
+
+## 💳 SaaS Billing Infrastructure
+- Stripe Checkout integration
+- Stripe Billing Portal
+- Subscription management
+- Feature-gated Pro plan
+- Webhook-driven subscription syncing
+- PostgreSQL subscription persistence
+- Automated billing workflows
+
+---
+
+## 👨‍💼 Admin Dashboard
+- Platform-wide lead overview
+- User monitoring system
+- Admin-only dashboard
+- CRM activity monitoring
+- Subscription visibility
+
+---
 
 ## 📤 Export Tools
-- Export lead data
-- Simplify reporting and backups
+- CSV lead export
+- Reporting workflow support
+- Data backup support
 
-## 🔎 Lead Finder System
-- Discover and organize new leads
-- Accelerate prospecting workflow
+---
 
 ## 📱 Responsive SaaS UI
-- Mobile-friendly design
-- Modern responsive interface
-- Optimized dashboard experience
+- Mobile responsive interface
+- Modern SaaS dashboard design
+- Dark mode support
+- Responsive layouts
+- Production-style UI/UX
 
 ---
 
@@ -70,56 +113,66 @@ https://autoclient-v2.onrender.com
 - HTML5
 - CSS3
 - JavaScript
+- Chart.js
 
 ## Backend
 - Python
 - Flask
+- Flask-CORS
+- Stripe API
+- Stripe Webhooks
 
 ## Database
 - PostgreSQL
+- SQLite fallback for local development
 
-## Deployment
-- GitHub Pages
+## Infrastructure & Deployment
 - Render
+- GitHub
+- GitHub Pages
+- Environment Variables
 
 ## Tools & Services
 - Git
 - GitHub
+- Stripe
+- PostgreSQL Cloud Hosting
 - Render Cloud Hosting
-- PostgreSQL Database Hosting
 
 ---
 
-# 🧠 Project Vision
+# 🏗️ SaaS Architecture
 
-AutoClient was created to simulate a real-world SaaS product experience while solving practical CRM and outreach problems for small businesses, freelancers, and agencies.
+```text
+Frontend (HTML/CSS/JavaScript)
+            ↓
+Flask Backend API
+            ↓
+PostgreSQL Database
+            ↓
+Stripe Billing + Webhooks
+```
 
-The goal is to combine:
-- CRM functionality
-- AI-powered productivity
-- Outreach automation
-- Modern SaaS UI/UX
-- Cloud deployment architecture
-
-into one scalable platform.
+AutoClient V2 uses a production-style SaaS architecture with frontend UI, backend API logic, PostgreSQL persistence, Stripe billing infrastructure, and webhook-based subscription syncing.
 
 ---
 
 # 📸 Screenshots
 
-> Add screenshots here for:
-- Dashboard
-- CRM Lead Manager
-- AI Outreach Generator
-- Mobile Responsive Layout
-- Admin Dashboard
-- Follow-Up Tracker
+## Dashboard
+![Dashboard](AUTOCLIENT%20Screenshots/dashboard.png)
 
-Example:
+## Leads CRM
+![Leads](AUTOCLIENT%20Screenshots/leads.png)
 
-```markdown
-![Dashboard Screenshot](images/dashboard.png)
-```
+## Analytics Dashboard
+![Analytics](AUTOCLIENT%20Screenshots/analytics.png)
+
+## Settings & Billing
+![Settings](AUTOCLIENT%20Screenshots/settings.png)
+
+## Admin Dashboard
+![Admin](AUTOCLIENT%20Screenshots/admin.png)
 
 ---
 
@@ -128,7 +181,7 @@ Example:
 ## Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AutoClient.git
+git clone https://github.com/Austinprinsloo32-netizen/AutoClient.git
 ```
 
 ## Navigate Into Project
@@ -137,15 +190,19 @@ git clone https://github.com/YOUR_USERNAME/AutoClient.git
 cd AutoClient
 ```
 
-## Create Virtual Environment
+---
 
-### Windows
+# 🐍 Create Virtual Environment
+
+## Windows
+
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### Mac/Linux
+## Mac/Linux
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
@@ -173,12 +230,39 @@ python app.py
 
 AutoClient V2 uses PostgreSQL for persistent cloud-based storage.
 
-Environment variables typically include:
+Example environment variables:
 
 ```env
 DATABASE_URL=your_postgresql_url
 SECRET_KEY=your_secret_key
+STRIPE_SECRET_KEY=your_stripe_secret
+STRIPE_WEBHOOK_SECRET=your_webhook_secret
+STRIPE_PRO_PRICE_ID=your_price_id
 ```
+
+---
+
+# 💳 Billing Workflow
+
+```text
+User clicks Upgrade
+        ↓
+Stripe Checkout opens
+        ↓
+Payment succeeds
+        ↓
+Stripe webhook triggers
+        ↓
+Flask backend updates PostgreSQL
+        ↓
+User receives Pro access
+```
+
+The Stripe Billing Portal allows users to:
+- Manage cards
+- View invoices
+- Cancel subscriptions
+- Manage billing securely
 
 ---
 
@@ -191,47 +275,77 @@ Hosted on GitHub Pages.
 Hosted on Render.
 
 ## Database
-PostgreSQL cloud database integration.
+Cloud PostgreSQL integration.
+
+## Billing
+Stripe Checkout + Billing Portal + Webhooks.
+
+---
+
+# 🎯 What This Project Demonstrates
+
+AutoClient V2 demonstrates:
+
+- Full-stack web development
+- SaaS architecture
+- Stripe payment integration
+- PostgreSQL database management
+- Authentication systems
+- API integration
+- CRM workflow engineering
+- Feature gating systems
+- Production deployment
+- Responsive UI/UX design
+- Admin dashboard systems
 
 ---
 
 # 📈 Future Roadmap
 
-## Planned Features
-- 🌙 Dark mode
-- 📧 Email outreach integration
-- 📊 Analytics dashboard
-- 📌 Kanban lead pipeline
-- 👥 Team collaboration
-- 💳 Subscription billing
-- 🤖 AI lead scoring
-- 🔔 Notification system
-- 📱 Mobile app version
-- ☁️ API integrations
+## Planned Future Improvements
+- 🤖 AI CRM assistant
+- 👥 Team workspaces
+- 🏢 Agency mode
+- 📧 Advanced email automation
+- 📊 Advanced analytics
+- 🎯 AI lead scoring
+- 🔔 Smart notification system
+- 🌐 Chrome extension integration
+- 📱 Mobile application
 
 ---
 
-# 🎯 Target Audience
+# 🧠 Project Vision
 
-AutoClient is designed for:
-- Freelancers
-- Startup founders
-- Sales teams
-- Recruiters
-- Marketing agencies
-- Small businesses
+AutoClient V2 was built to move beyond a simple CRUD application and simulate a real-world SaaS product experience.
+
+The goal was to combine:
+
+- CRM functionality
+- AI-powered productivity
+- SaaS workflows
+- Billing infrastructure
+- Cloud deployment
+- Modern UI/UX
+- Business automation
+
+into one scalable portfolio-grade platform.
 
 ---
 
 # 🧪 Current Status
 
-✅ Fully deployed  
-✅ Functional frontend + backend  
+✅ Production deployed  
 ✅ PostgreSQL integration complete  
+✅ Stripe subscription billing active  
+✅ Billing management portal active  
+✅ Feature-gated SaaS plans  
+✅ Admin dashboard operational  
+✅ Responsive SaaS UI complete  
 ✅ Authentication system active  
-✅ CRM features operational  
-✅ AI outreach tools working  
-✅ Mobile responsive UI complete  
+✅ CRM workflow system operational  
+✅ Analytics dashboard operational  
+✅ Kanban CRM pipeline active  
 
 ---
 
@@ -241,14 +355,14 @@ AutoClient is designed for:
 
 Aspiring Full-Stack Developer & SaaS Builder from South Africa 🇿🇦
 
-### Portfolio
+## Portfolio
 https://austinprinsloo32-netizen.github.io/Portfolio/
 
-### GitHub
+## GitHub
 https://github.com/Austinprinsloo32-netizen
 
-### LinkedIn
-Add your LinkedIn profile here
+## LinkedIn
+https://linkedin.com/in/austin-prinsloo-924b91218
 
 ---
 
@@ -270,12 +384,10 @@ If you like this project:
 
 # 💡 Inspiration
 
-AutoClient was inspired by modern CRM and outreach platforms such as:
+AutoClient V2 was inspired by modern CRM and outreach platforms such as:
 - HubSpot
 - Apollo.io
 - Pipedrive
 - Notion
 
-while focusing on simplicity, automation, and accessibility for smaller businesses and solo entrepreneurs.
-
----
+while focusing on accessibility, automation, and SaaS workflow simplicity for freelancers and small businesses.
