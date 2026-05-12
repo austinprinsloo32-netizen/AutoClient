@@ -420,28 +420,83 @@
         </section>
 
         <section id="settingsPage" class="page-section">
-          <div class="card">
-            <div class="section-heading">
-              <span class="step">⚙</span>
-              <div>
-                <h2>Settings</h2>
-                <p>Account, billing, and app settings.</p>
-              </div>
+          <div class="settings-hero">
+            <div>
+              <span class="eyebrow">Workspace settings</span>
+              <h2>Account, plan, and billing</h2>
+              <p>Manage your AutoClient profile, subscription status, usage limits, and billing portal access.</p>
             </div>
 
-            <div class="settings-box">
-              <p><strong>Current user:</strong> <span id="settingsUserName">N/A</span></p>
-              <p><strong>Email:</strong> <span id="settingsUserEmail">N/A</span></p>
-              <p><strong>Role:</strong> <span id="settingsUserRole">User</span></p>
-              <p><strong>Plan:</strong> <span id="settingsUserPlan">FREE PLAN</span></p>
-              <p><strong>Subscription:</strong> <span id="subscriptionStatus">inactive</span></p>
-              <p><strong>Limits:</strong> <span id="planLimits">Lead limit: 10</span></p>
+            <div class="settings-hero-card">
+              <span>Current Plan</span>
+              <strong id="settingsUserPlan">FREE PLAN</strong>
+              <small id="subscriptionStatus">inactive</small>
             </div>
           </div>
 
-          <div class="pricing-grid">
-            <div class="pricing-card">
-              <span class="pricing-pill">Free</span>
+          <div class="settings-layout">
+            <div class="card settings-profile-card">
+              <div class="section-heading">
+                <span class="step">⚙</span>
+                <div>
+                  <h2>Account Overview</h2>
+                  <p>Your current AutoClient workspace details.</p>
+                </div>
+              </div>
+
+              <div class="settings-box upgraded-settings-box">
+                <div class="settings-row">
+                  <span>Current user</span>
+                  <strong id="settingsUserName">N/A</strong>
+                </div>
+
+                <div class="settings-row">
+                  <span>Email</span>
+                  <strong id="settingsUserEmail">N/A</strong>
+                </div>
+
+                <div class="settings-row">
+                  <span>Role</span>
+                  <strong id="settingsUserRole">User</strong>
+                </div>
+
+                <div class="settings-row">
+                  <span>Usage limits</span>
+                  <strong id="planLimits">Lead limit: 10</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="card billing-card">
+              <div class="section-heading">
+                <span class="step">💳</span>
+                <div>
+                  <h2>Billing Management</h2>
+                  <p>Manage your payment method, invoices, subscription, or cancellation through Stripe.</p>
+                </div>
+              </div>
+
+              <div class="billing-actions">
+                <button id="manageBillingBtn" class="primary-btn">Manage Billing</button>
+                <p>Secure billing is handled by Stripe.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pricing-section-header">
+            <div>
+              <h2>Choose your plan</h2>
+              <p>AutoClient is built to scale from solo freelancers to agency workflows.</p>
+            </div>
+          </div>
+
+          <div class="pricing-grid upgraded-pricing-grid">
+            <div class="pricing-card upgraded-pricing-card">
+              <div class="plan-card-top">
+                <span class="pricing-pill">Free</span>
+                <span class="plan-status-muted">Starter</span>
+              </div>
+
               <h2>R0</h2>
               <p>For testing AutoClient and managing your first few leads.</p>
 
@@ -452,11 +507,17 @@
                 <li>Manual outreach</li>
                 <li>Basic dashboard</li>
               </ul>
+
+              <button class="secondary-btn" disabled>Current starter plan</button>
             </div>
 
-            <div class="pricing-card featured-plan">
-              <span class="pricing-pill">Pro</span>
-              <h2>R149 / month</h2>
+            <div class="pricing-card upgraded-pricing-card featured-plan">
+              <div class="plan-card-top">
+                <span class="pricing-pill">Pro</span>
+                <span class="plan-status-active">Best Value</span>
+              </div>
+
+              <h2>R149 <small>/ month</small></h2>
               <p>For freelancers and small businesses actively finding clients.</p>
 
               <ul>
@@ -471,8 +532,12 @@
               <button id="upgradeProBtn" class="primary-btn">Upgrade to Pro</button>
             </div>
 
-            <div class="pricing-card">
-              <span class="pricing-pill">Agency</span>
+            <div class="pricing-card upgraded-pricing-card">
+              <div class="plan-card-top">
+                <span class="pricing-pill">Agency</span>
+                <span class="plan-status-muted">Soon</span>
+              </div>
+
               <h2>Coming Soon</h2>
               <p>For agencies managing larger client acquisition pipelines.</p>
 
@@ -486,18 +551,6 @@
 
               <button id="upgradeAgencyBtn" class="dark-btn" disabled>Coming Soon</button>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="section-heading">
-              <span class="step">💳</span>
-              <div>
-                <h2>Billing Management</h2>
-                <p>Manage your subscription, payment method, invoices, or cancellation through Stripe.</p>
-              </div>
-            </div>
-
-            <button id="manageBillingBtn" class="secondary-btn">Manage Billing</button>
           </div>
         </section>
 
