@@ -399,10 +399,41 @@ function renderPlanUI() {
   if (settingsUserPlan) {
     settingsUserPlan.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
   }
+if (subscriptionStatus) {
 
-  if (subscriptionStatus) {
-    subscriptionStatus.textContent = currentPlan.subscriptionStatus || "inactive";
+  const status =
+    (currentPlan.subscriptionStatus || "inactive").toLowerCase();
+
+  subscriptionStatus.className = "subscription-status";
+
+  if (status === "active") {
+
+    subscriptionStatus.textContent = "ACTIVE";
+    subscriptionStatus.style.color = "#22c55e";
+
   }
+
+  else if (status === "cancelled") {
+
+    subscriptionStatus.textContent = "CANCELLED";
+    subscriptionStatus.style.color = "#ef4444";
+
+  }
+
+  else if (status === "past_due") {
+
+    subscriptionStatus.textContent = "PAST DUE";
+    subscriptionStatus.style.color = "#f59e0b";
+
+  }
+
+  else {
+
+    subscriptionStatus.textContent = "FREE PLAN";
+    subscriptionStatus.style.color = "#94a3b8";
+
+  }
+}
 
   if (planLimits) {
     planLimits.textContent = `Lead limit: ${currentPlan.features.max_leads}`;
@@ -852,11 +883,19 @@ function renderRecentActivity() {
 
   if (!activities.length) {
     recentActivity.innerHTML = `
-      <div class="activity-item">
-        <strong>No recent activity</strong>
-        <span>Your CRM actions will appear here.</span>
+      <div class="locked-feature-card">
+
+        <div class="locked-feature-icon">📈</div>
+
+        <h3>No CRM Activity Yet</h3>
+
+        <p>
+          Your outreach actions, follow-ups, emails,
+          and CRM interactions will appear here automatically.
+        </p>
+
       </div>
-    `;
+  `;
     return;
   }
 
@@ -1158,11 +1197,19 @@ function renderRecentLeads() {
 
   if (recent.length === 0) {
     recentLeads.innerHTML = `
-      <div class="mini-item">
-        <strong>No recent leads</strong>
-        <span>Add a lead to see it here.</span>
-      </div>
-    `;
+    <div class="locked-feature-card">
+
+      <div class="locked-feature-icon">📂</div>
+
+      <h3>No Leads Yet</h3>
+
+      <p>
+        Your newest leads will appear here once you start
+        building your CRM pipeline.
+      </p>
+
+    </div>
+  `;
     return;
   }
 
@@ -1292,8 +1339,39 @@ function renderLeads() {
   const filteredLeads = getFilteredLeads();
 
   if (leads.length === 0) {
-    leadList.innerHTML = `<p>No leads added yet. Add your first potential client above.</p>`;
-    return;
+leadList.innerHTML = `
+  <div class="locked-feature-card">
+
+    <div class="locked-feature-icon">🚀</div>
+
+    <h3>Start Building Your CRM</h3>
+
+    <p>
+      You have no leads yet.
+      Add your first client lead or use the AI Lead Finder
+      to start building your sales pipeline.
+    </p>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+
+      <button
+        class="primary-btn"
+        onclick="document.getElementById('businessName').focus()"
+      >
+        Add First Lead
+      </button>
+
+      <button
+        class="secondary-btn"
+        onclick="showPage('dashboardPage')"
+      >
+        Open Lead Finder
+      </button>
+
+    </div>
+
+  </div>
+`;    return;
   }
 
   if (filteredLeads.length === 0) {
@@ -2235,44 +2313,7 @@ function renderKanbanBoard() {
 
   return;
 }
-  const manageBillingBtn = document.getElementById("manageBillingBtn");
-
-if (manageBillingBtn) {
-  manageBillingBtn.addEventListener("click", async () => {
-
-    if (!currentUser || !currentUser.id) {
-      showToast("Please login first.", "error");
-      return;
-    }
-
-    try {
-
-      const response = await fetch("/api/create-billing-portal-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          userId: currentUser.id
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        showToast(data.error || "Billing portal failed.", "error");
-        return;
-      }
-
-      window.location.href = data.url;
-
-    } catch (error) {
-      console.error(error);
-      showToast("Could not open billing portal.", "error");
-    }
-
-  });
-}
+  
 
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
@@ -2337,6 +2378,7 @@ if (manageBillingBtn) {
 
 const upgradeProBtn = document.getElementById("upgradeProBtn");
 const upgradeAgencyBtn = document.getElementById("upgradeAgencyBtn");
+const manageBillingBtn = document.getElementById("manageBillingBtn");
 
 if (upgradeProBtn) {
   upgradeProBtn.addEventListener("click", () => startCheckout("pro"));
