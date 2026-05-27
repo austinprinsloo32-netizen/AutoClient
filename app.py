@@ -640,56 +640,72 @@ def create_checkout_session():
         return jsonify({"error": str(e)}), 500
 @app.route("/api/create-billing-portal-session", methods=["POST"])
 def create_billing_portal_session():
-
     if not STRIPE_SECRET_KEY:
-        return jsonify({
-            "error": "STRIPE_SECRET_KEY is not configured"
-        }), 500
+        return jsonify({"error": "STRIPE_SECRET_KEY is not configured"}), 500
 
     data = request.get_json() or {}
     user_id = data.get("userId")
 
     if not user_id:
-        return jsonify({
-            "error": "userId is required"
-        }), 400
+        return jsonify({"error": "userId is required"}), 400
 
     user = get_user_by_id(user_id)
 
     if not user:
-        return jsonify({
-            "error": "User not found"
-        }), 404
+        return jsonify({"error": "User not found"}), 404
 
-    stripe_customer_id = get_field(
-        user,
-        "stripe_customer_id",
-        ""
-    )
-
-    if not stripe_customer_id:
-        return jsonify({
-            "error": "No Stripe customer found yet."
-        }), 400
+    stripe_customer_id = get_field(user, "stripe_customer_id", "")
 
     try:
+        if not stripe_customer_id:
+            customers = stripe.Customer.list(
+                email=user["email"],
+                limit=1
+            )
+
+            if not customers.data:
+                return jsonify({
+                    "error": "No Stripe customer found yet. Complete checkout first."
+                }), 400
+
+            stripe_customer_id = customers.data[0].id
+
+            subscriptions = stripe.Subscription.list(
+                customer=stripe_customer_id,
+                status="all",
+                limit=1
+            )
+
+            stripe_subscription_id = ""
+            subscription_status = "inactive"
+            plan = "free"
+
+            if subscriptions.data:
+                subscription = subscriptions.data[0]
+                stripe_subscription_id = subscription.id
+                subscription_status = subscription.status
+
+                if subscription_status in ["active", "trialing"]:
+                    plan = "pro"
+
+            update_user_subscription(
+                user_id=user_id,
+                plan=plan,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
+                subscription_status=subscription_status
+            )
 
         portal_session = stripe.billing_portal.Session.create(
             customer=stripe_customer_id,
             return_url=f"{FRONTEND_URL}/app"
         )
 
-        return jsonify({
-            "url": portal_session.url
-        })
+        return jsonify({"url": portal_session.url})
 
     except Exception as e:
-
         print("Stripe portal error:", e)
-
-        return jsonify({
-            "error": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
