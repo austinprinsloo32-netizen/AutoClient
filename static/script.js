@@ -2130,6 +2130,44 @@ function renderKanbanBoard() {
     });
     return;
   }
+  const manageBillingBtn = document.getElementById("manageBillingBtn");
+
+if (manageBillingBtn) {
+  manageBillingBtn.addEventListener("click", async () => {
+
+    if (!currentUser || !currentUser.id) {
+      showToast("Please login first.", "error");
+      return;
+    }
+
+    try {
+
+      const response = await fetch("/api/create-billing-portal-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: currentUser.id
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast(data.error || "Billing portal failed.", "error");
+        return;
+      }
+
+      window.location.href = data.url;
+
+    } catch (error) {
+      console.error(error);
+      showToast("Could not open billing portal.", "error");
+    }
+
+  });
+}
 
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)

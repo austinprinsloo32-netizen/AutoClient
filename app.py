@@ -675,7 +675,6 @@ def create_billing_portal_session():
         print("Stripe portal error:", e)
         return jsonify({"error": "Could not create billing portal session"}), 500
 
-
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
