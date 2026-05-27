@@ -252,11 +252,48 @@ function injectSmartCRMStyles() {
       }
     }
 
-    @media (max-width: 700px) {
-      .smart-dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-    }
+  .locked-feature-card {
+  border: 1px dashed #cbd5e1;
+  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  border-radius: 22px;
+  padding: 28px;
+  text-align: center;
+  display: grid;
+  gap: 14px;
+  place-items: center;
+  margin-top: 12px;
+}
+
+.locked-feature-icon {
+  font-size: 40px;
+}
+
+.locked-feature-card h3 {
+  color: var(--navy);
+  font-size: 22px;
+  margin: 0;
+}
+
+.locked-feature-card p {
+  color: var(--muted);
+  max-width: 460px;
+  line-height: 1.6;
+}
+
+body.dark-mode .locked-feature-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .locked-feature-card h3 {
+  color: #f8fafc;
+}
+
+@media (max-width: 700px) {
+  .smart-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
   `;
 
   document.head.appendChild(style);
@@ -349,26 +386,65 @@ async function loadUserPlan() {
 }
 
 function renderPlanUI() {
+
   const planBadge = document.getElementById("planBadge");
   const settingsUserPlan = document.getElementById("settingsUserPlan");
   const subscriptionStatus = document.getElementById("subscriptionStatus");
   const planLimits = document.getElementById("planLimits");
 
   if (planBadge) {
-    planBadge.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+    planBadge.textContent =
+      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+
     planBadge.className = `plan-badge ${currentPlan.plan}`;
   }
 
   if (settingsUserPlan) {
-    settingsUserPlan.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+    settingsUserPlan.textContent =
+      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
   }
 
+  // UPDATED SUBSCRIPTION STATUS UI
+
   if (subscriptionStatus) {
-    subscriptionStatus.textContent = currentPlan.subscriptionStatus || "inactive";
+
+    const status =
+      (currentPlan.subscriptionStatus || "inactive").toLowerCase();
+
+    subscriptionStatus.className = "subscription-status";
+
+    if (status === "active") {
+
+      subscriptionStatus.textContent = "ACTIVE";
+      subscriptionStatus.style.color = "#22c55e";
+
+    }
+
+    else if (status === "cancelled") {
+
+      subscriptionStatus.textContent = "CANCELLED";
+      subscriptionStatus.style.color = "#ef4444";
+
+    }
+
+    else if (status === "past_due") {
+
+      subscriptionStatus.textContent = "PAST DUE";
+      subscriptionStatus.style.color = "#f59e0b";
+
+    }
+
+    else {
+
+      subscriptionStatus.textContent = "FREE PLAN";
+      subscriptionStatus.style.color = "#94a3b8";
+
+    }
   }
 
   if (planLimits) {
-    planLimits.textContent = `Lead limit: ${currentPlan.features.max_leads}`;
+    planLimits.textContent =
+      `Lead limit: ${currentPlan.features.max_leads}`;
   }
 }
 
@@ -1148,31 +1224,80 @@ function renderAnalytics() {
 
   if (!currentPlan.features.analytics) {
     analyticsGrid.innerHTML = `
-      <div class="analytics-item">
-        <strong>🔒 Locked</strong>
-        <span>Analytics are available on Pro or Agency plans.</span>
+      <div class="locked-feature-card">
+        <div class="locked-feature-icon">🔒</div>
+
+        <h3>Analytics Locked</h3>
+
+        <p>
+          Upgrade to Pro to unlock:
+          conversion tracking,
+          hot lead insights,
+          CRM analytics,
+          follow-up monitoring,
+          and sales performance reporting.
+        </p>
+
+        <button class="primary-btn" onclick="showPage('settingsPage')">
+          Upgrade to Pro
+        </button>
       </div>
     `;
+
     return;
   }
 
   const total = leads.length;
-  const contacted = leads.filter(lead => lead.status === "Contacted").length;
-  const interested = leads.filter(lead => lead.status === "Interested").length;
-  const closed = leads.filter(lead => lead.status === "Closed").length;
-  const overdue = leads.filter(lead => isOverdue(lead.nextFollowUp)).length;
-  const hot = leads.filter(lead => getLeadScore(lead).level === "hot").length;
 
-  const contactedRate = total ? Math.round((contacted / total) * 100) : 0;
-  const interestedRate = total ? Math.round((interested / total) * 100) : 0;
-  const closeRate = total ? Math.round((closed / total) * 100) : 0;
+  const contacted =
+    leads.filter(lead => lead.status === "Contacted").length;
+
+  const interested =
+    leads.filter(lead => lead.status === "Interested").length;
+
+  const closed =
+    leads.filter(lead => lead.status === "Closed").length;
+
+  const overdue =
+    leads.filter(lead => isOverdue(lead.nextFollowUp)).length;
+
+  const hot =
+    leads.filter(lead => getLeadScore(lead).level === "hot").length;
+
+  const contactedRate =
+    total ? Math.round((contacted / total) * 100) : 0;
+
+  const interestedRate =
+    total ? Math.round((interested / total) * 100) : 0;
+
+  const closeRate =
+    total ? Math.round((closed / total) * 100) : 0;
 
   analyticsGrid.innerHTML = `
-    <div class="analytics-item"><strong>${contactedRate}%</strong><span>Contacted Rate</span></div>
-    <div class="analytics-item"><strong>${interestedRate}%</strong><span>Interested Rate</span></div>
-    <div class="analytics-item"><strong>${closeRate}%</strong><span>Close Rate</span></div>
-    <div class="analytics-item"><strong>${overdue}</strong><span>Overdue Follow-ups</span></div>
-    <div class="analytics-item"><strong>${hot}</strong><span>Hot Leads</span></div>
+    <div class="analytics-item">
+      <strong>${contactedRate}%</strong>
+      <span>Contacted Rate</span>
+    </div>
+
+    <div class="analytics-item">
+      <strong>${interestedRate}%</strong>
+      <span>Interested Rate</span>
+    </div>
+
+    <div class="analytics-item">
+      <strong>${closeRate}%</strong>
+      <span>Close Rate</span>
+    </div>
+
+    <div class="analytics-item">
+      <strong>${overdue}</strong>
+      <span>Overdue Follow-ups</span>
+    </div>
+
+    <div class="analytics-item">
+      <strong>${hot}</strong>
+      <span>Hot Leads</span>
+    </div>
   `;
 }
 
@@ -2118,19 +2243,37 @@ function renderKanbanBoard() {
   });
 
   if (!currentPlan.features.kanban) {
-    Object.values(columns).forEach(column => {
-      if (column) {
-        column.innerHTML = `
-          <div class="kanban-card">
-            <h4>🔒 Kanban Locked</h4>
-            <p>Upgrade to Pro or Agency to use the CRM pipeline.</p>
-          </div>
-        `;
-      }
-    });
-    return;
-  }
 
+  Object.values(columns).forEach(column => {
+
+    if (column) {
+
+      column.innerHTML = `
+        <div class="locked-feature-card">
+
+          <div class="locked-feature-icon">🔒</div>
+
+          <h3>CRM Pipeline Locked</h3>
+
+          <p>
+            Upgrade to Pro to unlock the visual drag-and-drop sales pipeline
+            and manage your leads like a real CRM platform.
+          </p>
+
+          <button
+            class="primary-btn"
+            onclick="showPage('settingsPage')"
+          >
+            Upgrade to Pro
+          </button>
+
+        </div>
+      `;
+    }
+  });
+
+  return;
+}
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
       ? lead.status
