@@ -23,7 +23,11 @@ app.config["SECRET_KEY"] = (
     or secrets.token_hex(32)
 )
 
-CORS(app)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False
+
+CORS(app, supports_credentials=True)
 
 
 DB_NAME = "autoclient.db"
@@ -561,7 +565,8 @@ def login():
 
     if user is None or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid email or password"}), 401
-        session["user_id"] = user["id"]
+
+    session["user_id"] = user["id"]
 
     log_activity(
         user["id"],
@@ -578,10 +583,42 @@ def login():
             "createdAt": get_field(user, "createdAt"),
             "isAdmin": user["email"].lower() == ADMIN_EMAIL,
             "plan": get_field(user, "plan", "free"),
-            "subscriptionStatus": get_field(user, "subscription_status", "inactive")
+            "subscriptionStatus": get_field(
+                user,
+                "subscription_status",
+                "inactive"
+            )
         }
     })
+    
+@app.route("/api/me", methods=["GET"])
+def current_user():
+    user_id = session.get("user_id")
 
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "createdAt": get_field(user, "createdAt"),
+            "isAdmin": user["email"].lower() == ADMIN_EMAIL,
+            "plan": get_field(user, "plan", "free"),
+            "subscriptionStatus": get_field(
+                user,
+                "subscription_status",
+                "inactive"
+            )
+        }
+    })
 
 @app.route("/api/my-plan", methods=["GET"])
 def my_plan():
