@@ -1,10 +1,11 @@
 import os
+import secrets
 import sqlite3
 from datetime import datetime
 
 import requests
 import stripe
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -16,6 +17,12 @@ except ImportError:
 
 
 app = Flask(__name__, static_folder="static")
+
+app.config["SECRET_KEY"] = (
+    os.environ.get("SECRET_KEY")
+    or secrets.token_hex(32)
+)
+
 CORS(app)
 
 
@@ -554,6 +561,7 @@ def login():
 
     if user is None or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid email or password"}), 401
+        session["user_id"] = user["id"]
 
     log_activity(
         user["id"],
