@@ -868,10 +868,10 @@ def stripe_webhook():
 
 @app.route("/api/activities", methods=["GET"])
 def get_activities():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     p = placeholder()
 
