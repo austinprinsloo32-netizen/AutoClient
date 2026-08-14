@@ -912,10 +912,10 @@ def create_activity():
 
 @app.route("/api/leads", methods=["GET"])
 def get_leads():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     p = placeholder()
 
@@ -926,7 +926,6 @@ def get_leads():
     )
 
     return jsonify([row_to_dict(lead) for lead in leads])
-
 
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
