@@ -894,13 +894,13 @@ def get_activities():
 def create_activity():
     data = request.get_json() or {}
 
-    user_id = data.get("userId")
+    user_id = session.get("user_id")
     lead_id = data.get("leadId")
     action = data.get("action", "").strip()
     details = data.get("details", "").strip()
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     if not action:
         return jsonify({"error": "Action is required"}), 400
