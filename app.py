@@ -590,7 +590,7 @@ def login():
             )
         }
     })
-    
+
 @app.route("/api/me", methods=["GET"])
 def current_user():
     user_id = session.get("user_id")
@@ -622,14 +622,15 @@ def current_user():
 
 @app.route("/api/my-plan", methods=["GET"])
 def my_plan():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     user = get_user_by_id(user_id)
 
     if not user:
+        session.clear()
         return jsonify({"error": "User not found"}), 404
 
     return jsonify(get_user_plan_data(user))
