@@ -926,19 +926,20 @@ def get_leads():
     )
 
     return jsonify([row_to_dict(lead) for lead in leads])
-
+    
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     data = request.get_json() or {}
 
-    user_id = data.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     user = get_user_by_id(user_id)
 
     if not user:
+        session.clear()
         return jsonify({"error": "User not found"}), 404
 
     plan_data = get_user_plan_data(user)
@@ -979,7 +980,11 @@ def add_lead():
         ), fetchone=True, commit=True)
 
         lead_dict = row_to_dict(lead)
-        business_name = get_field(lead_dict, "businessName", data.get("businessName"))
+        business_name = get_field(
+            lead_dict,
+            "businessName",
+            data.get("businessName")
+        )
 
         log_activity(
             user_id,
@@ -1024,7 +1029,19 @@ def add_lead():
         f"{data.get('businessName')} was added to your CRM."
     )
 
-    return jsonify({"id": lead_id, **data}), 201
+    return jsonify({
+        "id": lead_id,
+        "userId": user_id,
+        "businessName": data.get("businessName"),
+        "link": data.get("link", ""),
+        "contact": data.get("contact", ""),
+        "priority": data.get("priority", "Cold"),
+        "notes": data.get("notes", ""),
+        "status": data.get("status", "New"),
+        "createdAt": created_at,
+        "lastContacted": last_contacted,
+        "nextFollowUp": next_follow_up
+    }), 201
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
