@@ -926,7 +926,7 @@ def get_leads():
     )
 
     return jsonify([row_to_dict(lead) for lead in leads])
-    
+
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     data = request.get_json() or {}
@@ -1043,21 +1043,29 @@ def add_lead():
         "nextFollowUp": next_follow_up
     }), 201
 
-
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
     data = request.get_json() or {}
 
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
     p = placeholder()
 
     old_lead = execute_query(
-        f"SELECT * FROM leads WHERE id = {p}",
-        (lead_id,),
+        f"SELECT * FROM leads WHERE id = {p} AND userId = {p}",
+        (lead_id, user_id),
         fetchone=True
     )
 
     old_lead = row_to_dict(old_lead)
-    old_status = old_lead.get("status") if old_lead else None
+
+    if not old_lead:
+        return jsonify({"error": "Lead not found"}), 404
+
+    old_status = old_lead.get("status")
     new_status = data.get("status")
 
     if USING_POSTGRES:
@@ -1072,7 +1080,7 @@ def update_lead(lead_id):
                 createdAt=%s,
                 lastContacted=%s,
                 nextFollowUp=%s
-            WHERE id=%s
+            WHERE id=%s AND userId=%s
             RETURNING *
         """, (
             data.get("businessName"),
@@ -1084,39 +1092,42 @@ def update_lead(lead_id):
             data.get("createdAt"),
             data.get("lastContacted", ""),
             data.get("nextFollowUp", ""),
-            lead_id
+            lead_id,
+            user_id
         ), fetchone=True, commit=True)
 
         lead_dict = row_to_dict(lead)
 
-        if lead_dict:
-            business_name = get_field(
-                lead_dict,
-                "businessName",
-                data.get("businessName") or "Lead"
-            )
+        if not lead_dict:
+            return jsonify({"error": "Lead not found"}), 404
 
-            if old_status and new_status and old_status != new_status:
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Lead Status Changed",
-                    f"{business_name} moved from {old_status} to {new_status}."
-                )
-            elif data.get("nextFollowUp"):
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Follow-up Scheduled",
-                    f"Next follow-up set for {data.get('nextFollowUp')}."
-                )
-            else:
-                log_activity(
-                    data.get("userId"),
-                    lead_id,
-                    "Lead Updated",
-                    f"{business_name} was updated."
-                )
+        business_name = get_field(
+            lead_dict,
+            "businessName",
+            data.get("businessName") or "Lead"
+        )
+
+        if old_status and new_status and old_status != new_status:
+            log_activity(
+                user_id,
+                lead_id,
+                "Lead Status Changed",
+                f"{business_name} moved from {old_status} to {new_status}."
+            )
+        elif data.get("nextFollowUp"):
+            log_activity(
+                user_id,
+                lead_id,
+                "Follow-up Scheduled",
+                f"Next follow-up set for {data.get('nextFollowUp')}."
+            )
+        else:
+            log_activity(
+                user_id,
+                lead_id,
+                "Lead Updated",
+                f"{business_name} was updated."
+            )
 
         return jsonify(lead_dict)
 
@@ -1131,7 +1142,7 @@ def update_lead(lead_id):
             createdAt=?,
             lastContacted=?,
             nextFollowUp=?
-        WHERE id=?
+        WHERE id=? AND userId=?
     """, (
         data.get("businessName"),
         data.get("link"),
@@ -1142,28 +1153,29 @@ def update_lead(lead_id):
         data.get("createdAt"),
         data.get("lastContacted", ""),
         data.get("nextFollowUp", ""),
-        lead_id
+        lead_id,
+        user_id
     ), commit=True)
 
     business_name = data.get("businessName") or "Lead"
 
     if old_status and new_status and old_status != new_status:
         log_activity(
-            data.get("userId"),
+            user_id,
             lead_id,
             "Lead Status Changed",
             f"{business_name} moved from {old_status} to {new_status}."
         )
     elif data.get("nextFollowUp"):
         log_activity(
-            data.get("userId"),
+            user_id,
             lead_id,
             "Follow-up Scheduled",
             f"Next follow-up set for {data.get('nextFollowUp')}."
         )
     else:
         log_activity(
-            data.get("userId"),
+            user_id,
             lead_id,
             "Lead Updated",
             f"{business_name} was updated."
@@ -1171,33 +1183,38 @@ def update_lead(lead_id):
 
     return jsonify({"message": "Lead updated"})
 
-
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
 def delete_lead(lead_id):
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
     p = placeholder()
 
     lead = execute_query(
-        f"SELECT * FROM leads WHERE id = {p}",
-        (lead_id,),
+        f"SELECT * FROM leads WHERE id = {p} AND userId = {p}",
+        (lead_id, user_id),
         fetchone=True
     )
 
     lead = row_to_dict(lead)
 
-    if lead:
-        user_id = get_field(lead, "userId")
-        business_name = get_field(lead, "businessName", "Lead")
+    if not lead:
+        return jsonify({"error": "Lead not found"}), 404
 
-        log_activity(
-            user_id,
-            lead_id,
-            "Lead Deleted",
-            f"{business_name} was deleted from your CRM."
-        )
+    business_name = get_field(lead, "businessName", "Lead")
+
+    log_activity(
+        user_id,
+        lead_id,
+        "Lead Deleted",
+        f"{business_name} was deleted from your CRM."
+    )
 
     execute_query(
-        f"DELETE FROM leads WHERE id = {p}",
-        (lead_id,),
+        f"DELETE FROM leads WHERE id = {p} AND userId = {p}",
+        (lead_id, user_id),
         commit=True
     )
 
