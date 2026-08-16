@@ -1425,17 +1425,38 @@ def find_leads():
 
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
 
     if not is_admin_user(user_id):
         return jsonify({"error": "Admin access required"}), 403
 
-    total_users = execute_query("SELECT COUNT(*) AS count FROM users", fetchone=True)
-    total_leads = execute_query("SELECT COUNT(*) AS count FROM leads", fetchone=True)
-    new_leads = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'New'", fetchone=True)
-    interested = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'", fetchone=True)
-    closed = execute_query("SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'", fetchone=True)
-    pro_users = execute_query("SELECT COUNT(*) AS count FROM users WHERE plan = 'pro'", fetchone=True)
+    total_users = execute_query(
+        "SELECT COUNT(*) AS count FROM users",
+        fetchone=True
+    )
+    total_leads = execute_query(
+        "SELECT COUNT(*) AS count FROM leads",
+        fetchone=True
+    )
+    new_leads = execute_query(
+        "SELECT COUNT(*) AS count FROM leads WHERE status = 'New'",
+        fetchone=True
+    )
+    interested = execute_query(
+        "SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'",
+        fetchone=True
+    )
+    closed = execute_query(
+        "SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'",
+        fetchone=True
+    )
+    pro_users = execute_query(
+        "SELECT COUNT(*) AS count FROM users WHERE plan = 'pro'",
+        fetchone=True
+    )
 
     return jsonify({
         "totalUsers": row_to_dict(total_users)["count"],
@@ -1449,7 +1470,10 @@ def admin_stats():
 
 @app.route("/api/admin/users", methods=["GET"])
 def admin_users():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
 
     if not is_admin_user(user_id):
         return jsonify({"error": "Admin access required"}), 403
@@ -1465,7 +1489,10 @@ def admin_users():
 
 @app.route("/api/admin/leads", methods=["GET"])
 def admin_leads():
-    user_id = request.args.get("userId")
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
 
     if not is_admin_user(user_id):
         return jsonify({"error": "Admin access required"}), 403
@@ -1478,7 +1505,6 @@ def admin_leads():
     """, fetchall=True)
 
     return jsonify([row_to_dict(lead) for lead in leads])
-
 
 @app.route("/<path:path>")
 def serve_static(path):
