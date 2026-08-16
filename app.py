@@ -639,21 +639,35 @@ def my_plan():
 @app.route("/api/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     if not STRIPE_SECRET_KEY:
-        return jsonify({"error": "STRIPE_SECRET_KEY is not configured in Render"}), 500
+        return jsonify({
+            "error": "Stripe billing is not configured."
+        }), 500
 
     if not STRIPE_PRO_PRICE_ID:
-        return jsonify({"error": "STRIPE_PRO_PRICE_ID is not configured in Render"}), 500
+        return jsonify({
+            "error": "Stripe Pro price is not configured."
+        }), 500
 
-    data = request.get_json() or {}
-    user_id = data.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     user = get_user_by_id(user_id)
 
     if not user:
+        session.clear()
         return jsonify({"error": "User not found"}), 404
+
+    plan_data = get_user_plan_data(user)
+
+    if (
+        plan_data["plan"] == "pro"
+        and plan_data["subscriptionStatus"] in ["active", "trialing"]
+    ):
+        return jsonify({
+            "error": "Your Pro subscription is already active."
+        }), 400
 
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -679,28 +693,40 @@ def create_checkout_session():
             cancel_url=f"{FRONTEND_URL}/app?billing=cancelled"
         )
 
-        return jsonify({"url": checkout_session.url})
+        return jsonify({
+            "url": checkout_session.url
+        })
 
     except Exception as e:
         print("Stripe checkout error:", e)
-        return jsonify({"error": str(e)}), 500
+
+        return jsonify({
+            "error": "Could not start Stripe checkout."
+        }), 500
+
 @app.route("/api/create-billing-portal-session", methods=["POST"])
 def create_billing_portal_session():
     if not STRIPE_SECRET_KEY:
-        return jsonify({"error": "STRIPE_SECRET_KEY is not configured"}), 500
+        return jsonify({
+            "error": "Stripe billing is not configured."
+        }), 500
 
-    data = request.get_json() or {}
-    user_id = data.get("userId")
+    user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "userId is required"}), 400
+        return jsonify({"error": "Not authenticated"}), 401
 
     user = get_user_by_id(user_id)
 
     if not user:
+        session.clear()
         return jsonify({"error": "User not found"}), 404
 
-    stripe_customer_id = get_field(user, "stripe_customer_id", "")
+    stripe_customer_id = get_field(
+        user,
+        "stripe_customer_id",
+        ""
+    )
 
     try:
         if not stripe_customer_id:
@@ -711,7 +737,10 @@ def create_billing_portal_session():
 
             if not customers.data:
                 return jsonify({
-                    "error": "No Stripe customer found yet. Complete checkout first."
+                    "error": (
+                        "No Stripe customer found yet. "
+                        "Complete checkout first."
+                    )
                 }), 400
 
             stripe_customer_id = customers.data[0].id
@@ -728,6 +757,7 @@ def create_billing_portal_session():
 
             if subscriptions.data:
                 subscription = subscriptions.data[0]
+
                 stripe_subscription_id = subscription.id
                 subscription_status = subscription.status
 
@@ -747,12 +777,17 @@ def create_billing_portal_session():
             return_url=f"{FRONTEND_URL}/app"
         )
 
-        return jsonify({"url": portal_session.url})
+        return jsonify({
+            "url": portal_session.url
+        })
 
     except Exception as e:
         print("Stripe portal error:", e)
-        return jsonify({"error": str(e)}), 500
 
+        return jsonify({
+            "error": "Could not open the billing portal."
+        }), 500
+        
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
