@@ -812,6 +812,9 @@ def stripe_webhook():
     event_type = event["type"]
     data_object = event["data"]["object"]
 
+    if hasattr(data_object, "to_dict"):
+        data_object = data_object.to_dict()
+
     if event_type == "checkout.session.completed":
         metadata = data_object.get("metadata", {}) or {}
 
