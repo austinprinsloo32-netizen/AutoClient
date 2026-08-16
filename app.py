@@ -25,7 +25,10 @@ app.config["SECRET_KEY"] = (
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = False
+
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
+)
 
 CORS(app, supports_credentials=True)
 
@@ -787,7 +790,7 @@ def create_billing_portal_session():
         return jsonify({
             "error": "Could not open the billing portal."
         }), 500
-        
+
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
