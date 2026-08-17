@@ -622,7 +622,6 @@ def current_user():
             )
         }
     })
-
 @app.route("/api/my-plan", methods=["GET"])
 def my_plan():
     user_id = session.get("user_id")
@@ -635,6 +634,52 @@ def my_plan():
     if not user:
         session.clear()
         return jsonify({"error": "User not found"}), 404
+
+    stripe_subscription_id = get_field(
+        user,
+        "stripe_subscription_id",
+        ""
+    )
+
+    if STRIPE_SECRET_KEY and stripe_subscription_id:
+        try:
+            subscription = stripe.Subscription.retrieve(
+                stripe_subscription_id
+            )
+
+            if hasattr(subscription, "to_dict"):
+                subscription = subscription.to_dict()
+
+            stripe_status = subscription.get(
+                "status",
+                "inactive"
+            )
+
+            plan = (
+                "pro"
+                if stripe_status in ["active", "trialing"]
+                else "free"
+            )
+
+            update_user_subscription(
+                user_id=user_id,
+                plan=plan,
+                stripe_customer_id=get_field(
+                    user,
+                    "stripe_customer_id",
+                    ""
+                ),
+                stripe_subscription_id=stripe_subscription_id,
+                subscription_status=stripe_status
+            )
+
+            user = get_user_by_id(user_id)
+
+        except Exception as e:
+            print(
+                "Stripe subscription sync error:",
+                e
+            )
 
     return jsonify(get_user_plan_data(user))
 
