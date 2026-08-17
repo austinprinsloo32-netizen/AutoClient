@@ -370,7 +370,10 @@ async function loadUserPlan() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(`${MY_PLAN_URL}?userId=${currentUser.id}`);
+    const response = await fetch(MY_PLAN_URL, {
+      credentials: "same-origin"
+    });
+
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -477,10 +480,7 @@ async function startCheckout(plan) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        userId: currentUser.id,
-        plan
-      })
+      credentials: "same-origin"
     });
 
     const data = await readJsonResponse(response);
@@ -509,9 +509,7 @@ async function openBillingPortal() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        userId: currentUser.id
-      })
+      credentials: "same-origin"
     });
 
     const data = await readJsonResponse(response);
@@ -844,8 +842,8 @@ async function logActivity(leadId, action, details) {
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: "same-origin",
       body: JSON.stringify({
-        userId: currentUser.id,
         leadId,
         action,
         details
@@ -857,12 +855,14 @@ async function logActivity(leadId, action, details) {
     console.error("Activity log error:", error);
   }
 }
-
 async function fetchActivities() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(`${ACTIVITIES_URL}?userId=${currentUser.id}`);
+    const response = await fetch(ACTIVITIES_URL, {
+      credentials: "same-origin"
+    });
+
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -944,6 +944,7 @@ function showPage(pageId) {
   if (pageId === "adminPage") {
     loadAdminDashboard();
   }
+
 
   if (sidebar) {
     sidebar.classList.remove("open");
@@ -1111,7 +1112,10 @@ async function fetchLeads() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(`${API_URL}?userId=${currentUser.id}`);
+    const response = await fetch(API_URL, {
+      credentials: "same-origin"
+    });
+
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -1460,7 +1464,6 @@ leadForm.addEventListener("submit", async function (e) {
   const wasEditing = editIndex !== null;
 
   const leadData = {
-    userId: currentUser.id,
     businessName: businessName || "Untitled Lead",
     link: leadLink || "",
     contact: contactInfo || "",
@@ -1483,6 +1486,7 @@ leadForm.addEventListener("submit", async function (e) {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "same-origin",
         body: JSON.stringify({
           ...leadData,
           status: leads[editIndex].status,
@@ -1500,6 +1504,7 @@ leadForm.addEventListener("submit", async function (e) {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "same-origin",
         body: JSON.stringify(leadData)
       });
     }
@@ -1518,7 +1523,12 @@ leadForm.addEventListener("submit", async function (e) {
     await fetchLeads();
 
     showPage("leadsPage");
-    showToast(wasEditing ? "Lead updated successfully." : "Lead saved successfully.", "success");
+    showToast(
+      wasEditing
+        ? "Lead updated successfully."
+        : "Lead saved successfully.",
+      "success"
+    );
   } catch (error) {
     console.error("Save lead connection error:", error);
     alert("Could not connect to backend. Check Console and Render logs.");
@@ -1548,7 +1558,8 @@ async function deleteLead(index) {
 
   try {
     const response = await fetch(`${API_URL}/${leads[index].id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      credentials: "same-origin"
     });
 
     const data = await readJsonResponse(response);
@@ -1576,9 +1587,9 @@ async function updateStatus(index, newStatus) {
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: "same-origin",
       body: JSON.stringify({
         ...lead,
-        userId: currentUser.id,
         status: newStatus
       })
     });
@@ -1611,7 +1622,6 @@ function setFollowUp(index) {
 
   updateLead(lead.id, {
     ...lead,
-    userId: currentUser.id,
     nextFollowUp: date,
     lastContacted: new Date().toISOString().split("T")[0]
   });
@@ -1624,10 +1634,8 @@ async function updateLead(leadId, payload) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        ...payload,
-        userId: currentUser.id
-      })
+      credentials: "same-origin",
+      body: JSON.stringify(payload)
     });
 
     const data = await readJsonResponse(response);
@@ -1942,9 +1950,8 @@ function renderLeadIdeas(ideas) {
         return;
       }
 
-      const newLead = {
-        userId: currentUser.id,
-        businessName: idea.businessName || "Untitled Lead",
+const newLead = {
+  businessName: idea.businessName || "Untitled Lead",
         link: googleSearchUrl,
         contact: "",
         priority: "Warm",
@@ -1956,13 +1963,14 @@ function renderLeadIdeas(ideas) {
       };
 
       try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(newLead)
-        });
+const response = await fetch(API_URL, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  credentials: "same-origin",
+  body: JSON.stringify(newLead)
+});
 
         const data = await readJsonResponse(response);
 
@@ -2094,9 +2102,17 @@ async function loadAdminDashboard() {
   }
 
   try {
-    const statsRes = await fetch(`${BASE_URL}/api/admin/stats?userId=${currentUser.id}`);
-    const usersRes = await fetch(`${BASE_URL}/api/admin/users?userId=${currentUser.id}`);
-    const leadsRes = await fetch(`${BASE_URL}/api/admin/leads?userId=${currentUser.id}`);
+    const statsRes = await fetch(`${BASE_URL}/api/admin/stats`, {
+      credentials: "same-origin"
+    });
+
+    const usersRes = await fetch(`${BASE_URL}/api/admin/users`, {
+      credentials: "same-origin"
+    });
+
+    const leadsRes = await fetch(`${BASE_URL}/api/admin/leads`, {
+      credentials: "same-origin"
+    });
 
     const stats = await readJsonResponse(statsRes);
     const users = await readJsonResponse(usersRes);
@@ -2123,7 +2139,11 @@ async function loadAdminDashboard() {
       div.innerHTML = `
         <strong>${user.name}</strong>
         <span>${user.email}</span>
-        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${user.subscription_status || user.subscriptionstatus || "inactive"}</span>
+        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${
+          user.subscription_status ||
+          user.subscriptionstatus ||
+          "inactive"
+        }</span>
         <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
       `;
 
@@ -2134,18 +2154,23 @@ async function loadAdminDashboard() {
       ? ""
       : `<div class="table-row"><strong>No leads found</strong></div>`;
 
-    allLeads.slice(0, 30).map(normalizeLead).forEach(lead => {
-      const div = document.createElement("div");
-      div.className = "table-row";
+    allLeads
+      .slice(0, 30)
+      .map(normalizeLead)
+      .forEach(lead => {
+        const div = document.createElement("div");
+        div.className = "table-row";
 
-      div.innerHTML = `
-        <strong>${lead.businessName}</strong>
-        <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
-        <span>Owner: ${lead.ownerName || "Unknown"} — ${lead.ownerEmail || "N/A"}</span>
-      `;
+        div.innerHTML = `
+          <strong>${lead.businessName}</strong>
+          <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
+          <span>Owner: ${lead.ownerName || "Unknown"} — ${
+            lead.ownerEmail || "N/A"
+          }</span>
+        `;
 
-      adminLeadsList.appendChild(div);
-    });
+        adminLeadsList.appendChild(div);
+      });
 
     showToast("Admin dashboard refreshed.", "success");
   } catch (error) {
@@ -2153,7 +2178,6 @@ async function loadAdminDashboard() {
     showToast("Could not load admin dashboard.", "error");
   }
 }
-
 if (refreshAdminBtn) {
   refreshAdminBtn.addEventListener("click", loadAdminDashboard);
 }
@@ -2366,11 +2390,10 @@ function renderKanbanBoard() {
       if (zone.id === "kanban-interested") newStatus = "Interested";
       if (zone.id === "kanban-closed") newStatus = "Closed";
 
-      await updateLead(lead.id, {
-        ...lead,
-        userId: currentUser.id,
-        status: newStatus
-      });
+await updateLead(lead.id, {
+  ...lead,
+  status: newStatus
+});
 
       showToast(`Lead moved to ${newStatus}.`, "success");
     });
