@@ -1747,21 +1747,21 @@ async function handleGenerate(index) {
   showToast("Generating outreach message...", "info");
 
   try {
-    const response = await fetch(`${BASE_URL}/api/generate-message`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        businessName: lead.businessName,
-        service: serviceInput.value.trim() || "my services",
-        notes: lead.notes || "",
-        style: messageStyle.value,
-        userName: currentUser ? currentUser.name : "AutoClient User",
-        userId: currentUser ? currentUser.id : null,
-        leadId: lead.id
-      })
-    });
+const response = await fetch(`${BASE_URL}/api/generate-message`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  credentials: "same-origin",
+  body: JSON.stringify({
+    businessName: lead.businessName,
+    service: serviceInput.value.trim() || "my services",
+    notes: lead.notes || "",
+    style: messageStyle.value,
+    userName: currentUser ? currentUser.name : "AutoClient User",
+    leadId: lead.id
+  })
+});
 
     const data = await readJsonResponse(response);
 
@@ -1812,21 +1812,20 @@ async function sendEmail(index) {
   try {
     showToast("Sending email...", "info");
 
-    const response = await fetch(SEND_EMAIL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: currentUser.id,
-        leadId: lead.id,
-        businessName: lead.businessName,
-        to: email.trim(),
-        subject: subject.trim(),
-        message
-      })
-    });
-
+const response = await fetch(SEND_EMAIL_URL, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  credentials: "same-origin",
+  body: JSON.stringify({
+    leadId: lead.id,
+    businessName: lead.businessName,
+    to: email.trim(),
+    subject: subject.trim(),
+    message
+  })
+});
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -2008,16 +2007,16 @@ findLeadsBtn.addEventListener("click", async function () {
 
   try {
     const response = await fetch(`${BASE_URL}/api/find-leads`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        industry,
-        location,
-        userId: currentUser ? currentUser.id : null
-      })
-    });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  credentials: "same-origin",
+  body: JSON.stringify({
+    industry,
+    location
+  })
+});
 
     const data = await readJsonResponse(response);
 

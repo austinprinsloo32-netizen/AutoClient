@@ -93,32 +93,60 @@ def get_db_connection():
     if USING_POSTGRES:
         if psycopg2 is None:
             raise ImportError("psycopg2-binary is not installed")
-        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-    conn = sqlite3.connect(DB_NAME)
+        return psycopg2.connect(
+            DATABASE_URL,
+            cursor_factory=RealDictCursor
+        )
+
+    conn = sqlite3.connect(
+        DB_NAME,
+        timeout=30
+    )
+
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute("PRAGMA journal_mode = WAL")
+
     return conn
 
 
-def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
+def execute_query(
+    query,
+    params=(),
+    fetchone=False,
+    fetchall=False,
+    commit=False
+):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(query, params)
+    cursor = None
 
-    result = None
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
 
-    if fetchone:
-        result = cursor.fetchone()
-    elif fetchall:
-        result = cursor.fetchall()
+        result = None
 
-    if commit:
-        conn.commit()
+        if fetchone:
+            result = cursor.fetchone()
+        elif fetchall:
+            result = cursor.fetchall()
 
-    cursor.close()
-    conn.close()
+        if commit:
+            conn.commit()
 
-    return result
+        return result
+
+    except Exception:
+        if commit:
+            conn.rollback()
+        raise
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        conn.close()
 
 
 def row_to_dict(row):
@@ -162,7 +190,10 @@ def add_column_if_missing(table_name, column_name, column_type):
             FROM information_schema.columns
             WHERE table_name = %s
             AND LOWER(column_name) = LOWER(%s)
-        """, (table_name, column_name), fetchone=True)
+        """, (
+            table_name,
+            column_name
+        ), fetchone=True)
 
         if not existing:
             execute_query(
@@ -172,15 +203,26 @@ def add_column_if_missing(table_name, column_name, column_type):
 
     else:
         conn = get_db_connection()
-        columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-        exists = any(column["name"].lower() == column_name.lower() for column in columns)
 
-        if not exists:
-            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
-            conn.commit()
+        try:
+            columns = conn.execute(
+                f"PRAGMA table_info({table_name})"
+            ).fetchall()
 
-        conn.close()
+            exists = any(
+                column["name"].lower() == column_name.lower()
+                for column in columns
+            )
 
+            if not exists:
+                conn.execute(
+                    f"ALTER TABLE {table_name} "
+                    f"ADD COLUMN {column_name} {column_type}"
+                )
+                conn.commit()
+
+        finally:
+            conn.close()
 
 def init_db():
     if USING_POSTGRES:
@@ -1309,12 +1351,15 @@ def delete_lead(lead_id):
 
 @app.route("/api/generate-message", methods=["POST"])
 def generate_message():
-    data = request.get_json() or {}
+    user_id = session.get("user_id")
 
-    user_id = data.get("userId")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
 
-    if user_id and not user_has_feature(user_id, "ai_outreach"):
+    if not user_has_feature(user_id, "ai_outreach"):
         return jsonify({"error": "AI outreach is available on Pro plan."}), 403
+
+    data = request.get_json() or {}
 
     business = data.get("businessName")
     service = data.get("service", "my services")
@@ -1375,25 +1420,27 @@ Would you be open to a short conversation?
 Kind regards,
 {name}"""
 
-    if user_id:
-        log_activity(
-            user_id,
-            lead_id,
-            "AI Outreach Generated",
-            f"Outreach message generated for {business}."
-        )
+    log_activity(
+        user_id,
+        lead_id,
+        "AI Outreach Generated",
+        f"Outreach message generated for {business}."
+    )
 
     return jsonify({"message": msg})
 
 
 @app.route("/api/send-email", methods=["POST"])
 def send_email():
-    data = request.get_json() or {}
+    user_id = session.get("user_id")
 
-    user_id = data.get("userId")
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
 
-    if user_id and not user_has_feature(user_id, "email_integration"):
+    if not user_has_feature(user_id, "email_integration"):
         return jsonify({"error": "Email sending is available on Pro plan."}), 403
+
+    data = request.get_json() or {}
 
     lead_id = data.get("leadId")
     to_email = data.get("to", "").strip()
@@ -1403,9 +1450,6 @@ def send_email():
 
     if not RESEND_API_KEY:
         return jsonify({"error": "RESEND_API_KEY is not configured in Render"}), 500
-
-    if not user_id:
-        return jsonify({"error": "userId is required"}), 400
 
     if not to_email:
         return jsonify({"error": "Recipient email is required"}), 400
@@ -1460,9 +1504,16 @@ def send_email():
         print("Email send error:", e)
         return jsonify({"error": "Email sending failed"}), 500
 
-
 @app.route("/api/find-leads", methods=["POST"])
 def find_leads():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if not user_has_feature(user_id, "lead_finder"):
+        return jsonify({"error": "Lead finder is not available on your plan."}), 403
+
     data = request.get_json() or {}
 
     industry = data.get("industry", "").strip()
@@ -1470,8 +1521,6 @@ def find_leads():
 
     if not industry or not location:
         return jsonify({"error": "Industry and location are required"}), 400
-
-    user_id = data.get("userId")
 
     lead_templates = [
         f"{industry.title()} in {location}",
@@ -1498,16 +1547,14 @@ def find_leads():
             "status": "New"
         })
 
-    if user_id:
-        log_activity(
-            user_id,
-            None,
-            "Lead Ideas Generated",
-            f"Generated lead ideas for {industry} in {location}."
-        )
+    log_activity(
+        user_id,
+        None,
+        "Lead Ideas Generated",
+        f"Generated lead ideas for {industry} in {location}."
+    )
 
     return jsonify(leads)
-
 
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
