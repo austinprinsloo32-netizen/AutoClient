@@ -1005,8 +1005,44 @@ async function showApp() {
   handleBillingRedirectNotice();
 }
 
-function checkAuth() {
-  currentUser ? showApp() : showAuth();
+async function checkAuth() {
+  try {
+    const response = await fetch(`${BASE_URL}/api/me`, {
+      method: "GET",
+      credentials: "same-origin"
+    });
+
+    const data = await readJsonResponse(response);
+
+    if (!response.ok || !data.user) {
+      currentUser = null;
+      leads = [];
+      activities = [];
+
+      localStorage.removeItem("autoclient_user");
+      showAuth();
+      return;
+    }
+
+    currentUser = data.user;
+
+    localStorage.setItem(
+      "autoclient_user",
+      JSON.stringify(currentUser)
+    );
+
+    showApp();
+
+  } catch (error) {
+    console.error("Authentication check failed:", error);
+
+    currentUser = null;
+    leads = [];
+    activities = [];
+
+    localStorage.removeItem("autoclient_user");
+    showAuth();
+  }
 }
 
 registerForm.addEventListener("submit", async function (e) {
@@ -1093,7 +1129,16 @@ loginForm.addEventListener("submit", async function (e) {
   }
 });
 
-logoutBtn.addEventListener("click", function () {
+logoutBtn.addEventListener("click", async function () {
+  try {
+    await fetch(`${BASE_URL}/api/logout`, {
+      method: "POST",
+      credentials: "same-origin"
+    });
+  } catch (error) {
+    console.error("Logout request failed:", error);
+  }
+
   currentUser = null;
   leads = [];
   activities = [];

@@ -509,45 +509,62 @@ def register():
     password = data.get("password", "").strip()
 
     if not name or not email or not password:
-        return jsonify({"error": "Name, email, and password are required"}), 400
+        return jsonify({
+            "error": "Name, email and password are required"
+        }), 400
 
-    hashed_password = generate_password_hash(password)
+    existing_user = get_user_by_email(email)
+
+    if existing_user:
+        return jsonify({
+            "error": "An account with this email already exists"
+        }), 409
+
+    password_hash = generate_password_hash(password)
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    try:
-        if USING_POSTGRES:
-            user = execute_query("""
-                INSERT INTO users (
-                    name, email, password, createdAt,
-                    plan, subscription_status
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id, name, email, createdAt, plan, subscription_status
-            """, (
+    if USING_POSTGRES:
+        user = execute_query("""
+            INSERT INTO users (
                 name,
                 email,
-                hashed_password,
-                created_at,
-                "free",
-                "inactive"
-            ), fetchone=True, commit=True)
+                password,
+                createdAt,
+                plan,
+                subscription_status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            name,
+            email,
+            password_hash,
+            created_at,
+            "free",
+            "inactive"
+        ), fetchone=True, commit=True)
 
-            user = row_to_dict(user)
+        user = row_to_dict(user)
 
-        else:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
+        try:
             cursor.execute("""
                 INSERT INTO users (
-                    name, email, password, createdAt,
-                    plan, subscription_status
+                    name,
+                    email,
+                    password,
+                    createdAt,
+                    plan,
+                    subscription_status
                 )
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 name,
                 email,
-                hashed_password,
+                password_hash,
                 created_at,
                 "free",
                 "inactive"
@@ -555,49 +572,45 @@ def register():
 
             conn.commit()
             user_id = cursor.lastrowid
+
+        finally:
             cursor.close()
             conn.close()
 
-            user = {
-                "id": user_id,
-                "name": name,
-                "email": email,
-                "createdAt": created_at,
-                "plan": "free",
-                "subscription_status": "inactive"
-            }
+        user = get_user_by_id(user_id)
 
-        user["isAdmin"] = email == ADMIN_EMAIL
-
-        log_activity(
-            user["id"],
-            None,
-            "Account Created",
-            f"{name} joined AutoClient."
-        )
-
+    if not user:
         return jsonify({
-            "message": "User registered successfully",
-            "user": {
-                "id": user["id"],
-                "name": user["name"],
-                "email": user["email"],
-                "createdAt": get_field(user, "createdAt"),
-                "isAdmin": user["isAdmin"],
-                "plan": get_field(user, "plan", "free"),
-                "subscriptionStatus": get_field(user, "subscription_status", "inactive")
-            }
-        }), 201
+            "error": "Account was created but could not be loaded"
+        }), 500
 
-    except Exception as e:
-        error_text = str(e).lower()
+    # IMPORTANT:
+    # Registration now creates the same Flask session as login.
+    session["user_id"] = user["id"]
 
-        if "unique" in error_text or "duplicate" in error_text:
-            return jsonify({"error": "Email already exists"}), 409
+    log_activity(
+        user["id"],
+        None,
+        "Account Created",
+        f"{name} joined AutoClient."
+    )
 
-        print("Register error:", e)
-        return jsonify({"error": "Registration failed"}), 500
-
+    return jsonify({
+        "message": "Account created successfully",
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "createdAt": get_field(user, "createdAt"),
+            "isAdmin": user["email"].lower() == ADMIN_EMAIL,
+            "plan": get_field(user, "plan", "free"),
+            "subscriptionStatus": get_field(
+                user,
+                "subscription_status",
+                "inactive"
+            )
+        }
+    }), 201
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -664,6 +677,15 @@ def current_user():
             )
         }
     })
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+
+    return jsonify({
+        "message": "Logged out successfully"
+    }), 200
+
 @app.route("/api/my-plan", methods=["GET"])
 def my_plan():
     user_id = session.get("user_id")
