@@ -30,7 +30,19 @@ app.config["SESSION_COOKIE_SECURE"] = (
     os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 )
 
-CORS(app, supports_credentials=True)
+CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": [
+                "http://127.0.0.1:5000",
+                "http://localhost:5000",
+                "https://autoclient-v2.onrender.com"
+            ]
+        }
+    },
+    supports_credentials=True
+)
 
 
 DB_NAME = "autoclient.db"
