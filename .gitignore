@@ -14,3 +14,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+# Local development database
+autoclient.db
+autoclient.db-shm
+autoclient.db-wal
