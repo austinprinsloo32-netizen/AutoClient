@@ -8,6 +8,8 @@ import stripe
 from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 try:
     import psycopg2
@@ -17,6 +19,11 @@ except ImportError:
 
 
 app = Flask(__name__, static_folder="static")
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[]
+)
 
 app.config["SECRET_KEY"] = (
     os.environ.get("SECRET_KEY")
@@ -513,6 +520,7 @@ def status():
 
 
 @app.route("/api/register", methods=["POST"])
+@limiter.limit("3 per minute")
 def register():
     data = request.get_json() or {}
 
@@ -625,6 +633,7 @@ def register():
     }), 201
 
 @app.route("/api/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
     data = request.get_json() or {}
 
@@ -1384,6 +1393,7 @@ def delete_lead(lead_id):
 
 
 @app.route("/api/generate-message", methods=["POST"])
+@limiter.limit("20 per hour")
 def generate_message():
     user_id = session.get("user_id")
 
@@ -1465,6 +1475,7 @@ Kind regards,
 
 
 @app.route("/api/send-email", methods=["POST"])
+@limiter.limit("30 per hour")
 def send_email():
     user_id = session.get("user_id")
 
@@ -1539,6 +1550,7 @@ def send_email():
         return jsonify({"error": "Email sending failed"}), 500
 
 @app.route("/api/find-leads", methods=["POST"])
+@limiter.limit("30 per hour")
 def find_leads():
     user_id = session.get("user_id")
 

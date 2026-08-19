@@ -2,6 +2,7 @@ stripe
 requests
 flask
 flask-cors
+flask-limiter
 werkzeug
 psycopg2-binary
 gunicorn
