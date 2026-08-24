@@ -22,7 +22,8 @@ app = Flask(__name__, static_folder="static")
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
-    default_limits=[]
+    default_limits=[],
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
 )
 
 app.config["SECRET_KEY"] = (

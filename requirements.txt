@@ -3,6 +3,7 @@ requests
 flask
 flask-cors
 flask-limiter
+redis
 werkzeug
 psycopg2-binary
 gunicorn
