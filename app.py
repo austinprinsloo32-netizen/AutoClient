@@ -62,7 +62,7 @@ def add_security_headers(response):
         "script-src 'self' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
-        "connect-src 'self'; "
+        "connect-src 'self' https://cdn.jsdelivr.net; "
         "object-src 'none'; "
         "base-uri 'self'; "
         "frame-ancestors 'none'; "
