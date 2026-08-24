@@ -924,7 +924,7 @@ def create_billing_portal_session():
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
-        return jsonify({"error": "STRIPE_WEBHOOK_SECRET is not configured"}), 500
+        return jsonify({"error": "Billing service is temporarily unavailable"}), 500
 
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
@@ -1494,7 +1494,7 @@ def send_email():
     business_name = data.get("businessName", "Lead")
 
     if not RESEND_API_KEY:
-        return jsonify({"error": "RESEND_API_KEY is not configured in Render"}), 500
+       return jsonify({"error": "Email service is temporarily unavailable"}), 500
 
     if not to_email:
         return jsonify({"error": "Recipient email is required"}), 400
