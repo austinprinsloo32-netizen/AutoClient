@@ -534,6 +534,11 @@ def register():
             "error": "Name, email and password are required"
         }), 400
 
+    if len(password) < 8:
+        return jsonify({
+            "error": "Password must be at least 8 characters long"
+        }), 400
+
     existing_user = get_user_by_email(email)
 
     if existing_user:
