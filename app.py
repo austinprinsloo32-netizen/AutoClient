@@ -1,3 +1,4 @@
+import re
 import os
 import secrets
 import sqlite3
@@ -537,6 +538,11 @@ def register():
     if len(password) < 8:
         return jsonify({
             "error": "Password must be at least 8 characters long"
+        }), 400
+    
+    if len(email) > 254 or not re.fullmatch(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return jsonify({
+            "error": "Please enter a valid email address"
         }), 400
 
     existing_user = get_user_by_email(email)
