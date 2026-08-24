@@ -504,6 +504,20 @@ def is_admin_user(user_id):
 
     return user["email"].lower() == ADMIN_EMAIL
 
+def is_trusted_origin():
+    origin = request.headers.get("Origin")
+
+    if not origin:
+        return True
+
+    allowed_origins = {
+        "http://127.0.0.1:5000",
+        "http://localhost:5000",
+        "https://autoclient-v2.onrender.com"
+    }
+
+    return origin in allowed_origins
+
 
 def log_activity(user_id, lead_id, action, details=""):
     if not user_id:
@@ -712,6 +726,9 @@ def login():
 @app.route("/api/change-password", methods=["POST"])
 @limiter.limit("5 per hour")
 def change_password():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
     user_id = session.get("user_id")
 
     if not user_id:
@@ -793,6 +810,9 @@ def current_user():
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
     session.clear()
 
     return jsonify({
@@ -863,6 +883,9 @@ def my_plan():
 
 @app.route("/api/create-checkout-session", methods=["POST"])
 def create_checkout_session():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     if not STRIPE_SECRET_KEY:
         return jsonify({
             "error": "Stripe billing is not configured."
@@ -931,6 +954,9 @@ def create_checkout_session():
 
 @app.route("/api/create-billing-portal-session", methods=["POST"])
 def create_billing_portal_session():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     if not STRIPE_SECRET_KEY:
         return jsonify({
             "error": "Stripe billing is not configured."
@@ -1155,6 +1181,9 @@ def get_activities():
 
 @app.route("/api/activities/log", methods=["POST"])
 def create_activity():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
@@ -1192,6 +1221,9 @@ def get_leads():
 
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
@@ -1308,6 +1340,9 @@ def add_lead():
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
@@ -1448,6 +1483,8 @@ def update_lead(lead_id):
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
 def delete_lead(lead_id):
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
     user_id = session.get("user_id")
 
     if not user_id:
@@ -1487,6 +1524,9 @@ def delete_lead(lead_id):
 @app.route("/api/generate-message", methods=["POST"])
 @limiter.limit("20 per hour")
 def generate_message():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     user_id = session.get("user_id")
 
     if not user_id:
@@ -1569,6 +1609,8 @@ Kind regards,
 @app.route("/api/send-email", methods=["POST"])
 @limiter.limit("30 per hour")
 def send_email():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
     user_id = session.get("user_id")
 
     if not user_id:
@@ -1644,6 +1686,9 @@ def send_email():
 @app.route("/api/find-leads", methods=["POST"])
 @limiter.limit("30 per hour")
 def find_leads():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+    
     user_id = session.get("user_id")
 
     if not user_id:
