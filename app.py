@@ -671,6 +671,59 @@ def login():
         }
     })
 
+@app.route("/api/change-password", methods=["POST"])
+@limiter.limit("5 per hour")
+def change_password():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    data = request.get_json() or {}
+
+    current_password = data.get("currentPassword", "")
+    new_password = data.get("newPassword", "")
+
+    if not current_password or not new_password:
+        return jsonify({
+            "error": "Current password and new password are required"
+        }), 400
+
+    if len(new_password) < 8:
+        return jsonify({
+            "error": "New password must be at least 8 characters long"
+        }), 400
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    if not check_password_hash(user["password"], current_password):
+        return jsonify({"error": "Current password is incorrect"}), 401
+
+    if check_password_hash(user["password"], new_password):
+        return jsonify({
+            "error": "New password must be different from the current password"
+        }), 400
+
+    password_hash = generate_password_hash(new_password)
+
+    p = placeholder()
+
+    execute_query(
+        f"UPDATE users SET password = {p} WHERE id = {p}",
+        (password_hash, user_id),
+        commit=True
+    )
+
+    session.clear()
+
+    return jsonify({
+        "message": "Password changed successfully. Please log in again."
+    }), 200
+
 @app.route("/api/me", methods=["GET"])
 def current_user():
     user_id = session.get("user_id")
