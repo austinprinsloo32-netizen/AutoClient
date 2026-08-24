@@ -549,7 +549,7 @@ def register():
 
     if existing_user:
         return jsonify({
-            "error": "An account with this email already exists"
+            "error": "Unable to create account with these details"
         }), 409
 
     password_hash = generate_password_hash(password)
