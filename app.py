@@ -536,8 +536,8 @@ def log_activity(user_id, lead_id, action, details=""):
                 INSERT INTO activities (userId, leadId, action, details, createdAt)
                 VALUES (?, ?, ?, ?, ?)
             """, (user_id, lead_id, action, details, created_at), commit=True)
-    except Exception as e:
-        print("Activity log error:", e)
+    except Exception:
+        print("Activity log failed")
 
 
 @app.route("/")
@@ -875,11 +875,8 @@ def my_plan():
 
             user = get_user_by_id(user_id)
 
-        except Exception as e:
-            print(
-                "Stripe subscription sync error:",
-                e
-            )
+        except Exception:
+            print("Stripe subscription sync failed")
 
     return jsonify(get_user_plan_data(user))
 
@@ -948,8 +945,8 @@ def create_checkout_session():
             "url": checkout_session.url
         })
 
-    except Exception as e:
-        print("Stripe checkout error:", e)
+    except Exception:
+        print("Stripe checkout failed")
 
         return jsonify({
             "error": "Could not start Stripe checkout."
@@ -1035,8 +1032,8 @@ def create_billing_portal_session():
             "url": portal_session.url
         })
 
-    except Exception as e:
-        print("Stripe portal error:", e)
+    except Exception:
+        print("Stripe billing portal request failed")
 
         return jsonify({
             "error": "Could not open the billing portal."
@@ -1056,8 +1053,9 @@ def stripe_webhook():
             sig_header,
             STRIPE_WEBHOOK_SECRET
         )
-    except Exception as e:
-        print("Stripe webhook verification failed:", e)
+    except Exception:
+        print("Stripe webhook verification failed")
+        
         return jsonify({"error": "Webhook verification failed"}), 400
 
     event_type = event["type"]
@@ -1664,7 +1662,7 @@ def send_email():
             result = {"raw": response.text}
 
         if response.status_code >= 400:
-            print("Resend error:", result)
+            print("Resend email request failed")
             return jsonify({
                 "error": result.get("message", "Email failed to send"),
                 "details": result
@@ -1682,8 +1680,8 @@ def send_email():
             "resend": result
         }), 200
 
-    except Exception as e:
-        print("Email send error:", e)
+    except Exception:
+        print("Email send failed")
         return jsonify({"error": "Email sending failed"}), 500
 
 @app.route("/api/find-leads", methods=["POST"])
