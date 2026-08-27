@@ -552,14 +552,17 @@ def app_dashboard():
 
 @app.route("/api/status")
 def status():
-    return jsonify({
-        "message": "AutoClient V2 backend is running",
-        "database": "PostgreSQL" if USING_POSTGRES else "SQLite",
-        "status": "success",
-        "stripeConfigured": bool(STRIPE_SECRET_KEY),
-        "stripeWebhookConfigured": bool(STRIPE_WEBHOOK_SECRET),
-        "billing": "enabled"
-    })
+    try:
+        execute_query("SELECT 1", fetchone=True)
+
+        return jsonify({
+            "status": "healthy"
+        }), 200
+
+    except Exception:
+        return jsonify({
+            "status": "unhealthy"
+        }), 503
 
 
 @app.route("/api/register", methods=["POST"])
