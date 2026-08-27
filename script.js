@@ -370,10 +370,7 @@ async function loadUserPlan() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(MY_PLAN_URL, {
-      credentials: "same-origin"
-    });
-
+    const response = await fetch(`${MY_PLAN_URL}?userId=${currentUser.id}`);
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -402,8 +399,7 @@ function renderPlanUI() {
   if (settingsUserPlan) {
     settingsUserPlan.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
   }
-
-  if (subscriptionStatus) {
+if (subscriptionStatus) {
 
   const status =
     (currentPlan.subscriptionStatus || "inactive").toLowerCase();
@@ -480,7 +476,10 @@ async function startCheckout(plan) {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "same-origin"
+      body: JSON.stringify({
+        userId: currentUser.id,
+        plan
+      })
     });
 
     const data = await readJsonResponse(response);
@@ -509,7 +508,9 @@ async function openBillingPortal() {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "same-origin"
+      body: JSON.stringify({
+        userId: currentUser.id
+      })
     });
 
     const data = await readJsonResponse(response);
@@ -842,8 +843,8 @@ async function logActivity(leadId, action, details) {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "same-origin",
       body: JSON.stringify({
+        userId: currentUser.id,
         leadId,
         action,
         details
@@ -855,14 +856,12 @@ async function logActivity(leadId, action, details) {
     console.error("Activity log error:", error);
   }
 }
+
 async function fetchActivities() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(ACTIVITIES_URL, {
-      credentials: "same-origin"
-    });
-
+    const response = await fetch(`${ACTIVITIES_URL}?userId=${currentUser.id}`);
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -945,7 +944,6 @@ function showPage(pageId) {
     loadAdminDashboard();
   }
 
-
   if (sidebar) {
     sidebar.classList.remove("open");
   }
@@ -1005,44 +1003,8 @@ async function showApp() {
   handleBillingRedirectNotice();
 }
 
-async function checkAuth() {
-  try {
-    const response = await fetch(`${BASE_URL}/api/me`, {
-      method: "GET",
-      credentials: "same-origin"
-    });
-
-    const data = await readJsonResponse(response);
-
-    if (!response.ok || !data.user) {
-      currentUser = null;
-      leads = [];
-      activities = [];
-
-      localStorage.removeItem("autoclient_user");
-      showAuth();
-      return;
-    }
-
-    currentUser = data.user;
-
-    localStorage.setItem(
-      "autoclient_user",
-      JSON.stringify(currentUser)
-    );
-
-    showApp();
-
-  } catch (error) {
-    console.error("Authentication check failed:", error);
-
-    currentUser = null;
-    leads = [];
-    activities = [];
-
-    localStorage.removeItem("autoclient_user");
-    showAuth();
-  }
+function checkAuth() {
+  currentUser ? showApp() : showAuth();
 }
 
 registerForm.addEventListener("submit", async function (e) {
@@ -1129,16 +1091,7 @@ loginForm.addEventListener("submit", async function (e) {
   }
 });
 
-logoutBtn.addEventListener("click", async function () {
-  try {
-    await fetch(`${BASE_URL}/api/logout`, {
-      method: "POST",
-      credentials: "same-origin"
-    });
-  } catch (error) {
-    console.error("Logout request failed:", error);
-  }
-
+logoutBtn.addEventListener("click", function () {
   currentUser = null;
   leads = [];
   activities = [];
@@ -1157,10 +1110,7 @@ async function fetchLeads() {
   if (!currentUser) return;
 
   try {
-    const response = await fetch(API_URL, {
-      credentials: "same-origin"
-    });
-
+    const response = await fetch(`${API_URL}?userId=${currentUser.id}`);
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -1296,11 +1246,18 @@ function renderAnalytics() {
           and sales performance reporting.
         </p>
 
-        <button class="primary-btn" onclick="showPage('settingsPage')">
+        <button class="primary-btn upgrade-pro-btn">
           Upgrade to Pro
         </button>
       </div>
     `;
+    const upgradeButton = leadList.querySelector(".upgrade-pro-btn");
+
+    if (upgradeButton) {
+      upgradeButton.addEventListener("click", () => {
+        showPage("settingsPage");
+      });
+    }
 
     return;
   }
@@ -1404,24 +1361,35 @@ leadList.innerHTML = `
 
     <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
 
-      <button
-        class="primary-btn"
-        onclick="document.getElementById('businessName').focus()"
-      >
+      <button class="primary-btn add-first-lead-btn">
         Add First Lead
       </button>
 
-      <button
-        class="secondary-btn"
-        onclick="showPage('dashboardPage')"
-      >
+      <button class="secondary-btn open-lead-finder-btn">
         Open Lead Finder
       </button>
 
     </div>
 
   </div>
-`;    return;
+`;
+
+    const addFirstLeadButton = leadList.querySelector(".add-first-lead-btn");
+    const openLeadFinderButton = leadList.querySelector(".open-lead-finder-btn");
+
+    if (addFirstLeadButton) {
+      addFirstLeadButton.addEventListener("click", () => {
+        document.getElementById("businessName").focus();
+      });
+    }
+
+    if (openLeadFinderButton) {
+      openLeadFinderButton.addEventListener("click", () => {
+        showPage("dashboardPage");
+      });
+    }
+
+    return;
   }
 
   if (filteredLeads.length === 0) {
@@ -1463,28 +1431,49 @@ leadList.innerHTML = `
         </p>
       </div>
 
-      <select onchange="updateStatus(${index}, this.value)">
-        <option ${lead.status === "New" ? "selected" : ""}>New</option>
-        <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
-        <option ${lead.status === "Replied" ? "selected" : ""}>Replied</option>
-        <option ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
-        <option ${lead.status === "Closed" ? "selected" : ""}>Closed</option>
-        <option ${lead.status === "Rejected" ? "selected" : ""}>Rejected</option>
-      </select>
+<select class="lead-status-select" data-index="${index}">
+    <option ${lead.status === "New" ? "selected" : ""}>New</option>
+    <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
+    <option ${lead.status === "Replied" ? "selected" : ""}>Replied</option>
+    <option ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+    <option ${lead.status === "Closed" ? "selected" : ""}>Closed</option>
+    <option ${lead.status === "Rejected" ? "selected" : ""}>Rejected</option>
+</select>
 
-      <div class="lead-actions">
-        <button class="primary-btn" onclick="handleGenerate(${index})">AI Outreach</button>
-        <button class="email-btn" onclick="sendEmail(${index})">Email</button>
-        <button class="whatsapp-btn" onclick="sendWhatsApp(${index})">WhatsApp</button>
-        <button class="linkedin-btn" onclick="sendLinkedIn(${index})">LinkedIn</button>
-        <button class="secondary-btn" onclick="setFollowUp(${index})">Follow-up</button>
-        <button class="secondary-btn" onclick="editLead(${index})">Edit</button>
-        <button class="secondary-btn" onclick="markContacted(${index})">Contacted</button>
-        <button class="delete-btn" onclick="deleteLead(${index})">Delete</button>
-      </div>
+<div class="lead-actions">
+  <button class="primary-btn lead-action-btn" data-action="generate" data-index="${index}">AI Outreach</button>
+  <button class="email-btn lead-action-btn" data-action="email" data-index="${index}">Email</button>
+  <button class="whatsapp-btn lead-action-btn" data-action="whatsapp" data-index="${index}">WhatsApp</button>
+  <button class="linkedin-btn lead-action-btn" data-action="linkedin" data-index="${index}">LinkedIn</button>
+  <button class="secondary-btn lead-action-btn" data-action="followup" data-index="${index}">Follow-up</button>
+  <button class="secondary-btn lead-action-btn" data-action="edit" data-index="${index}">Edit</button>
+  <button class="secondary-btn lead-action-btn" data-action="contacted" data-index="${index}">Contacted</button>
+  <button class="delete-btn lead-action-btn" data-action="delete" data-index="${index}">Delete</button>
+</div>
     `;
 
     leadList.appendChild(div);
+
+    const statusSelect = div.querySelector(".lead-status-select");
+
+    statusSelect.addEventListener("change", function () {
+      updateStatus(index, this.value);
+    });
+
+    div.querySelectorAll(".lead-action-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.action;
+
+        if (action === "generate") handleGenerate(index);
+        if (action === "email") sendEmail(index);
+        if (action === "whatsapp") sendWhatsApp(index);
+        if (action === "linkedin") sendLinkedIn(index);
+        if (action === "followup") setFollowUp(index);
+        if (action === "edit") editLead(index);
+        if (action === "contacted") markContacted(index);
+        if (action === "delete") deleteLead(index);
+      });
+    });
   });
 }
 
@@ -1509,6 +1498,7 @@ leadForm.addEventListener("submit", async function (e) {
   const wasEditing = editIndex !== null;
 
   const leadData = {
+    userId: currentUser.id,
     businessName: businessName || "Untitled Lead",
     link: leadLink || "",
     contact: contactInfo || "",
@@ -1531,7 +1521,6 @@ leadForm.addEventListener("submit", async function (e) {
         headers: {
           "Content-Type": "application/json"
         },
-        credentials: "same-origin",
         body: JSON.stringify({
           ...leadData,
           status: leads[editIndex].status,
@@ -1549,7 +1538,6 @@ leadForm.addEventListener("submit", async function (e) {
         headers: {
           "Content-Type": "application/json"
         },
-        credentials: "same-origin",
         body: JSON.stringify(leadData)
       });
     }
@@ -1568,12 +1556,7 @@ leadForm.addEventListener("submit", async function (e) {
     await fetchLeads();
 
     showPage("leadsPage");
-    showToast(
-      wasEditing
-        ? "Lead updated successfully."
-        : "Lead saved successfully.",
-      "success"
-    );
+    showToast(wasEditing ? "Lead updated successfully." : "Lead saved successfully.", "success");
   } catch (error) {
     console.error("Save lead connection error:", error);
     alert("Could not connect to backend. Check Console and Render logs.");
@@ -1603,8 +1586,7 @@ async function deleteLead(index) {
 
   try {
     const response = await fetch(`${API_URL}/${leads[index].id}`, {
-      method: "DELETE",
-      credentials: "same-origin"
+      method: "DELETE"
     });
 
     const data = await readJsonResponse(response);
@@ -1632,9 +1614,9 @@ async function updateStatus(index, newStatus) {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "same-origin",
       body: JSON.stringify({
         ...lead,
+        userId: currentUser.id,
         status: newStatus
       })
     });
@@ -1667,6 +1649,7 @@ function setFollowUp(index) {
 
   updateLead(lead.id, {
     ...lead,
+    userId: currentUser.id,
     nextFollowUp: date,
     lastContacted: new Date().toISOString().split("T")[0]
   });
@@ -1679,8 +1662,10 @@ async function updateLead(leadId, payload) {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "same-origin",
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        userId: currentUser.id
+      })
     });
 
     const data = await readJsonResponse(response);
@@ -1792,21 +1777,21 @@ async function handleGenerate(index) {
   showToast("Generating outreach message...", "info");
 
   try {
-const response = await fetch(`${BASE_URL}/api/generate-message`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  credentials: "same-origin",
-  body: JSON.stringify({
-    businessName: lead.businessName,
-    service: serviceInput.value.trim() || "my services",
-    notes: lead.notes || "",
-    style: messageStyle.value,
-    userName: currentUser ? currentUser.name : "AutoClient User",
-    leadId: lead.id
-  })
-});
+    const response = await fetch(`${BASE_URL}/api/generate-message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        businessName: lead.businessName,
+        service: serviceInput.value.trim() || "my services",
+        notes: lead.notes || "",
+        style: messageStyle.value,
+        userName: currentUser ? currentUser.name : "AutoClient User",
+        userId: currentUser ? currentUser.id : null,
+        leadId: lead.id
+      })
+    });
 
     const data = await readJsonResponse(response);
 
@@ -1857,20 +1842,21 @@ async function sendEmail(index) {
   try {
     showToast("Sending email...", "info");
 
-const response = await fetch(SEND_EMAIL_URL, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  credentials: "same-origin",
-  body: JSON.stringify({
-    leadId: lead.id,
-    businessName: lead.businessName,
-    to: email.trim(),
-    subject: subject.trim(),
-    message
-  })
-});
+    const response = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        leadId: lead.id,
+        businessName: lead.businessName,
+        to: email.trim(),
+        subject: subject.trim(),
+        message
+      })
+    });
+
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
@@ -1994,8 +1980,9 @@ function renderLeadIdeas(ideas) {
         return;
       }
 
-const newLead = {
-  businessName: idea.businessName || "Untitled Lead",
+      const newLead = {
+        userId: currentUser.id,
+        businessName: idea.businessName || "Untitled Lead",
         link: googleSearchUrl,
         contact: "",
         priority: "Warm",
@@ -2007,14 +1994,13 @@ const newLead = {
       };
 
       try {
-const response = await fetch(API_URL, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  credentials: "same-origin",
-  body: JSON.stringify(newLead)
-});
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(newLead)
+        });
 
         const data = await readJsonResponse(response);
 
@@ -2052,16 +2038,16 @@ findLeadsBtn.addEventListener("click", async function () {
 
   try {
     const response = await fetch(`${BASE_URL}/api/find-leads`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  credentials: "same-origin",
-  body: JSON.stringify({
-    industry,
-    location
-  })
-});
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        industry,
+        location,
+        userId: currentUser ? currentUser.id : null
+      })
+    });
 
     const data = await readJsonResponse(response);
 
@@ -2146,17 +2132,9 @@ async function loadAdminDashboard() {
   }
 
   try {
-    const statsRes = await fetch(`${BASE_URL}/api/admin/stats`, {
-      credentials: "same-origin"
-    });
-
-    const usersRes = await fetch(`${BASE_URL}/api/admin/users`, {
-      credentials: "same-origin"
-    });
-
-    const leadsRes = await fetch(`${BASE_URL}/api/admin/leads`, {
-      credentials: "same-origin"
-    });
+    const statsRes = await fetch(`${BASE_URL}/api/admin/stats?userId=${currentUser.id}`);
+    const usersRes = await fetch(`${BASE_URL}/api/admin/users?userId=${currentUser.id}`);
+    const leadsRes = await fetch(`${BASE_URL}/api/admin/leads?userId=${currentUser.id}`);
 
     const stats = await readJsonResponse(statsRes);
     const users = await readJsonResponse(usersRes);
@@ -2183,11 +2161,7 @@ async function loadAdminDashboard() {
       div.innerHTML = `
         <strong>${user.name}</strong>
         <span>${user.email}</span>
-        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${
-          user.subscription_status ||
-          user.subscriptionstatus ||
-          "inactive"
-        }</span>
+        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${user.subscription_status || user.subscriptionstatus || "inactive"}</span>
         <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
       `;
 
@@ -2198,23 +2172,18 @@ async function loadAdminDashboard() {
       ? ""
       : `<div class="table-row"><strong>No leads found</strong></div>`;
 
-    allLeads
-      .slice(0, 30)
-      .map(normalizeLead)
-      .forEach(lead => {
-        const div = document.createElement("div");
-        div.className = "table-row";
+    allLeads.slice(0, 30).map(normalizeLead).forEach(lead => {
+      const div = document.createElement("div");
+      div.className = "table-row";
 
-        div.innerHTML = `
-          <strong>${lead.businessName}</strong>
-          <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
-          <span>Owner: ${lead.ownerName || "Unknown"} — ${
-            lead.ownerEmail || "N/A"
-          }</span>
-        `;
+      div.innerHTML = `
+        <strong>${lead.businessName}</strong>
+        <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
+        <span>Owner: ${lead.ownerName || "Unknown"} — ${lead.ownerEmail || "N/A"}</span>
+      `;
 
-        adminLeadsList.appendChild(div);
-      });
+      adminLeadsList.appendChild(div);
+    });
 
     showToast("Admin dashboard refreshed.", "success");
   } catch (error) {
@@ -2222,6 +2191,7 @@ async function loadAdminDashboard() {
     showToast("Could not load admin dashboard.", "error");
   }
 }
+
 if (refreshAdminBtn) {
   refreshAdminBtn.addEventListener("click", loadAdminDashboard);
 }
@@ -2368,15 +2338,19 @@ function renderKanbanBoard() {
             and manage your leads like a real CRM platform.
           </p>
 
-          <button
-            class="primary-btn"
-            onclick="showPage('settingsPage')"
-          >
+          <button class="primary-btn pipeline-upgrade-btn">
             Upgrade to Pro
           </button>
 
         </div>
       `;
+      const pipelineUpgradeButton = column.querySelector(".pipeline-upgrade-btn");
+
+      if (pipelineUpgradeButton) {
+        pipelineUpgradeButton.addEventListener("click", () => {
+          showPage("settingsPage");
+        });
+      }
     }
   });
 
@@ -2434,10 +2408,11 @@ function renderKanbanBoard() {
       if (zone.id === "kanban-interested") newStatus = "Interested";
       if (zone.id === "kanban-closed") newStatus = "Closed";
 
-await updateLead(lead.id, {
-  ...lead,
-  status: newStatus
-});
+      await updateLead(lead.id, {
+        ...lead,
+        userId: currentUser.id,
+        status: newStatus
+      });
 
       showToast(`Lead moved to ${newStatus}.`, "success");
     });
