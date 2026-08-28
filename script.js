@@ -2728,6 +2728,34 @@ function renderKanbanBoard() {
     Closed: document.getElementById("kanban-closed")
   };
 
+    const stageCounts = {
+    New: 0,
+    Contacted: 0,
+    Interested: 0,
+    Closed: 0
+  };
+
+  leads.forEach(lead => {
+    const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
+      ? lead.status
+      : "New";
+
+    stageCounts[status]++;
+  });
+
+  const stageTitles = {
+    New: document.querySelector(".new-title"),
+    Contacted: document.querySelector(".contacted-title"),
+    Interested: document.querySelector(".interested-title"),
+    Closed: document.querySelector(".closed-title")
+  };
+
+  Object.entries(stageTitles).forEach(([status, element]) => {
+    if (element) {
+      element.textContent = `${status} · ${stageCounts[status]}`;
+    }
+  });
+
   Object.values(columns).forEach(column => {
     if (column) column.innerHTML = "";
   });
