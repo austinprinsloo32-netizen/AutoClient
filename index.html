@@ -210,71 +210,57 @@
           </div>
         </section>
 
-        <section id="leadsPage" class="page-section">
-          <div class="split-header">
+        <section id="leadsPage" class="page-section leads-v2">
+          <div class="leads-toolbar">
             <div>
-              <h2>Lead Folder</h2>
-              <p>All saved leads are managed from this dedicated CRM folder.</p>
+              <p class="eyebrow">CRM Workspace</p>
+              <h2>Leads</h2>
+              <p>
+                Manage prospects, follow-ups, outreach, and pipeline progress.
+                <span id="leadCountSummary" class="lead-count-summary"></span>
+              </p>
             </div>
 
-            <button id="exportBtn" class="dark-btn">Export CSV</button>
+            <div class="leads-toolbar-actions">
+              <button id="openLeadDrawerBtn" class="primary-btn" type="button">
+                + Add Lead
+              </button>
+
+              <button id="exportBtn" class="dark-btn" type="button">
+                Export CSV
+              </button>
+            </div>
           </div>
 
-          <div class="two-grid">
-            <div class="card">
-              <div class="section-heading">
-                <span class="step">+</span>
-                <div>
-                  <h2>Add Potential Lead</h2>
-                  <p>Save businesses you want to contact.</p>
-                </div>
-              </div>
-
-              <form id="leadForm">
-                <input type="text" id="businessName" placeholder="Business name" required />
-                <input type="text" id="leadLink" placeholder="Website or social link" />
-                <input type="text" id="contactInfo" placeholder="Email, phone, or LinkedIn" />
-
-                <select id="priority">
-                  <option value="Cold">Cold Lead</option>
-                  <option value="Warm">Warm Lead</option>
-                  <option value="Hot">Hot Lead</option>
-                </select>
-
-                <textarea id="notes" placeholder="Notes about this lead"></textarea>
-                <button type="submit" class="primary-btn">Add Lead</button>
-              </form>
+          <div class="leads-control-bar">
+            <div class="leads-search-wrap">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search leads by business, contact, or notes..."
+              />
             </div>
 
-            <div class="card">
-              <div class="section-heading">
-                <span class="step">🔍</span>
-                <div>
-                  <h2>Search & Filter</h2>
-                  <p>Find the right leads quickly.</p>
-                </div>
-              </div>
-
-              <input type="text" id="searchInput" placeholder="Search leads..." />
-
-              <select id="filterStatus">
-                <option value="all">All Statuses</option>
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Replied">Replied</option>
-                <option value="Interested">Interested</option>
-                <option value="Closed">Closed</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
+            <select id="filterStatus">
+              <option value="all">All Statuses</option>
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Replied">Replied</option>
+              <option value="Interested">Interested</option>
+              <option value="Closed">Closed</option>
+              <option value="Rejected">Rejected</option>
+            </select>
           </div>
 
           <div id="leadList" class="lead-list"></div>
 
           <div class="kanban-wrapper">
             <div class="kanban-header">
-              <h2>CRM Pipeline</h2>
-              <p>Track lead progress visually across your sales pipeline.</p>
+              <div>
+                <p class="eyebrow">Pipeline</p>
+                <h2>CRM Pipeline</h2>
+                <p>Track lead progress visually across your sales pipeline.</p>
+              </div>
             </div>
 
             <div class="kanban-board">
@@ -299,6 +285,83 @@
               </div>
             </div>
           </div>
+
+          <div id="leadDrawerOverlay" class="lead-drawer-overlay" aria-hidden="true"></div>
+
+          <aside id="leadDrawer" class="lead-drawer" aria-hidden="true">
+            <div class="lead-drawer-header">
+              <div>
+                <p class="eyebrow">Lead Workspace</p>
+                <h2 id="leadDrawerTitle">Add Lead</h2>
+                <p id="leadDrawerSubtitle">Create or update a CRM lead.</p>
+              </div>
+
+              <button
+                id="closeLeadDrawer"
+                class="drawer-close-btn"
+                type="button"
+                aria-label="Close lead drawer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div class="lead-drawer-body">
+              <form id="leadForm">
+                <label for="businessName">Business name</label>
+                <input
+                  type="text"
+                  id="businessName"
+                  placeholder="Business name"
+                  required
+                />
+
+                <label for="leadLink">Website or social link</label>
+                <input
+                  type="text"
+                  id="leadLink"
+                  placeholder="https://example.com"
+                />
+
+                <label for="contactInfo">Contact</label>
+                <input
+                  type="text"
+                  id="contactInfo"
+                  placeholder="Email, phone, or LinkedIn"
+                />
+
+                <label for="priority">Priority</label>
+                <select id="priority">
+                  <option value="Cold">Cold Lead</option>
+                  <option value="Warm">Warm Lead</option>
+                  <option value="Hot">Hot Lead</option>
+                </select>
+
+                <label for="notes">Notes</label>
+                <textarea
+                  id="notes"
+                  placeholder="Notes about this lead"
+                ></textarea>
+
+                <div class="lead-drawer-actions">
+                  <button
+                    id="cancelLeadDrawerBtn"
+                    type="button"
+                    class="secondary-btn"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    class="primary-btn"
+                  >
+                    Add Lead
+                  </button>
+                </div>
+              </form>
+            </div>
+          </aside>
         </section>
 
         <section id="outreachPage" class="page-section">

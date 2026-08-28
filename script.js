@@ -33,6 +33,9 @@ const recentActivity = document.getElementById("recentActivity");
 const serviceInput = document.getElementById("serviceInput");
 const messageOutput = document.getElementById("messageOutput");
 const copyBtn = document.getElementById("copyBtn");
+if (copyBtn && !messageOutput?.value.trim()) {
+  copyBtn.disabled = true;
+}
 const messageStyle = document.getElementById("messageStyle");
 
 const searchInput = document.getElementById("searchInput");
@@ -1339,11 +1342,78 @@ function getFilteredLeads() {
     });
 }
 
+const openLeadDrawerBtn = document.getElementById("openLeadDrawerBtn");
+const closeLeadDrawerBtn = document.getElementById("closeLeadDrawer");
+const cancelLeadDrawerBtn = document.getElementById("cancelLeadDrawerBtn");
+const leadDrawer = document.getElementById("leadDrawer");
+const leadDrawerOverlay = document.getElementById("leadDrawerOverlay");
+const leadDrawerTitle = document.getElementById("leadDrawerTitle");
+const leadDrawerSubtitle = document.getElementById("leadDrawerSubtitle");
+
+function openLeadDrawer(mode = "add") {
+  if (!leadDrawer || !leadDrawerOverlay) return;
+
+  if (mode === "add") {
+    editIndex = null;
+    leadForm.reset();
+
+    leadDrawerTitle.textContent = "Add Lead";
+    leadDrawerSubtitle.textContent = "Create a new prospect in your CRM.";
+    leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
+  }
+
+  leadDrawer.classList.add("open");
+  leadDrawerOverlay.classList.add("open");
+
+  leadDrawer.setAttribute("aria-hidden", "false");
+  leadDrawerOverlay.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    document.getElementById("businessName")?.focus();
+  }, 150);
+}
+
+function closeLeadDrawer() {
+  if (!leadDrawer || !leadDrawerOverlay) return;
+
+  leadDrawer.classList.remove("open");
+  leadDrawerOverlay.classList.remove("open");
+
+  leadDrawer.setAttribute("aria-hidden", "true");
+  leadDrawerOverlay.setAttribute("aria-hidden", "true");
+}
+
+openLeadDrawerBtn?.addEventListener("click", () => {
+  openLeadDrawer("add");
+});
+
+closeLeadDrawerBtn?.addEventListener("click", closeLeadDrawer);
+cancelLeadDrawerBtn?.addEventListener("click", closeLeadDrawer);
+leadDrawerOverlay?.addEventListener("click", closeLeadDrawer);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeLeadDrawer();
+  }
+});
+
 function renderLeads() {
   if (!leadList) return;
 
   leadList.innerHTML = "";
   const filteredLeads = getFilteredLeads();
+  const leadCountSummary = document.getElementById("leadCountSummary");
+
+  if (leadCountSummary) {
+    const total = leads.length;
+    const visible = filteredLeads.length;
+    const maxLeads = currentPlan?.features?.max_leads || 10;
+
+    leadCountSummary.textContent =
+      visible === total
+        ? `• ${total} of ${maxLeads} leads used`
+        : `• Showing ${visible} of ${total} leads`;
+  }
 
   if (leads.length === 0) {
 leadList.innerHTML = `
@@ -1379,7 +1449,7 @@ leadList.innerHTML = `
 
     if (addFirstLeadButton) {
       addFirstLeadButton.addEventListener("click", () => {
-        document.getElementById("businessName").focus();
+        openLeadDrawer("add");
       });
     }
 
@@ -1406,50 +1476,163 @@ leadList.innerHTML = `
       : "lead-card";
 
     div.innerHTML = `
-      <div class="lead-card-top">
-        <div>
-          <h3>${lead.businessName}</h3>
-          <span class="priority-badge">${lead.priority || "Cold"} Lead</span>
-          <span class="lead-score-badge score-${score.level}" title="${score.reason}">
-            ${score.label} • ${score.score}
-          </span>
+      <div class="lead-card-header">
+        <div class="lead-card-identity">
+          <div class="lead-card-title-row">
+            <h3>${lead.businessName}</h3>
+            <span class="status-badge">${lead.status || "New"}</span>
+          </div>
+
+          <div class="lead-badge-row">
+            <span class="priority-badge">
+              ${lead.priority || "Cold"} Lead
+            </span>
+
+            <span
+              class="lead-score-badge score-${score.level}"
+              title="${score.reason}"
+            >
+              ${score.label} • ${score.score}
+            </span>
+
+            ${
+              isOverdue(lead.nextFollowUp)
+                ? `<span class="overdue-badge">Follow-up overdue</span>`
+                : ""
+            }
+          </div>
         </div>
-        <span class="status-badge">${lead.status || "New"}</span>
       </div>
 
-      <div class="lead-meta">
-        <p><strong>Score Reason:</strong> ${score.reason}</p>
-        <p><strong>Link:</strong> ${lead.link ? `<a href="${lead.link}" target="_blank">Open</a>` : "N/A"}</p>
-        <p><strong>Contact:</strong> ${lead.contact || "N/A"}</p>
-        <p><strong>Notes:</strong> ${lead.notes || "None"}</p>
-        <p><strong>Added:</strong> ${lead.createdAt || "N/A"}</p>
-        <p><strong>Last Contacted:</strong> ${lead.lastContacted || "Not yet"}</p>
-        <p>
-          <strong>Next Follow-up:</strong> 
-          ${lead.nextFollowUp || "Not set"}
-          ${isOverdue(lead.nextFollowUp) ? `<span class="overdue-badge">Overdue</span>` : ""}
-        </p>
+      <div class="lead-card-summary">
+        <div class="lead-summary-item">
+          <span>Contact</span>
+          <strong>${lead.contact || "No contact added"}</strong>
+        </div>
+
+        <div class="lead-summary-item">
+          <span>Follow-up</span>
+          <strong>${lead.nextFollowUp || "Not scheduled"}</strong>
+        </div>
+
+        <div class="lead-summary-item">
+          <span>Last contacted</span>
+          <strong>${lead.lastContacted || "Not yet"}</strong>
+        </div>
       </div>
 
-<select class="lead-status-select" data-index="${index}">
-    <option ${lead.status === "New" ? "selected" : ""}>New</option>
-    <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
-    <option ${lead.status === "Replied" ? "selected" : ""}>Replied</option>
-    <option ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
-    <option ${lead.status === "Closed" ? "selected" : ""}>Closed</option>
-    <option ${lead.status === "Rejected" ? "selected" : ""}>Rejected</option>
-</select>
+      ${
+        lead.notes
+          ? `
+            <div class="lead-card-notes">
+              <span>Notes</span>
+              <p>${lead.notes}</p>
+            </div>
+          `
+          : ""
+      }
 
-<div class="lead-actions">
-  <button class="primary-btn lead-action-btn" data-action="generate" data-index="${index}">AI Outreach</button>
-  <button class="email-btn lead-action-btn" data-action="email" data-index="${index}">Email</button>
-  <button class="whatsapp-btn lead-action-btn" data-action="whatsapp" data-index="${index}">WhatsApp</button>
-  <button class="linkedin-btn lead-action-btn" data-action="linkedin" data-index="${index}">LinkedIn</button>
-  <button class="secondary-btn lead-action-btn" data-action="followup" data-index="${index}">Follow-up</button>
-  <button class="secondary-btn lead-action-btn" data-action="edit" data-index="${index}">Edit</button>
-  <button class="secondary-btn lead-action-btn" data-action="contacted" data-index="${index}">Contacted</button>
-  <button class="delete-btn lead-action-btn" data-action="delete" data-index="${index}">Delete</button>
-</div>
+      <div class="lead-card-controls">
+        <select
+          class="lead-status-select"
+          data-index="${index}"
+          aria-label="Lead status"
+        >
+          <option ${lead.status === "New" ? "selected" : ""}>New</option>
+          <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
+          <option ${lead.status === "Replied" ? "selected" : ""}>Replied</option>
+          <option ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
+          <option ${lead.status === "Closed" ? "selected" : ""}>Closed</option>
+          <option ${lead.status === "Rejected" ? "selected" : ""}>Rejected</option>
+        </select>
+
+        ${
+          lead.link
+            ? `
+              <a
+                class="lead-open-link"
+                href="${lead.link}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open Website
+              </a>
+            `
+            : ""
+        }
+      </div>
+
+      <div class="lead-card-actions">
+        <button
+          class="primary-btn lead-action-btn"
+          data-action="generate"
+          data-index="${index}"
+        >
+          AI Outreach
+        </button>
+
+        <button
+          class="email-btn lead-action-btn"
+          data-action="email"
+          data-index="${index}"
+        >
+          Email
+        </button>
+
+        <button
+          class="secondary-btn lead-action-btn"
+          data-action="edit"
+          data-index="${index}"
+        >
+          Edit
+        </button>
+
+        <details class="lead-more-menu">
+          <summary>More</summary>
+
+          <div class="lead-more-actions">
+            <button
+              class="lead-action-btn"
+              data-action="whatsapp"
+              data-index="${index}"
+            >
+              WhatsApp
+            </button>
+
+            <button
+              class="lead-action-btn"
+              data-action="linkedin"
+              data-index="${index}"
+            >
+              LinkedIn
+            </button>
+
+            <button
+              class="lead-action-btn"
+              data-action="followup"
+              data-index="${index}"
+            >
+              Schedule Follow-up
+            </button>
+
+            <button
+              class="lead-action-btn"
+              data-action="contacted"
+              data-index="${index}"
+            >
+              Mark Contacted
+            </button>
+
+            <button
+              class="delete-btn lead-action-btn"
+              data-action="delete"
+              data-index="${index}"
+            >
+              Delete Lead
+            </button>
+          </div>
+        </details>
+      </div>
     `;
 
     leadList.appendChild(div);
@@ -1460,7 +1643,7 @@ leadList.innerHTML = `
       updateStatus(index, this.value);
     });
 
-    div.querySelectorAll(".lead-action-btn").forEach((button) => {
+        div.querySelectorAll(".lead-action-btn").forEach((button) => {
       button.addEventListener("click", () => {
         const action = button.dataset.action;
 
@@ -1474,6 +1657,20 @@ leadList.innerHTML = `
         if (action === "delete") deleteLead(index);
       });
     });
+
+    const moreMenu = div.querySelector(".lead-more-menu");
+
+    if (moreMenu) {
+      moreMenu.addEventListener("toggle", () => {
+        if (!moreMenu.open) return;
+
+        document.querySelectorAll(".lead-more-menu[open]").forEach((menu) => {
+          if (menu !== moreMenu) {
+            menu.removeAttribute("open");
+          }
+        });
+      });
+    }
   });
 }
 
@@ -1566,6 +1763,7 @@ leadForm.addEventListener("submit", async function (e) {
 
 function editLead(index) {
   const lead = leads[index];
+  if (!lead) return;
 
   document.getElementById("businessName").value = lead.businessName || "";
   document.getElementById("leadLink").value = lead.link || "";
@@ -1574,10 +1772,22 @@ function editLead(index) {
   document.getElementById("notes").value = lead.notes || "";
 
   editIndex = index;
-  leadForm.querySelector("button[type='submit']").textContent = "Update Lead";
 
-  showPage("leadsPage");
-  showToast("Lead loaded for editing.", "info");
+  leadDrawerTitle.textContent = "Edit Lead";
+  leadDrawerSubtitle.textContent = `Update ${lead.businessName || "this lead"}.`;
+  leadForm.querySelector("button[type='submit']").textContent = "Save Changes";
+
+  leadDrawer.classList.add("open");
+  leadDrawerOverlay.classList.add("open");
+
+  leadDrawer.setAttribute("aria-hidden", "false");
+  leadDrawerOverlay.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    document.getElementById("businessName")?.focus();
+  }, 150);
+
+  showToast("Lead ready to edit.", "info");
 }
 
 async function deleteLead(index) {
@@ -1754,6 +1964,12 @@ function typeText(element, text, speed = 18) {
   if (!element) return;
 
   element.value = "";
+
+  if (element === messageOutput && copyBtn) {
+    copyBtn.disabled = true;
+    copyBtn.textContent = "Generating...";
+  }
+
   let index = 0;
 
   function typeCharacter() {
@@ -1761,6 +1977,12 @@ function typeText(element, text, speed = 18) {
       element.value += text.charAt(index);
       index++;
       setTimeout(typeCharacter, speed);
+      return;
+    }
+
+    if (element === messageOutput && copyBtn) {
+      copyBtn.disabled = false;
+      copyBtn.textContent = "Copy Message";
     }
   }
 
@@ -1774,6 +1996,12 @@ async function handleGenerate(index) {
 
   showPage("outreachPage");
   messageOutput.value = "Generating outreach message...";
+
+  if (copyBtn) {
+    copyBtn.disabled = true;
+    copyBtn.textContent = "Generating...";
+  }
+
   showToast("Generating outreach message...", "info");
 
   try {
@@ -2321,42 +2549,48 @@ function renderKanbanBoard() {
   });
 
   if (!currentPlan.features.kanban) {
+  const kanbanBoard = document.querySelector(".kanban-board");
 
-  Object.values(columns).forEach(column => {
+  if (kanbanBoard) {
+    kanbanBoard.innerHTML = `
+      <div class="pipeline-locked-preview">
+        <div class="pipeline-preview-icon">🔒</div>
 
-    if (column) {
-
-      column.innerHTML = `
-        <div class="locked-feature-card">
-
-          <div class="locked-feature-icon">🔒</div>
-
-          <h3>CRM Pipeline Locked</h3>
+        <div class="pipeline-preview-content">
+          <p class="eyebrow">Pro CRM Feature</p>
+          <h3>Unlock the Visual Sales Pipeline</h3>
 
           <p>
-            Upgrade to Pro to unlock the visual drag-and-drop sales pipeline
-            and manage your leads like a real CRM platform.
+            Drag leads through your sales stages, manage your workflow visually,
+            and keep opportunities moving from New to Closed.
           </p>
 
-          <button class="primary-btn pipeline-upgrade-btn">
-            Upgrade to Pro
-          </button>
-
+          <div class="pipeline-preview-stages">
+            <span>New</span>
+            <span>Contacted</span>
+            <span>Interested</span>
+            <span>Closed</span>
+          </div>
         </div>
-      `;
-      const pipelineUpgradeButton = column.querySelector(".pipeline-upgrade-btn");
 
-      if (pipelineUpgradeButton) {
-        pipelineUpgradeButton.addEventListener("click", () => {
-          showPage("settingsPage");
-        });
-      }
+        <button class="primary-btn pipeline-upgrade-btn">
+          Upgrade to Pro
+        </button>
+      </div>
+    `;
+
+    const pipelineUpgradeButton =
+      kanbanBoard.querySelector(".pipeline-upgrade-btn");
+
+    if (pipelineUpgradeButton) {
+      pipelineUpgradeButton.addEventListener("click", () => {
+        showPage("settingsPage");
+      });
     }
-  });
+  }
 
   return;
 }
-  
 
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
