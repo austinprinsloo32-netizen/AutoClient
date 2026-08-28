@@ -887,7 +887,6 @@ function renderRecentActivity() {
   if (!activities.length) {
     recentActivity.innerHTML = `
       <div class="locked-feature-card">
-
         <div class="locked-feature-icon">📈</div>
 
         <h3>No CRM Activity Yet</h3>
@@ -896,9 +895,8 @@ function renderRecentActivity() {
           Your outreach actions, follow-ups, emails,
           and CRM interactions will appear here automatically.
         </p>
-
       </div>
-  `;
+    `;
     return;
   }
 
@@ -906,11 +904,19 @@ function renderRecentActivity() {
     const div = document.createElement("div");
     div.className = "activity-item";
 
-    div.innerHTML = `
-      <strong>${activity.action}</strong>
-      <span>${activity.details || "No details available."}</span>
-      <div class="activity-time">${activity.createdAt || "Just now"}</div>
-    `;
+    const action = document.createElement("strong");
+    action.textContent = activity.action || "Activity";
+
+    const details = document.createElement("span");
+    details.textContent = activity.details || "No details available.";
+
+    const time = document.createElement("div");
+    time.className = "activity-time";
+    time.textContent = activity.createdAt || "Just now";
+
+    div.appendChild(action);
+    div.appendChild(details);
+    div.appendChild(time);
 
     recentActivity.appendChild(div);
   });
@@ -1200,31 +1206,35 @@ function renderRecentLeads() {
 
   if (recent.length === 0) {
     recentLeads.innerHTML = `
-    <div class="locked-feature-card">
+      <div class="locked-feature-card">
+        <div class="locked-feature-icon">📂</div>
 
-      <div class="locked-feature-icon">📂</div>
+        <h3>No Leads Yet</h3>
 
-      <h3>No Leads Yet</h3>
-
-      <p>
-        Your newest leads will appear here once you start
-        building your CRM pipeline.
-      </p>
-
-    </div>
-  `;
+        <p>
+          Your newest leads will appear here once you start
+          building your CRM pipeline.
+        </p>
+      </div>
+    `;
     return;
   }
 
   recent.forEach(lead => {
     const score = getLeadScore(lead);
+
     const div = document.createElement("div");
     div.className = "mini-item";
 
-    div.innerHTML = `
-      <strong>${lead.businessName}</strong>
-      <span>${score.label} • ${lead.status || "New"} • ${lead.priority || "Cold"} Lead</span>
-    `;
+    const businessName = document.createElement("strong");
+    businessName.textContent = lead.businessName || "Unnamed Lead";
+
+    const summary = document.createElement("span");
+    summary.textContent =
+      `${score.label || ""} • ${lead.status || "New"} • ${lead.priority || "Cold"} Lead`;
+
+    div.appendChild(businessName);
+    div.appendChild(summary);
 
     recentLeads.appendChild(div);
   });
@@ -1397,6 +1407,40 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function sanitizeExternalUrl(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return "";
+  }
+
+  const candidate =
+    /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw)
+      ? raw
+      : `https://${raw}`;
+
+  try {
+    const url = new URL(candidate);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return "";
+    }
+
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
 function renderLeads() {
   if (!leadList) return;
 
@@ -1416,33 +1460,33 @@ function renderLeads() {
   }
 
   if (leads.length === 0) {
-leadList.innerHTML = `
-  <div class="locked-feature-card">
+    leadList.innerHTML = `
+      <div class="locked-feature-card">
 
-    <div class="locked-feature-icon">🚀</div>
+        <div class="locked-feature-icon">🚀</div>
 
-    <h3>Start Building Your CRM</h3>
+        <h3>Start Building Your CRM</h3>
 
-    <p>
-      You have no leads yet.
-      Add your first client lead or use the AI Lead Finder
-      to start building your sales pipeline.
-    </p>
+        <p>
+          You have no leads yet.
+          Add your first client lead or use the AI Lead Finder
+          to start building your sales pipeline.
+        </p>
 
-    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
 
-      <button class="primary-btn add-first-lead-btn">
-        Add First Lead
-      </button>
+          <button class="primary-btn add-first-lead-btn">
+            Add First Lead
+          </button>
 
-      <button class="secondary-btn open-lead-finder-btn">
-        Open Lead Finder
-      </button>
+          <button class="secondary-btn open-lead-finder-btn">
+            Open Lead Finder
+          </button>
 
-    </div>
+        </div>
 
-  </div>
-`;
+      </div>
+    `;
 
     const addFirstLeadButton = leadList.querySelector(".add-first-lead-btn");
     const openLeadFinderButton = leadList.querySelector(".open-lead-finder-btn");
@@ -1471,6 +1515,54 @@ leadList.innerHTML = `
     const div = document.createElement("div");
     const score = getLeadScore(lead);
 
+    const safeBusinessName = escapeHTML(
+      lead.businessName || "Unnamed Lead"
+    );
+
+    const safeStatus = escapeHTML(
+      lead.status || "New"
+    );
+
+    const safePriority = escapeHTML(
+      lead.priority || "Cold"
+    );
+
+    const safeContact = escapeHTML(
+      lead.contact || "No contact added"
+    );
+
+    const safeNextFollowUp = escapeHTML(
+      lead.nextFollowUp || "Not scheduled"
+    );
+
+    const safeLastContacted = escapeHTML(
+      lead.lastContacted || "Not yet"
+    );
+
+    const safeNotes = escapeHTML(
+      lead.notes || ""
+    );
+
+    const safeScoreLabel = escapeHTML(
+      score.label || ""
+    );
+
+    const safeScoreReason = escapeHTML(
+      score.reason || ""
+    );
+
+    const safeScoreLevel = ["hot", "warm", "cold"].includes(score.level)
+      ? score.level
+      : "cold";
+
+    const safeScore =
+      Number.isFinite(Number(score.score))
+        ? Number(score.score)
+        : 0;
+
+    const safeLink = sanitizeExternalUrl(lead.link);
+    const safeLinkAttribute = escapeHTML(safeLink);
+
     div.className = isOverdue(lead.nextFollowUp)
       ? "lead-card overdue-lead"
       : "lead-card";
@@ -1479,20 +1571,23 @@ leadList.innerHTML = `
       <div class="lead-card-header">
         <div class="lead-card-identity">
           <div class="lead-card-title-row">
-            <h3>${lead.businessName}</h3>
-            <span class="status-badge">${lead.status || "New"}</span>
+            <h3>${safeBusinessName}</h3>
+
+            <span class="status-badge">
+              ${safeStatus}
+            </span>
           </div>
 
           <div class="lead-badge-row">
             <span class="priority-badge">
-              ${lead.priority || "Cold"} Lead
+              ${safePriority} Lead
             </span>
 
             <span
-              class="lead-score-badge score-${score.level}"
-              title="${score.reason}"
+              class="lead-score-badge score-${safeScoreLevel}"
+              title="${safeScoreReason}"
             >
-              ${score.label} • ${score.score}
+              ${safeScoreLabel} • ${safeScore}
             </span>
 
             ${
@@ -1505,20 +1600,22 @@ leadList.innerHTML = `
       </div>
 
       <div class="lead-card-summary">
+
         <div class="lead-summary-item">
           <span>Contact</span>
-          <strong>${lead.contact || "No contact added"}</strong>
+          <strong>${safeContact}</strong>
         </div>
 
         <div class="lead-summary-item">
           <span>Follow-up</span>
-          <strong>${lead.nextFollowUp || "Not scheduled"}</strong>
+          <strong>${safeNextFollowUp}</strong>
         </div>
 
         <div class="lead-summary-item">
           <span>Last contacted</span>
-          <strong>${lead.lastContacted || "Not yet"}</strong>
+          <strong>${safeLastContacted}</strong>
         </div>
+
       </div>
 
       ${
@@ -1526,13 +1623,14 @@ leadList.innerHTML = `
           ? `
             <div class="lead-card-notes">
               <span>Notes</span>
-              <p>${lead.notes}</p>
+              <p>${safeNotes}</p>
             </div>
           `
           : ""
       }
 
       <div class="lead-card-controls">
+
         <select
           class="lead-status-select"
           data-index="${index}"
@@ -1547,11 +1645,11 @@ leadList.innerHTML = `
         </select>
 
         ${
-          lead.link
+          safeLink
             ? `
               <a
                 class="lead-open-link"
-                href="${lead.link}"
+                href="${safeLinkAttribute}"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -1559,10 +1657,12 @@ leadList.innerHTML = `
               </a>
             `
             : ""
-        }
+}
+
       </div>
 
       <div class="lead-card-actions">
+
         <button
           class="primary-btn lead-action-btn"
           data-action="generate"
@@ -1591,6 +1691,7 @@ leadList.innerHTML = `
           <summary>More</summary>
 
           <div class="lead-more-actions">
+
             <button
               class="lead-action-btn"
               data-action="whatsapp"
@@ -1630,8 +1731,10 @@ leadList.innerHTML = `
             >
               Delete Lead
             </button>
+
           </div>
         </details>
+
       </div>
     `;
 
@@ -1639,11 +1742,13 @@ leadList.innerHTML = `
 
     const statusSelect = div.querySelector(".lead-status-select");
 
-    statusSelect.addEventListener("change", function () {
-      updateStatus(index, this.value);
-    });
+    if (statusSelect) {
+      statusSelect.addEventListener("change", function () {
+        updateStatus(index, this.value);
+      });
+    }
 
-        div.querySelectorAll(".lead-action-btn").forEach((button) => {
+    div.querySelectorAll(".lead-action-btn").forEach((button) => {
       button.addEventListener("click", () => {
         const action = button.dataset.action;
 
@@ -1664,16 +1769,17 @@ leadList.innerHTML = `
       moreMenu.addEventListener("toggle", () => {
         if (!moreMenu.open) return;
 
-        document.querySelectorAll(".lead-more-menu[open]").forEach((menu) => {
-          if (menu !== moreMenu) {
-            menu.removeAttribute("open");
-          }
-        });
+        document
+          .querySelectorAll(".lead-more-menu[open]")
+          .forEach((menu) => {
+            if (menu !== moreMenu) {
+              menu.removeAttribute("open");
+            }
+          });
       });
     }
   });
 }
-
 leadForm.addEventListener("submit", async function (e) {
   e.preventDefault();
 
@@ -2184,21 +2290,42 @@ function renderLeadIdeas(ideas) {
     const div = document.createElement("div");
     div.className = "lead-idea-card";
 
-    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(idea.businessName)}`;
+    const googleSearchUrl =
+      `https://www.google.com/search?q=${encodeURIComponent(idea.businessName || "")}`;
 
-    div.innerHTML = `
-      <div class="lead-idea-info">
-        <strong>${idea.businessName}</strong>
-        <p>${idea.notes}</p>
-      </div>
+    const info = document.createElement("div");
+    info.className = "lead-idea-info";
 
-      <div class="lead-idea-actions">
-        <a href="${googleSearchUrl}" target="_blank" class="google-search-btn">Search</a>
-        <button class="add-idea-btn">+ Add</button>
-      </div>
-    `;
+    const businessName = document.createElement("strong");
+    businessName.textContent = idea.businessName || "Untitled Lead";
 
-    div.querySelector(".add-idea-btn").addEventListener("click", async () => {
+    const notes = document.createElement("p");
+    notes.textContent = idea.notes || "";
+
+    info.appendChild(businessName);
+    info.appendChild(notes);
+
+    const actions = document.createElement("div");
+    actions.className = "lead-idea-actions";
+
+    const searchLink = document.createElement("a");
+    searchLink.href = googleSearchUrl;
+    searchLink.target = "_blank";
+    searchLink.rel = "noopener noreferrer";
+    searchLink.className = "google-search-btn";
+    searchLink.textContent = "Search";
+
+    const addButton = document.createElement("button");
+    addButton.className = "add-idea-btn";
+    addButton.textContent = "+ Add";
+
+    actions.appendChild(searchLink);
+    actions.appendChild(addButton);
+
+    div.appendChild(info);
+    div.appendChild(actions);
+
+    addButton.addEventListener("click", async () => {
       if (!currentUser) {
         showToast("Login first.", "warning");
         return;
@@ -2360,9 +2487,17 @@ async function loadAdminDashboard() {
   }
 
   try {
-    const statsRes = await fetch(`${BASE_URL}/api/admin/stats?userId=${currentUser.id}`);
-    const usersRes = await fetch(`${BASE_URL}/api/admin/users?userId=${currentUser.id}`);
-    const leadsRes = await fetch(`${BASE_URL}/api/admin/leads?userId=${currentUser.id}`);
+    const statsRes = await fetch(
+      `${BASE_URL}/api/admin/stats?userId=${currentUser.id}`
+    );
+
+    const usersRes = await fetch(
+      `${BASE_URL}/api/admin/users?userId=${currentUser.id}`
+    );
+
+    const leadsRes = await fetch(
+      `${BASE_URL}/api/admin/leads?userId=${currentUser.id}`
+    );
 
     const stats = await readJsonResponse(statsRes);
     const users = await readJsonResponse(usersRes);
@@ -2378,40 +2513,89 @@ async function loadAdminDashboard() {
     adminInterestedLeads.textContent = stats.interestedLeads;
     adminClosedLeads.textContent = stats.closedLeads;
 
-    adminUsersList.innerHTML = users.length
-      ? ""
-      : `<div class="table-row"><strong>No users found</strong></div>`;
+    adminUsersList.innerHTML = "";
+
+    if (!users.length) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "table-row";
+
+      const message = document.createElement("strong");
+      message.textContent = "No users found";
+
+      emptyRow.appendChild(message);
+      adminUsersList.appendChild(emptyRow);
+    }
 
     users.forEach(user => {
       const div = document.createElement("div");
       div.className = "table-row";
 
-      div.innerHTML = `
-        <strong>${user.name}</strong>
-        <span>${user.email}</span>
-        <span>Plan: ${(user.plan || "free").toUpperCase()} • ${user.subscription_status || user.subscriptionstatus || "inactive"}</span>
-        <span>Joined: ${user.createdAt || user.createdat || "N/A"}</span>
-      `;
+      const name = document.createElement("strong");
+      name.textContent = user.name || "Unknown User";
+
+      const email = document.createElement("span");
+      email.textContent = user.email || "No email";
+
+      const plan = document.createElement("span");
+      plan.textContent =
+        `Plan: ${(user.plan || "free").toUpperCase()} • ${
+          user.subscription_status ||
+          user.subscriptionstatus ||
+          "inactive"
+        }`;
+
+      const joined = document.createElement("span");
+      joined.textContent =
+        `Joined: ${user.createdAt || user.createdat || "N/A"}`;
+
+      div.appendChild(name);
+      div.appendChild(email);
+      div.appendChild(plan);
+      div.appendChild(joined);
 
       adminUsersList.appendChild(div);
     });
 
-    adminLeadsList.innerHTML = allLeads.length
-      ? ""
-      : `<div class="table-row"><strong>No leads found</strong></div>`;
+    adminLeadsList.innerHTML = "";
 
-    allLeads.slice(0, 30).map(normalizeLead).forEach(lead => {
-      const div = document.createElement("div");
-      div.className = "table-row";
+    if (!allLeads.length) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "table-row";
 
-      div.innerHTML = `
-        <strong>${lead.businessName}</strong>
-        <span>${lead.status || "New"} • ${lead.priority || "Cold"}</span>
-        <span>Owner: ${lead.ownerName || "Unknown"} — ${lead.ownerEmail || "N/A"}</span>
-      `;
+      const message = document.createElement("strong");
+      message.textContent = "No leads found";
 
-      adminLeadsList.appendChild(div);
-    });
+      emptyRow.appendChild(message);
+      adminLeadsList.appendChild(emptyRow);
+    }
+
+    allLeads
+      .slice(0, 30)
+      .map(normalizeLead)
+      .forEach(lead => {
+        const div = document.createElement("div");
+        div.className = "table-row";
+
+        const businessName = document.createElement("strong");
+        businessName.textContent =
+          lead.businessName || "Unnamed Lead";
+
+        const status = document.createElement("span");
+        status.textContent =
+          `${lead.status || "New"} • ${lead.priority || "Cold"} Lead`;
+
+        const owner = document.createElement("span");
+        owner.textContent =
+          `Owner: ${lead.ownerName || "Unknown"} — ${
+            lead.ownerEmail || "N/A"
+          }`;
+
+        div.appendChild(businessName);
+        div.appendChild(status);
+        div.appendChild(owner);
+
+        adminLeadsList.appendChild(div);
+      });
 
     showToast("Admin dashboard refreshed.", "success");
   } catch (error) {
@@ -2549,48 +2733,48 @@ function renderKanbanBoard() {
   });
 
   if (!currentPlan.features.kanban) {
-  const kanbanBoard = document.querySelector(".kanban-board");
+    const kanbanBoard = document.querySelector(".kanban-board");
 
-  if (kanbanBoard) {
-    kanbanBoard.innerHTML = `
-      <div class="pipeline-locked-preview">
-        <div class="pipeline-preview-icon">🔒</div>
+    if (kanbanBoard) {
+      kanbanBoard.innerHTML = `
+        <div class="pipeline-locked-preview">
+          <div class="pipeline-preview-icon">🔒</div>
 
-        <div class="pipeline-preview-content">
-          <p class="eyebrow">Pro CRM Feature</p>
-          <h3>Unlock the Visual Sales Pipeline</h3>
+          <div class="pipeline-preview-content">
+            <p class="eyebrow">Pro CRM Feature</p>
+            <h3>Unlock the Visual Sales Pipeline</h3>
 
-          <p>
-            Drag leads through your sales stages, manage your workflow visually,
-            and keep opportunities moving from New to Closed.
-          </p>
+            <p>
+              Drag leads through your sales stages, manage your workflow visually,
+              and keep opportunities moving from New to Closed.
+            </p>
 
-          <div class="pipeline-preview-stages">
-            <span>New</span>
-            <span>Contacted</span>
-            <span>Interested</span>
-            <span>Closed</span>
+            <div class="pipeline-preview-stages">
+              <span>New</span>
+              <span>Contacted</span>
+              <span>Interested</span>
+              <span>Closed</span>
+            </div>
           </div>
+
+          <button class="primary-btn pipeline-upgrade-btn">
+            Upgrade to Pro
+          </button>
         </div>
+      `;
 
-        <button class="primary-btn pipeline-upgrade-btn">
-          Upgrade to Pro
-        </button>
-      </div>
-    `;
+      const pipelineUpgradeButton =
+        kanbanBoard.querySelector(".pipeline-upgrade-btn");
 
-    const pipelineUpgradeButton =
-      kanbanBoard.querySelector(".pipeline-upgrade-btn");
-
-    if (pipelineUpgradeButton) {
-      pipelineUpgradeButton.addEventListener("click", () => {
-        showPage("settingsPage");
-      });
+      if (pipelineUpgradeButton) {
+        pipelineUpgradeButton.addEventListener("click", () => {
+          showPage("settingsPage");
+        });
+      }
     }
-  }
 
-  return;
-}
+    return;
+  }
 
   leads.forEach((lead, index) => {
     const status = ["New", "Contacted", "Interested", "Closed"].includes(lead.status)
@@ -2599,17 +2783,34 @@ function renderKanbanBoard() {
 
     const score = getLeadScore(lead);
 
+    const safeScoreLevel = ["hot", "warm", "cold"].includes(score.level)
+      ? score.level
+      : "cold";
+
     const card = document.createElement("div");
     card.className = "kanban-card";
     card.draggable = true;
     card.dataset.index = index;
 
-    card.innerHTML = `
-      <h4>${lead.businessName}</h4>
-      <p>${lead.contact || "No contact info"}</p>
-      <span class="kanban-priority">${lead.priority || "Cold"} Lead</span>
-      <span class="lead-score-badge score-${score.level}">${score.label}</span>
-    `;
+    const businessName = document.createElement("h4");
+    businessName.textContent = lead.businessName || "Unnamed Lead";
+
+    const contact = document.createElement("p");
+    contact.textContent = lead.contact || "No contact info";
+
+    const priority = document.createElement("span");
+    priority.className = "kanban-priority";
+    priority.textContent = `${lead.priority || "Cold"} Lead`;
+
+    const scoreBadge = document.createElement("span");
+    scoreBadge.className =
+      `lead-score-badge score-${safeScoreLevel}`;
+    scoreBadge.textContent = score.label || "";
+
+    card.appendChild(businessName);
+    card.appendChild(contact);
+    card.appendChild(priority);
+    card.appendChild(scoreBadge);
 
     card.addEventListener("dragstart", function () {
       card.classList.add("dragging");
@@ -2638,9 +2839,17 @@ function renderKanbanBoard() {
 
       let newStatus = "New";
 
-      if (zone.id === "kanban-contacted") newStatus = "Contacted";
-      if (zone.id === "kanban-interested") newStatus = "Interested";
-      if (zone.id === "kanban-closed") newStatus = "Closed";
+      if (zone.id === "kanban-contacted") {
+        newStatus = "Contacted";
+      }
+
+      if (zone.id === "kanban-interested") {
+        newStatus = "Interested";
+      }
+
+      if (zone.id === "kanban-closed") {
+        newStatus = "Closed";
+      }
 
       await updateLead(lead.id, {
         ...lead,
