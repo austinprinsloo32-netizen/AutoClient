@@ -8,8 +8,8 @@ const ACTIVITIES_URL = `${BASE_URL}/api/activities`;
 const ACTIVITY_LOG_URL = `${BASE_URL}/api/activities/log`;
 const SEND_EMAIL_URL = `${BASE_URL}/api/send-email`;
 const MY_PLAN_URL = `${BASE_URL}/api/my-plan`;
-const CHECKOUT_URL = `${BASE_URL}/api/create-checkout-session`;
-const BILLING_PORTAL_URL = `${BASE_URL}/api/create-billing-portal-session`;
+const CHECKOUT_URL = `${BASE_URL}/api/create-paystack-checkout`;
+const BILLING_PORTAL_URL = `${BASE_URL}/api/create-paystack-manage-link`;
 
 const ADMIN_EMAIL_FRONTEND = "austinprinsloo32@gmail.com";
 
@@ -465,15 +465,13 @@ function canAddMoreLeads() {
   return true;
 }
 
-async function startCheckout(plan) {
+async function startCheckout(plan = "pro") {
   if (!currentUser) {
     showToast("Please login first.", "warning");
     return;
   }
 
   try {
-    showToast(`Opening ${plan.toUpperCase()} checkout...`, "info");
-
     const response = await fetch(CHECKOUT_URL, {
       method: "POST",
       headers: {
@@ -488,14 +486,21 @@ async function startCheckout(plan) {
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-      showToast(data.error || "Could not start checkout.", "error");
+      showToast(
+        data.error || "Could not start Paystack checkout.",
+        "error"
+      );
       return;
     }
 
     window.location.href = data.url;
   } catch (error) {
-    console.error("Checkout error:", error);
-    showToast("Could not connect to Stripe checkout.", "error");
+    console.error("Paystack checkout error:", error);
+
+    showToast(
+      "Could not connect to Paystack checkout.",
+      "error"
+    );
   }
 }
 
@@ -510,23 +515,30 @@ async function openBillingPortal() {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: currentUser.id
-      })
+      }
     });
 
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-      showToast(data.error || "Billing portal unavailable.", "warning");
+      showToast(
+        data.error || "Subscription management unavailable.",
+        "warning"
+      );
       return;
     }
 
     window.location.href = data.url;
   } catch (error) {
-    console.error("Billing portal error:", error);
-    showToast("Could not open billing portal.", "error");
+    console.error(
+      "Paystack subscription management error:",
+      error
+    );
+
+    showToast(
+      "Could not open subscription management.",
+      "error"
+    );
   }
 }
 
@@ -534,13 +546,29 @@ function handleBillingRedirectNotice() {
   const params = new URLSearchParams(window.location.search);
 
   if (params.get("billing") === "success") {
-    showToast("Payment successful. Your plan will update after Stripe confirms the subscription.", "success");
-    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast(
+      "Payment successful. Your Pro subscription is being confirmed.",
+      "success"
+    );
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
   }
 
   if (params.get("billing") === "cancelled") {
-    showToast("Checkout cancelled. No payment was made.", "info");
-    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast(
+      "Checkout cancelled. No payment was made.",
+      "info"
+    );
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
   }
 }
 
