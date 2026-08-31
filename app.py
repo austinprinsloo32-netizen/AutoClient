@@ -955,6 +955,24 @@ def my_plan():
         session.clear()
         return jsonify({"error": "User not found"}), 404
 
+    paystack_customer_code = get_field(
+        user,
+        "paystack_customer_code",
+        ""
+    )
+
+    paystack_subscription_code = get_field(
+        user,
+        "paystack_subscription_code",
+        ""
+    )
+
+    # Paystack is the primary billing provider for users
+    # who already have a Paystack customer/subscription.
+    if paystack_customer_code or paystack_subscription_code:
+        return jsonify(get_user_plan_data(user))
+
+    # Stripe remains as a fallback for older Stripe users.
     stripe_subscription_id = get_field(
         user,
         "stripe_subscription_id",
@@ -999,7 +1017,6 @@ def my_plan():
             print("Stripe subscription sync failed")
 
     return jsonify(get_user_plan_data(user))
-
 
 @app.route("/api/create-paystack-checkout", methods=["POST"])
 def create_paystack_checkout():
