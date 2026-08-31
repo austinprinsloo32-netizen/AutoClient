@@ -970,9 +970,10 @@ def create_paystack_checkout():
     plan_data = get_user_plan_data(user)
 
     if (
-        plan_data["plan"] == "pro"
-        and plan_data["subscriptionStatus"] in ["active", "trialing"]
-    ):
+    plan_data["plan"] == "pro"
+    and plan_data["subscriptionStatus"] in ["active", "trialing"]
+    and not PAYSTACK_SECRET_KEY.startswith("sk_test_")
+):
         return jsonify({
             "error": "Your Pro subscription is already active."
         }), 400
@@ -1321,7 +1322,7 @@ def paystack_webhook():
 
     if event_type == "charge.success":
         print("Paystack charge payload:", data_object)
-        
+
         metadata = data_object.get("metadata", {}) or {}
         user_id = metadata.get("userId")
 
