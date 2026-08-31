@@ -967,12 +967,95 @@ def my_plan():
         ""
     )
 
-    # Paystack is the primary billing provider for users
-    # who already have a Paystack customer/subscription.
-    if paystack_customer_code or paystack_subscription_code:
+    # Paystack is the primary billing provider once
+    # a user has a Paystack customer.
+    if PAYSTACK_SECRET_KEY and paystack_customer_code:
+        paystack_customer = get_paystack_customer(
+            paystack_customer_code
+        )
+
+        if paystack_customer:
+            subscriptions = paystack_customer.get(
+                "subscriptions",
+                []
+            ) or []
+
+            subscription = None
+
+            # Prefer the exact subscription already stored
+            # for this AutoClient user.
+            if paystack_subscription_code:
+                subscription = next(
+                    (
+                        item
+                        for item in subscriptions
+                        if item.get("subscription_code")
+                        == paystack_subscription_code
+                    ),
+                    None
+                )
+
+            # Fallback to the first Paystack subscription
+            # if no stored match exists yet.
+            if not subscription and subscriptions:
+                subscription = subscriptions[0]
+
+            if subscription:
+                paystack_status = subscription.get(
+                    "status",
+                    "inactive"
+                )
+
+                current_subscription_code = (
+                    subscription.get(
+                        "subscription_code"
+                    )
+                    or paystack_subscription_code
+                )
+
+                if paystack_status == "active":
+                    plan = "pro"
+                    subscription_status = "active"
+
+                elif paystack_status == "non-renewing":
+                    plan = "pro"
+                    subscription_status = "non_renewing"
+
+                elif paystack_status == "attention":
+                    plan = "pro"
+                    subscription_status = "attention"
+
+                elif paystack_status == "completed":
+                    plan = "free"
+                    subscription_status = "completed"
+
+                elif paystack_status == "cancelled":
+                    plan = "free"
+                    subscription_status = "cancelled"
+
+                else:
+                    plan = "free"
+                    subscription_status = paystack_status
+
+                update_user_paystack_subscription(
+                    user_id=user_id,
+                    plan=plan,
+                    paystack_customer_code=(
+                        paystack_customer_code
+                    ),
+                    paystack_subscription_code=(
+                        current_subscription_code
+                    ),
+                    subscription_status=(
+                        subscription_status
+                    )
+                )
+
+                user = get_user_by_id(user_id)
+
         return jsonify(get_user_plan_data(user))
 
-    # Stripe remains as a fallback for older Stripe users.
+    # Stripe fallback for legacy Stripe-only users.
     stripe_subscription_id = get_field(
         user,
         "stripe_subscription_id",
