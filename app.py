@@ -1320,6 +1320,8 @@ def paystack_webhook():
     print("Paystack event:", event_type)
 
     if event_type == "charge.success":
+        print("Paystack charge payload:", data_object)
+        
         metadata = data_object.get("metadata", {}) or {}
         user_id = metadata.get("userId")
 
