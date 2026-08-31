@@ -1537,11 +1537,9 @@ def paystack_webhook():
 
     event = request.get_json(silent=True) or {}
     event_type = event.get("event")
-    data_object = event.get("data", {})
+    data_object = event.get("data", {}) or {}
 
     print("Paystack event:", event_type)
-    if event_type == "subscription.not_renew":
-        print("Paystack not-renew data:", data_object)
 
     if event_type == "charge.success":
         metadata = data_object.get("metadata", {}) or {}
@@ -1560,14 +1558,15 @@ def paystack_webhook():
             (paystack_customer or {}).get(
                 "subscriptions",
                 []
-            )
+            ) or []
         )
 
         active_subscription = next(
             (
                 subscription
                 for subscription in subscriptions
-                if subscription.get("status") == "active"
+                if subscription.get("status")
+                in ["active", "non-renewing", "attention"]
             ),
             None
         )
@@ -1585,8 +1584,12 @@ def paystack_webhook():
             update_user_paystack_subscription(
                 user_id=user_id,
                 plan="pro",
-                paystack_customer_code=paystack_customer_code,
-                paystack_subscription_code=paystack_subscription_code,
+                paystack_customer_code=(
+                    paystack_customer_code
+                ),
+                paystack_subscription_code=(
+                    paystack_subscription_code
+                ),
                 subscription_status="active"
             )
 
@@ -1602,8 +1605,14 @@ def paystack_webhook():
             "subscription_code"
         )
 
-        customer = data_object.get("customer", {}) or {}
-        customer_code = customer.get("customer_code")
+        customer = data_object.get(
+            "customer",
+            {}
+        ) or {}
+
+        customer_code = customer.get(
+            "customer_code"
+        )
 
         print(
             "Paystack subscription created:",
@@ -1618,22 +1627,47 @@ def paystack_webhook():
 
         if subscription_code:
             update_subscription_by_paystack_code(
-                paystack_subscription_code=subscription_code,
+                paystack_subscription_code=(
+                    subscription_code
+                ),
                 plan="pro",
                 subscription_status="non_renewing"
             )
+
+        print(
+            "Paystack subscription non-renewing:",
+            subscription_code
+        )
 
     elif event_type == "subscription.disable":
         subscription_code = data_object.get(
             "subscription_code"
         )
 
+        status_value = data_object.get(
+            "status",
+            "cancelled"
+        )
+
+        if status_value in ["complete", "completed"]:
+            final_status = "completed"
+        else:
+            final_status = "cancelled"
+
         if subscription_code:
             update_subscription_by_paystack_code(
-                paystack_subscription_code=subscription_code,
+                paystack_subscription_code=(
+                    subscription_code
+                ),
                 plan="free",
-                subscription_status="cancelled"
+                subscription_status=final_status
             )
+
+        print(
+            "Paystack subscription disabled:",
+            subscription_code,
+            final_status
+        )
 
     elif event_type == "invoice.payment_failed":
         subscription = data_object.get(
@@ -1647,9 +1681,42 @@ def paystack_webhook():
 
         if subscription_code:
             update_subscription_by_paystack_code(
-                paystack_subscription_code=subscription_code,
-                plan="free",
-                subscription_status="past_due"
+                paystack_subscription_code=(
+                    subscription_code
+                ),
+                plan="pro",
+                subscription_status="attention"
+            )
+
+        print(
+            "Paystack subscription payment issue:",
+            subscription_code
+        )
+
+    elif event_type == "invoice.update":
+        subscription = data_object.get(
+            "subscription",
+            {}
+        ) or {}
+
+        subscription_code = subscription.get(
+            "subscription_code"
+        )
+
+        paid = data_object.get("paid")
+
+        if subscription_code and paid:
+            update_subscription_by_paystack_code(
+                paystack_subscription_code=(
+                    subscription_code
+                ),
+                plan="pro",
+                subscription_status="active"
+            )
+
+            print(
+                "Paystack renewal payment succeeded:",
+                subscription_code
             )
 
     return jsonify({"received": True}), 200
