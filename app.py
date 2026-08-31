@@ -578,6 +578,44 @@ def update_user_paystack_subscription(
             user_id
         ), commit=True)
 
+def update_subscription_by_paystack_code(
+    paystack_subscription_code,
+    plan,
+    subscription_status
+):
+    if not paystack_subscription_code:
+        return
+
+    plan = normalize_plan(plan)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if USING_POSTGRES:
+        execute_query("""
+            UPDATE users
+            SET plan = %s,
+                subscription_status = %s,
+                plan_updated_at = %s
+            WHERE paystack_subscription_code = %s
+        """, (
+            plan,
+            subscription_status,
+            now,
+            paystack_subscription_code
+        ), commit=True)
+    else:
+        execute_query("""
+            UPDATE users
+            SET plan = ?,
+                subscription_status = ?,
+                plan_updated_at = ?
+            WHERE paystack_subscription_code = ?
+        """, (
+            plan,
+            subscription_status,
+            now,
+            paystack_subscription_code
+        ), commit=True)
+
 def is_admin_user(user_id):
     user = get_user_by_id(user_id)
 
@@ -1322,10 +1360,15 @@ def stripe_webhook():
 @app.route("/paystack-webhook", methods=["POST"])
 def paystack_webhook():
     if not PAYSTACK_SECRET_KEY:
-        return jsonify({"error": "Paystack billing is not configured."}), 500
+        return jsonify({
+            "error": "Paystack billing is not configured."
+        }), 500
 
     payload = request.get_data()
-    signature = request.headers.get("x-paystack-signature", "")
+    signature = request.headers.get(
+        "x-paystack-signature",
+        ""
+    )
 
     expected_signature = hmac.new(
         PAYSTACK_SECRET_KEY.encode("utf-8"),
@@ -1333,8 +1376,13 @@ def paystack_webhook():
         hashlib.sha512
     ).hexdigest()
 
-    if not hmac.compare_digest(signature, expected_signature):
-        return jsonify({"error": "Webhook verification failed"}), 400
+    if not hmac.compare_digest(
+        signature,
+        expected_signature
+    ):
+        return jsonify({
+            "error": "Webhook verification failed"
+        }), 400
 
     event = request.get_json(silent=True) or {}
     event_type = event.get("event")
@@ -1347,14 +1395,19 @@ def paystack_webhook():
         user_id = metadata.get("userId")
 
         customer = data_object.get("customer", {}) or {}
-        paystack_customer_code = customer.get("customer_code")
+        paystack_customer_code = customer.get(
+            "customer_code"
+        )
 
         paystack_customer = get_paystack_customer(
             paystack_customer_code
         )
 
         subscriptions = (
-            (paystack_customer or {}).get("subscriptions", [])
+            (paystack_customer or {}).get(
+                "subscriptions",
+                []
+            )
         )
 
         active_subscription = next(
@@ -1370,7 +1423,9 @@ def paystack_webhook():
 
         if active_subscription:
             paystack_subscription_code = (
-                active_subscription.get("subscription_code")
+                active_subscription.get(
+                    "subscription_code"
+                )
             )
 
         if user_id:
@@ -1389,13 +1444,10 @@ def paystack_webhook():
                 "User upgraded to PRO plan via Paystack."
             )
 
-            print(
-                f"Paystack subscription activated "
-                f"for user {user_id}"
-            )
-
     elif event_type == "subscription.create":
-        subscription_code = data_object.get("subscription_code")
+        subscription_code = data_object.get(
+            "subscription_code"
+        )
 
         customer = data_object.get("customer", {}) or {}
         customer_code = customer.get("customer_code")
@@ -1405,6 +1457,47 @@ def paystack_webhook():
             subscription_code,
             customer_code
         )
+
+    elif event_type == "subscription.not_renew":
+        subscription_code = data_object.get(
+            "subscription_code"
+        )
+
+        if subscription_code:
+            update_subscription_by_paystack_code(
+                paystack_subscription_code=subscription_code,
+                plan="pro",
+                subscription_status="non_renewing"
+            )
+
+    elif event_type == "subscription.disable":
+        subscription_code = data_object.get(
+            "subscription_code"
+        )
+
+        if subscription_code:
+            update_subscription_by_paystack_code(
+                paystack_subscription_code=subscription_code,
+                plan="free",
+                subscription_status="cancelled"
+            )
+
+    elif event_type == "invoice.payment_failed":
+        subscription = data_object.get(
+            "subscription",
+            {}
+        ) or {}
+
+        subscription_code = subscription.get(
+            "subscription_code"
+        )
+
+        if subscription_code:
+            update_subscription_by_paystack_code(
+                paystack_subscription_code=subscription_code,
+                plan="free",
+                subscription_status="past_due"
+            )
 
     return jsonify({"received": True}), 200
 
