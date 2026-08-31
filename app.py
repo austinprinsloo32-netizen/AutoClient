@@ -1343,19 +1343,35 @@ def paystack_webhook():
     print("Paystack event:", event_type)
 
     if event_type == "charge.success":
-        print("Paystack charge payload:", data_object)
-
         metadata = data_object.get("metadata", {}) or {}
         user_id = metadata.get("userId")
 
         customer = data_object.get("customer", {}) or {}
         paystack_customer_code = customer.get("customer_code")
 
-        paystack_customer = get_paystack_customer(paystack_customer_code)
-        print("Paystack customer data:", paystack_customer)
+        paystack_customer = get_paystack_customer(
+            paystack_customer_code
+        )
 
-        subscription = data_object.get("subscription", {}) or {}
-        paystack_subscription_code = subscription.get("subscription_code")
+        subscriptions = (
+            (paystack_customer or {}).get("subscriptions", [])
+        )
+
+        active_subscription = next(
+            (
+                subscription
+                for subscription in subscriptions
+                if subscription.get("status") == "active"
+            ),
+            None
+        )
+
+        paystack_subscription_code = None
+
+        if active_subscription:
+            paystack_subscription_code = (
+                active_subscription.get("subscription_code")
+            )
 
         if user_id:
             update_user_paystack_subscription(
@@ -1366,13 +1382,29 @@ def paystack_webhook():
                 subscription_status="active"
             )
 
+            log_activity(
+                user_id,
+                None,
+                "Subscription Activated",
+                "User upgraded to PRO plan via Paystack."
+            )
+
+            print(
+                f"Paystack subscription activated "
+                f"for user {user_id}"
+            )
+
     elif event_type == "subscription.create":
         subscription_code = data_object.get("subscription_code")
 
         customer = data_object.get("customer", {}) or {}
         customer_code = customer.get("customer_code")
 
-        print("Paystack subscription payload:", data_object)
+        print(
+            "Paystack subscription created:",
+            subscription_code,
+            customer_code
+        )
 
     return jsonify({"received": True}), 200
 
