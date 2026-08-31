@@ -387,6 +387,28 @@ def get_user_by_id(user_id):
 
     return row_to_dict(user)
 
+def get_paystack_customer(customer_code):
+    if not customer_code or not PAYSTACK_SECRET_KEY:
+        return None
+
+    try:
+        response = requests.get(
+            f"https://api.paystack.co/customer/{customer_code}",
+            headers={
+                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"
+            },
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        return result.get("data")
+
+    except requests.RequestException:
+        print("Paystack customer lookup failed")
+        return None
+
 
 def get_user_by_email(email):
     if not email:
@@ -1328,6 +1350,9 @@ def paystack_webhook():
 
         customer = data_object.get("customer", {}) or {}
         paystack_customer_code = customer.get("customer_code")
+
+        paystack_customer = get_paystack_customer(paystack_customer_code)
+        print("Paystack customer data:", paystack_customer)
 
         subscription = data_object.get("subscription", {}) or {}
         paystack_subscription_code = subscription.get("subscription_code")
