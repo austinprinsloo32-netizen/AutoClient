@@ -1309,7 +1309,7 @@ def create_checkout_session():
 def create_billing_portal_session():
     if not is_trusted_origin():
         return jsonify({"error": "Invalid request origin"}), 403
-    
+
     if not STRIPE_SECRET_KEY:
         return jsonify({
             "error": "Stripe billing is not configured."
@@ -1390,6 +1390,75 @@ def create_billing_portal_session():
 
         return jsonify({
             "error": "Could not open the billing portal."
+        }), 500
+
+
+@app.route("/api/create-paystack-manage-link", methods=["POST"])
+def create_paystack_manage_link():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    if not PAYSTACK_SECRET_KEY:
+        return jsonify({
+            "error": "Paystack billing is not configured."
+        }), 500
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    paystack_subscription_code = get_field(
+        user,
+        "paystack_subscription_code",
+        ""
+    )
+
+    if not paystack_subscription_code:
+        return jsonify({
+            "error": "No Paystack subscription found."
+        }), 400
+
+    try:
+        response = requests.get(
+            (
+                "https://api.paystack.co/subscription/"
+                f"{paystack_subscription_code}/manage/link"
+            ),
+            headers={
+                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"
+            },
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        manage_url = result.get(
+            "data",
+            {}
+        ).get("link")
+
+        if not manage_url:
+            return jsonify({
+                "error": "Paystack did not return a management URL."
+            }), 502
+
+        return jsonify({
+            "url": manage_url
+        }), 200
+
+    except requests.RequestException:
+        print("Paystack manage subscription request failed")
+
+        return jsonify({
+            "error": "Could not open subscription management."
         }), 500
 
 @app.route("/stripe-webhook", methods=["POST"])
