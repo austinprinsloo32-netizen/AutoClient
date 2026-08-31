@@ -1406,6 +1406,8 @@ def paystack_webhook():
     data_object = event.get("data", {})
 
     print("Paystack event:", event_type)
+    if event_type == "subscription.not_renew":
+        print("Paystack not-renew data:", data_object)
 
     if event_type == "charge.success":
         metadata = data_object.get("metadata", {}) or {}
