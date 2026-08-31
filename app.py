@@ -4,6 +4,10 @@ import secrets
 import sqlite3
 from datetime import datetime
 
+import hashlib
+import hmac
+
+from redis import event
 import requests
 import stripe
 from flask import Flask, jsonify, request, send_from_directory, session
@@ -96,6 +100,9 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_PRO_PRICE_ID = os.environ.get("STRIPE_PRO_PRICE_ID")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY")
+PAYSTACK_PRO_PLAN_CODE = os.environ.get("PAYSTACK_PRO_PLAN_CODE")
 
 FRONTEND_URL = os.environ.get(
     "FRONTEND_URL",
@@ -358,8 +365,12 @@ def init_db():
     add_column_if_missing("users", "plan", "TEXT DEFAULT 'free'")
     add_column_if_missing("users", "stripe_customer_id", "TEXT")
     add_column_if_missing("users", "stripe_subscription_id", "TEXT")
+    add_column_if_missing("users", "paystack_customer_code", "TEXT")
+    add_column_if_missing("users", "paystack_subscription_code", "TEXT")
     add_column_if_missing("users", "subscription_status", "TEXT DEFAULT 'inactive'")
     add_column_if_missing("users", "plan_updated_at", "TEXT")
+
+    
 
 
 def get_user_by_id(user_id):
@@ -498,6 +509,50 @@ def update_subscription_by_stripe_id(stripe_subscription_id, plan, subscription_
             stripe_subscription_id
         ), commit=True)
 
+def update_user_paystack_subscription(
+    user_id,
+    plan,
+    paystack_customer_code,
+    paystack_subscription_code,
+    subscription_status
+):
+    plan = normalize_plan(plan)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if USING_POSTGRES:
+        execute_query("""
+            UPDATE users
+            SET plan = %s,
+                paystack_customer_code = %s,
+                paystack_subscription_code = %s,
+                subscription_status = %s,
+                plan_updated_at = %s
+            WHERE id = %s
+        """, (
+            plan,
+            paystack_customer_code,
+            paystack_subscription_code,
+            subscription_status,
+            now,
+            user_id
+        ), commit=True)
+    else:
+        execute_query("""
+            UPDATE users
+            SET plan = ?,
+                paystack_customer_code = ?,
+                paystack_subscription_code = ?,
+                subscription_status = ?,
+                plan_updated_at = ?
+            WHERE id = ?
+        """, (
+            plan,
+            paystack_customer_code,
+            paystack_subscription_code,
+            subscription_status,
+            now,
+            user_id
+        ), commit=True)
 
 def is_admin_user(user_id):
     user = get_user_by_id(user_id)
@@ -884,6 +939,87 @@ def my_plan():
     return jsonify(get_user_plan_data(user))
 
 
+@app.route("/api/create-paystack-checkout", methods=["POST"])
+def create_paystack_checkout():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    if not PAYSTACK_SECRET_KEY:
+        return jsonify({
+            "error": "Paystack billing is not configured."
+        }), 500
+
+    if not PAYSTACK_PRO_PLAN_CODE:
+        return jsonify({
+            "error": "Paystack Pro plan is not configured."
+        }), 500
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    plan_data = get_user_plan_data(user)
+
+    if (
+        plan_data["plan"] == "pro"
+        and plan_data["subscriptionStatus"] in ["active", "trialing"]
+    ):
+        return jsonify({
+            "error": "Your Pro subscription is already active."
+        }), 400
+
+    payload = {
+        "email": user["email"],
+        "plan": PAYSTACK_PRO_PLAN_CODE,
+        "currency": "ZAR",
+        "callback_url": f"{FRONTEND_URL}/app?billing=success",
+        "metadata": {
+            "userId": str(user_id),
+            "plan": "pro"
+        }
+    }
+
+    try:
+        response = requests.post(
+            "https://api.paystack.co/transaction/initialize",
+            headers={
+                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        authorization_url = result.get(
+            "data", {}
+        ).get("authorization_url")
+
+        if not authorization_url:
+            return jsonify({
+                "error": "Paystack did not return a checkout URL."
+            }), 502
+
+        return jsonify({
+            "url": authorization_url
+        }), 200
+
+    except requests.RequestException:
+        print("Paystack checkout request failed")
+
+        return jsonify({
+            "error": "Could not start Paystack checkout."
+        }), 500
+    
 @app.route("/api/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     if not is_trusted_origin():
@@ -1158,6 +1294,57 @@ def stripe_webhook():
 
     return jsonify({"received": True}), 200
 
+@app.route("/paystack-webhook", methods=["POST"])
+def paystack_webhook():
+    if not PAYSTACK_SECRET_KEY:
+        return jsonify({"error": "Paystack billing is not configured."}), 500
+
+    payload = request.get_data()
+    signature = request.headers.get("x-paystack-signature", "")
+
+    expected_signature = hmac.new(
+        PAYSTACK_SECRET_KEY.encode("utf-8"),
+        payload,
+        hashlib.sha512
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected_signature):
+        return jsonify({"error": "Webhook verification failed"}), 400
+
+    event = request.get_json(silent=True) or {}
+    event_type = event.get("event")
+    data_object = event.get("data", {})
+
+    print("Paystack event:", event_type)
+
+    if event_type == "charge.success":
+        metadata = data_object.get("metadata", {}) or {}
+        user_id = metadata.get("userId")
+
+        customer = data_object.get("customer", {}) or {}
+        paystack_customer_code = customer.get("customer_code")
+
+        subscription = data_object.get("subscription", {}) or {}
+        paystack_subscription_code = subscription.get("subscription_code")
+
+        if user_id:
+            update_user_paystack_subscription(
+                user_id=user_id,
+                plan="pro",
+                paystack_customer_code=paystack_customer_code,
+                paystack_subscription_code=paystack_subscription_code,
+                subscription_status="active"
+            )
+
+    elif event_type == "subscription.create":
+        subscription_code = data_object.get("subscription_code")
+
+        customer = data_object.get("customer", {}) or {}
+        customer_code = customer.get("customer_code")
+
+        print("Paystack subscription payload:", data_object)
+
+    return jsonify({"received": True}), 200
 
 @app.route("/api/activities", methods=["GET"])
 def get_activities():
