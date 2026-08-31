@@ -409,6 +409,27 @@ def get_paystack_customer(customer_code):
         print("Paystack customer lookup failed")
         return None
 
+def get_paystack_subscription(subscription_code):
+    if not subscription_code or not PAYSTACK_SECRET_KEY:
+        return None
+
+    try:
+        response = requests.get(
+            f"https://api.paystack.co/subscription/{subscription_code}",
+            headers={
+                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"
+            },
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        return result.get("data")
+
+    except requests.RequestException:
+        print("Paystack subscription lookup failed")
+        return None
 
 def get_user_by_email(email):
     if not email:
@@ -968,49 +989,81 @@ def my_plan():
     )
 
     # Paystack is the primary billing provider once
-    # a user has a Paystack customer.
+    # a Paystack subscription exists for the user.
+    if PAYSTACK_SECRET_KEY and paystack_subscription_code:
+        subscription = get_paystack_subscription(
+            paystack_subscription_code
+        )
+
+        if subscription:
+            paystack_status = subscription.get(
+                "status",
+                "inactive"
+            )
+
+            if paystack_status == "active":
+                plan = "pro"
+                subscription_status = "active"
+
+            elif paystack_status == "non-renewing":
+                plan = "pro"
+                subscription_status = "non_renewing"
+
+            elif paystack_status == "attention":
+                plan = "pro"
+                subscription_status = "attention"
+
+            elif paystack_status == "completed":
+                plan = "free"
+                subscription_status = "completed"
+
+            elif paystack_status == "cancelled":
+                plan = "free"
+                subscription_status = "cancelled"
+
+            else:
+                plan = "free"
+                subscription_status = paystack_status
+
+            update_user_paystack_subscription(
+                user_id=user_id,
+                plan=plan,
+                paystack_customer_code=paystack_customer_code,
+                paystack_subscription_code=paystack_subscription_code,
+                subscription_status=subscription_status
+            )
+
+            user = get_user_by_id(user_id)
+
+        return jsonify(get_user_plan_data(user))
+
+    # Fallback for Paystack users whose subscription
+    # code has not yet been stored.
     if PAYSTACK_SECRET_KEY and paystack_customer_code:
         paystack_customer = get_paystack_customer(
             paystack_customer_code
         )
 
         if paystack_customer:
-            subscriptions = paystack_customer.get(
-                "subscriptions",
-                []
-            ) or []
+            subscriptions = (
+                paystack_customer.get(
+                    "subscriptions",
+                    []
+                ) or []
+            )
 
-            subscription = None
-
-            # Prefer the exact subscription already stored
-            # for this AutoClient user.
-            if paystack_subscription_code:
-                subscription = next(
-                    (
-                        item
-                        for item in subscriptions
-                        if item.get("subscription_code")
-                        == paystack_subscription_code
-                    ),
-                    None
-                )
-
-            # Fallback to the first Paystack subscription
-            # if no stored match exists yet.
-            if not subscription and subscriptions:
+            if subscriptions:
                 subscription = subscriptions[0]
-
-            if subscription:
-                paystack_status = subscription.get(
-                    "status",
-                    "inactive"
-                )
 
                 current_subscription_code = (
                     subscription.get(
                         "subscription_code"
                     )
-                    or paystack_subscription_code
+                )
+
+                paystack_status = subscription.get(
+                    "status",
+                    "inactive"
                 )
 
                 if paystack_status == "active":
@@ -1040,9 +1093,7 @@ def my_plan():
                 update_user_paystack_subscription(
                     user_id=user_id,
                     plan=plan,
-                    paystack_customer_code=(
-                        paystack_customer_code
-                    ),
+                    paystack_customer_code=paystack_customer_code,
                     paystack_subscription_code=(
                         current_subscription_code
                     ),
