@@ -412,6 +412,8 @@ def get_user_plan_data(user):
         "subscriptionStatus": get_field(user, "subscription_status", "inactive") if user else "inactive",
         "stripeCustomerId": get_field(user, "stripe_customer_id", "") if user else "",
         "stripeSubscriptionId": get_field(user, "stripe_subscription_id", "") if user else "",
+        "paystackCustomerCode": get_field(user, "paystack_customer_code", "") if user else "",
+        "paystackSubscriptionCode": get_field(user, "paystack_subscription_code", "") if user else "",
         "features": PLAN_LIMITS[plan]
     }
 
