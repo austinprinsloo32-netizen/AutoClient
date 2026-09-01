@@ -1504,13 +1504,17 @@ function renderLeads() {
   if (!leadList) return;
 
   leadList.innerHTML = "";
+
   const filteredLeads = getFilteredLeads();
-  const leadCountSummary = document.getElementById("leadCountSummary");
+  const leadCountSummary = document.getElementById(
+    "leadCountSummary"
+  );
 
   if (leadCountSummary) {
     const total = leads.length;
     const visible = filteredLeads.length;
-    const maxLeads = currentPlan?.features?.max_leads || 10;
+    const maxLeads =
+      currentPlan?.features?.max_leads || 10;
 
     leadCountSummary.textContent =
       visible === total
@@ -1532,7 +1536,14 @@ function renderLeads() {
           to start building your sales pipeline.
         </p>
 
-        <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div
+          style="
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            justify-content:center;
+          "
+        >
 
           <button class="primary-btn add-first-lead-btn">
             Add First Lead
@@ -1547,31 +1558,43 @@ function renderLeads() {
       </div>
     `;
 
-    const addFirstLeadButton = leadList.querySelector(".add-first-lead-btn");
-    const openLeadFinderButton = leadList.querySelector(".open-lead-finder-btn");
+    const addFirstLeadButton =
+      leadList.querySelector(".add-first-lead-btn");
+
+    const openLeadFinderButton =
+      leadList.querySelector(".open-lead-finder-btn");
 
     if (addFirstLeadButton) {
-      addFirstLeadButton.addEventListener("click", () => {
-        openLeadDrawer("add");
-      });
+      addFirstLeadButton.addEventListener(
+        "click",
+        () => {
+          openLeadDrawer("add");
+        }
+      );
     }
 
     if (openLeadFinderButton) {
-      openLeadFinderButton.addEventListener("click", () => {
-        showPage("dashboardPage");
-      });
+      openLeadFinderButton.addEventListener(
+        "click",
+        () => {
+          showPage("dashboardPage");
+        }
+      );
     }
 
     return;
   }
 
   if (filteredLeads.length === 0) {
-    leadList.innerHTML = `<p>No leads match your search or filter.</p>`;
+    leadList.innerHTML =
+      `<p>No leads match your search or filter.</p>`;
+
     return;
   }
 
   filteredLeads.forEach(({ lead, index }) => {
     const div = document.createElement("div");
+
     const score = getLeadScore(lead);
 
     const safeBusinessName = escapeHTML(
@@ -1610,40 +1633,99 @@ function renderLeads() {
       score.reason || ""
     );
 
-    const safeScoreLevel = ["hot", "warm", "cold"].includes(score.level)
-      ? score.level
-      : "cold";
+    const safeScoreLevel =
+      ["hot", "warm", "cold"].includes(score.level)
+        ? score.level
+        : "cold";
 
     const safeScore =
       Number.isFinite(Number(score.score))
         ? Number(score.score)
         : 0;
 
-    const safeLink = sanitizeExternalUrl(lead.link);
-    const safeLinkAttribute = escapeHTML(safeLink);
+    const safeLink =
+      sanitizeExternalUrl(lead.link);
 
-    div.className = isOverdue(lead.nextFollowUp)
+    const safeLinkAttribute =
+      escapeHTML(safeLink);
+
+    const safeAiSummary = escapeHTML(
+      lead.aiSummary || ""
+    );
+
+    const safeAiOpportunity = escapeHTML(
+      lead.aiOpportunity || ""
+    );
+
+    const safeAiRecommendedApproach = escapeHTML(
+      lead.aiRecommendedApproach || ""
+    );
+
+    const safeAiBestChannel = escapeHTML(
+      lead.aiBestChannel || ""
+    );
+
+    const safeAiNextAction = escapeHTML(
+      lead.aiNextAction || ""
+    );
+
+    const safeAiConfidence = escapeHTML(
+      lead.aiConfidence || ""
+    );
+
+    const safeAiLastAnalyzed = escapeHTML(
+      lead.aiLastAnalyzed || ""
+    );
+
+    const safeAiScore =
+      Number.isFinite(Number(lead.aiScore))
+        ? Math.max(
+            0,
+            Math.min(100, Number(lead.aiScore))
+          )
+        : 0;
+
+    const hasLeadIntelligence = Boolean(
+      lead.aiSummary ||
+      lead.aiOpportunity ||
+      lead.aiRecommendedApproach ||
+      lead.aiNextAction
+    );
+
+    div.className = isOverdue(
+      lead.nextFollowUp
+    )
       ? "lead-card overdue-lead"
       : "lead-card";
 
     div.innerHTML = `
       <div class="lead-card-header">
+
         <div class="lead-card-identity">
+
           <div class="lead-card-title-row">
-            <h3>${safeBusinessName}</h3>
+
+            <h3>
+              ${safeBusinessName}
+            </h3>
 
             <span class="status-badge">
               ${safeStatus}
             </span>
+
           </div>
 
           <div class="lead-badge-row">
+
             <span class="priority-badge">
               ${safePriority} Lead
             </span>
 
             <span
-              class="lead-score-badge score-${safeScoreLevel}"
+              class="
+                lead-score-badge
+                score-${safeScoreLevel}
+              "
               title="${safeScoreReason}"
             >
               ${safeScoreLabel} • ${safeScore}
@@ -1651,28 +1733,41 @@ function renderLeads() {
 
             ${
               isOverdue(lead.nextFollowUp)
-                ? `<span class="overdue-badge">Follow-up overdue</span>`
+                ? `
+                  <span class="overdue-badge">
+                    Follow-up overdue
+                  </span>
+                `
                 : ""
             }
+
           </div>
+
         </div>
+
       </div>
 
       <div class="lead-card-summary">
 
         <div class="lead-summary-item">
           <span>Contact</span>
-          <strong>${safeContact}</strong>
+          <strong>
+            ${safeContact}
+          </strong>
         </div>
 
         <div class="lead-summary-item">
           <span>Follow-up</span>
-          <strong>${safeNextFollowUp}</strong>
+          <strong>
+            ${safeNextFollowUp}
+          </strong>
         </div>
 
         <div class="lead-summary-item">
           <span>Last contacted</span>
-          <strong>${safeLastContacted}</strong>
+          <strong>
+            ${safeLastContacted}
+          </strong>
         </div>
 
       </div>
@@ -1688,6 +1783,116 @@ function renderLeads() {
           : ""
       }
 
+      ${
+        hasLeadIntelligence
+          ? `
+            <div class="lead-intelligence-card">
+
+              <div class="lead-intelligence-header">
+
+                <div>
+                  <span class="lead-intelligence-label">
+                    ✨ Lead Intelligence
+                  </span>
+
+                  <strong>
+                    ${safeAiScore}/100
+                  </strong>
+                </div>
+
+                ${
+                  safeAiConfidence
+                    ? `
+                      <span class="lead-intelligence-confidence">
+                        ${safeAiConfidence} confidence
+                      </span>
+                    `
+                    : ""
+                }
+
+              </div>
+
+              ${
+                safeAiSummary
+                  ? `
+                    <div class="lead-intelligence-section">
+                      <span>Summary</span>
+                      <p>${safeAiSummary}</p>
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${
+                safeAiOpportunity
+                  ? `
+                    <div class="lead-intelligence-section">
+                      <span>Opportunity</span>
+                      <p>${safeAiOpportunity}</p>
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${
+                safeAiRecommendedApproach
+                  ? `
+                    <div class="lead-intelligence-section">
+                      <span>Recommended Approach</span>
+                      <p>
+                        ${safeAiRecommendedApproach}
+                      </p>
+                    </div>
+                  `
+                  : ""
+              }
+
+              <div class="lead-intelligence-grid">
+
+                ${
+                  safeAiBestChannel
+                    ? `
+                      <div>
+                        <span>Best Channel</span>
+                        <strong>
+                          ${safeAiBestChannel}
+                        </strong>
+                      </div>
+                    `
+                    : ""
+                }
+
+                ${
+                  safeAiNextAction
+                    ? `
+                      <div>
+                        <span>Next Action</span>
+                        <strong>
+                          ${safeAiNextAction}
+                        </strong>
+                      </div>
+                    `
+                    : ""
+                }
+
+              </div>
+
+              ${
+                safeAiLastAnalyzed
+                  ? `
+                    <small class="lead-intelligence-date">
+                      Last analyzed:
+                      ${safeAiLastAnalyzed}
+                    </small>
+                  `
+                  : ""
+              }
+
+            </div>
+          `
+          : ""
+      }
+
       <div class="lead-card-controls">
 
         <select
@@ -1695,12 +1900,43 @@ function renderLeads() {
           data-index="${index}"
           aria-label="Lead status"
         >
-          <option ${lead.status === "New" ? "selected" : ""}>New</option>
-          <option ${lead.status === "Contacted" ? "selected" : ""}>Contacted</option>
-          <option ${lead.status === "Replied" ? "selected" : ""}>Replied</option>
-          <option ${lead.status === "Interested" ? "selected" : ""}>Interested</option>
-          <option ${lead.status === "Closed" ? "selected" : ""}>Closed</option>
-          <option ${lead.status === "Rejected" ? "selected" : ""}>Rejected</option>
+
+          <option
+            ${lead.status === "New" ? "selected" : ""}
+          >
+            New
+          </option>
+
+          <option
+            ${lead.status === "Contacted" ? "selected" : ""}
+          >
+            Contacted
+          </option>
+
+          <option
+            ${lead.status === "Replied" ? "selected" : ""}
+          >
+            Replied
+          </option>
+
+          <option
+            ${lead.status === "Interested" ? "selected" : ""}
+          >
+            Interested
+          </option>
+
+          <option
+            ${lead.status === "Closed" ? "selected" : ""}
+          >
+            Closed
+          </option>
+
+          <option
+            ${lead.status === "Rejected" ? "selected" : ""}
+          >
+            Rejected
+          </option>
+
         </select>
 
         ${
@@ -1716,11 +1952,19 @@ function renderLeads() {
               </a>
             `
             : ""
-}
+        }
 
       </div>
 
       <div class="lead-card-actions">
+
+        <button
+          class="primary-btn lead-action-btn"
+          data-action="analyze"
+          data-index="${index}"
+        >
+          ✨ Analyze Lead
+        </button>
 
         <button
           class="primary-btn lead-action-btn"
@@ -1747,7 +1991,10 @@ function renderLeads() {
         </button>
 
         <details class="lead-more-menu">
-          <summary>More</summary>
+
+          <summary>
+            More
+          </summary>
 
           <div class="lead-more-actions">
 
@@ -1792,6 +2039,7 @@ function renderLeads() {
             </button>
 
           </div>
+
         </details>
 
       </div>
@@ -1799,43 +2047,94 @@ function renderLeads() {
 
     leadList.appendChild(div);
 
-    const statusSelect = div.querySelector(".lead-status-select");
+    const statusSelect =
+      div.querySelector(".lead-status-select");
 
     if (statusSelect) {
-      statusSelect.addEventListener("change", function () {
-        updateStatus(index, this.value);
-      });
+      statusSelect.addEventListener(
+        "change",
+        function () {
+          updateStatus(
+            index,
+            this.value
+          );
+        }
+      );
     }
 
-    div.querySelectorAll(".lead-action-btn").forEach((button) => {
-      button.addEventListener("click", () => {
-        const action = button.dataset.action;
+    div
+      .querySelectorAll(".lead-action-btn")
+      .forEach((button) => {
 
-        if (action === "generate") handleGenerate(index);
-        if (action === "email") sendEmail(index);
-        if (action === "whatsapp") sendWhatsApp(index);
-        if (action === "linkedin") sendLinkedIn(index);
-        if (action === "followup") setFollowUp(index);
-        if (action === "edit") editLead(index);
-        if (action === "contacted") markContacted(index);
-        if (action === "delete") deleteLead(index);
+        button.addEventListener(
+          "click",
+          () => {
+            const action =
+              button.dataset.action;
+
+            if (action === "analyze") {
+              handleAnalyzeLead(index);
+            }
+
+            if (action === "generate") {
+              handleGenerate(index);
+            }
+
+            if (action === "email") {
+              sendEmail(index);
+            }
+
+            if (action === "whatsapp") {
+              sendWhatsApp(index);
+            }
+
+            if (action === "linkedin") {
+              sendLinkedIn(index);
+            }
+
+            if (action === "followup") {
+              setFollowUp(index);
+            }
+
+            if (action === "edit") {
+              editLead(index);
+            }
+
+            if (action === "contacted") {
+              markContacted(index);
+            }
+
+            if (action === "delete") {
+              deleteLead(index);
+            }
+          }
+        );
       });
-    });
 
-    const moreMenu = div.querySelector(".lead-more-menu");
+    const moreMenu =
+      div.querySelector(".lead-more-menu");
 
     if (moreMenu) {
-      moreMenu.addEventListener("toggle", () => {
-        if (!moreMenu.open) return;
+      moreMenu.addEventListener(
+        "toggle",
+        () => {
+          if (!moreMenu.open) return;
 
-        document
-          .querySelectorAll(".lead-more-menu[open]")
-          .forEach((menu) => {
-            if (menu !== moreMenu) {
-              menu.removeAttribute("open");
-            }
-          });
-      });
+          document
+            .querySelectorAll(
+              ".lead-more-menu[open]"
+            )
+            .forEach((menu) => {
+
+              if (menu !== moreMenu) {
+                menu.removeAttribute(
+                  "open"
+                );
+              }
+
+            });
+        }
+      );
     }
   });
 }
@@ -2159,47 +2458,303 @@ async function handleGenerate(index) {
 
   const lead = leads[index];
 
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
+
   showPage("outreachPage");
-  messageOutput.value = "Generating outreach message...";
+
+  messageOutput.value =
+    "Generating personalized outreach message...";
 
   if (copyBtn) {
     copyBtn.disabled = true;
     copyBtn.textContent = "Generating...";
   }
 
-  showToast("Generating outreach message...", "info");
+  showToast(
+    "Generating personalized outreach...",
+    "info"
+  );
 
   try {
-    const response = await fetch(`${BASE_URL}/api/generate-message`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        businessName: lead.businessName,
-        service: serviceInput.value.trim() || "my services",
-        notes: lead.notes || "",
-        style: messageStyle.value,
-        userName: currentUser ? currentUser.name : "AutoClient User",
-        userId: currentUser ? currentUser.id : null,
-        leadId: lead.id
-      })
-    });
+    const response = await fetch(
+      `${BASE_URL}/api/generate-message`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          businessName:
+            lead.businessName,
+
+          service:
+            serviceInput.value.trim() ||
+            "my services",
+
+          notes:
+            lead.notes || "",
+
+          style:
+            messageStyle.value,
+
+          userName:
+            currentUser
+              ? currentUser.name
+              : "AutoClient User",
+
+          userId:
+            currentUser
+              ? currentUser.id
+              : null,
+
+          leadId:
+            lead.id,
+
+          aiSummary:
+            lead.aiSummary || "",
+
+          aiOpportunity:
+            lead.aiOpportunity || "",
+
+          aiRecommendedApproach:
+            lead.aiRecommendedApproach || "",
+
+          aiBestChannel:
+            lead.aiBestChannel || "",
+
+          aiNextAction:
+            lead.aiNextAction || "",
+
+          aiConfidence:
+            lead.aiConfidence || "",
+
+          aiScore:
+            Number.isFinite(Number(lead.aiScore))
+              ? Number(lead.aiScore)
+              : null
+        })
+      }
+    );
+
+    const data =
+      await readJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        "Message generation failed"
+      );
+    }
+
+    typeText(
+      messageOutput,
+      data.message
+    );
+
+    await fetchActivities();
+
+    showToast(
+      "Personalized outreach generated.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Message error:",
+      error
+    );
+
+    typeText(
+      messageOutput,
+      generateMessage(lead)
+    );
+
+    showToast(
+      "Used fallback outreach generator.",
+      "warning"
+    );
+  }
+}async function handleGenerate(index) {
+  if (!requireFeature("ai_outreach")) return;
+
+  const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
+
+  showPage("outreachPage");
+
+  messageOutput.value =
+    "Generating personalized outreach message...";
+
+  if (copyBtn) {
+    copyBtn.disabled = true;
+    copyBtn.textContent = "Generating...";
+  }
+
+  showToast(
+    "Generating personalized outreach...",
+    "info"
+  );
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/generate-message`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          businessName:
+            lead.businessName,
+
+          service:
+            serviceInput.value.trim() ||
+            "my services",
+
+          notes:
+            lead.notes || "",
+
+          style:
+            messageStyle.value,
+
+          userName:
+            currentUser
+              ? currentUser.name
+              : "AutoClient User",
+
+          userId:
+            currentUser
+              ? currentUser.id
+              : null,
+
+          leadId:
+            lead.id,
+
+          aiSummary:
+            lead.aiSummary || "",
+
+          aiOpportunity:
+            lead.aiOpportunity || "",
+
+          aiRecommendedApproach:
+            lead.aiRecommendedApproach || "",
+
+          aiBestChannel:
+            lead.aiBestChannel || "",
+
+          aiNextAction:
+            lead.aiNextAction || "",
+
+          aiConfidence:
+            lead.aiConfidence || "",
+
+          aiScore:
+            Number.isFinite(Number(lead.aiScore))
+              ? Number(lead.aiScore)
+              : null
+        })
+      }
+    );
+
+    const data =
+      await readJsonResponse(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        "Message generation failed"
+      );
+    }
+
+    typeText(
+      messageOutput,
+      data.message
+    );
+
+    await fetchActivities();
+
+    showToast(
+      "Personalized outreach generated.",
+      "success"
+    );
+
+  } catch (error) {
+    console.error(
+      "Message error:",
+      error
+    );
+
+    typeText(
+      messageOutput,
+      generateMessage(lead)
+    );
+
+    showToast(
+      "Used fallback outreach generator.",
+      "warning"
+    );
+  }
+}
+
+async function handleAnalyzeLead(index) {
+  const lead = leads[index];
+
+  if (!lead || !lead.id) {
+    showToast("Lead could not be analyzed.", "error");
+    return;
+  }
+
+  try {
+    showToast(
+      `Analyzing ${lead.businessName || "lead"}...`,
+      "info"
+    );
+
+    const response = await fetch(
+      `${BASE_URL}/api/analyze-lead/${lead.id}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
     const data = await readJsonResponse(response);
 
     if (!response.ok) {
-      throw new Error(data.error || "Message failed");
+      showToast(
+        data.error || "Could not analyze this lead.",
+        "error"
+      );
+      return;
     }
 
-    typeText(messageOutput, data.message);
-    await fetchActivities();
+    if (data.lead) {
+      leads[index] = data.lead;
+    }
 
-    showToast("AI outreach message generated.", "success");
+    renderLeads();
+
+    showToast(
+      "Lead Intelligence generated successfully.",
+      "success"
+    );
+
   } catch (error) {
-    console.error("Message error:", error);
-    typeText(messageOutput, generateMessage(lead));
-    showToast("Used fallback outreach generator.", "warning");
+    console.error("Lead Intelligence error:", error);
+
+    showToast(
+      "Could not generate Lead Intelligence.",
+      "error"
+    );
   }
 }
 

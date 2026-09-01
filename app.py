@@ -362,6 +362,15 @@ def init_db():
     add_column_if_missing("leads", "lastContacted", "TEXT")
     add_column_if_missing("leads", "nextFollowUp", "TEXT")
 
+    add_column_if_missing("leads", "aiSummary", "TEXT")
+    add_column_if_missing("leads", "aiOpportunity", "TEXT")
+    add_column_if_missing("leads", "aiRecommendedApproach", "TEXT")
+    add_column_if_missing("leads", "aiBestChannel", "TEXT")
+    add_column_if_missing("leads", "aiNextAction", "TEXT")
+    add_column_if_missing("leads", "aiConfidence", "TEXT")
+    add_column_if_missing("leads", "aiScore", "INTEGER")
+    add_column_if_missing("leads", "aiLastAnalyzed", "TEXT")
+
     add_column_if_missing("users", "plan", "TEXT DEFAULT 'free'")
     add_column_if_missing("users", "stripe_customer_id", "TEXT")
     add_column_if_missing("users", "stripe_subscription_id", "TEXT")
@@ -659,6 +668,24 @@ def is_trusted_origin():
 
     return origin in allowed_origins
 
+def get_lead_by_id(lead_id, user_id):
+    if not lead_id or not user_id:
+        return None
+
+    p = placeholder()
+
+    lead = execute_query(
+        f"""
+        SELECT *
+        FROM leads
+        WHERE id = {p}
+          AND userId = {p}
+        """,
+        (lead_id, user_id),
+        fetchone=True
+    )
+
+    return row_to_dict(lead)
 
 def log_activity(user_id, lead_id, action, details=""):
     if not user_id:
@@ -1855,6 +1882,241 @@ def get_leads():
 
     return jsonify([row_to_dict(lead) for lead in leads])
 
+
+@app.route("/api/analyze-lead/<int:lead_id>", methods=["POST"])
+@limiter.limit("20 per hour")
+def analyze_lead(lead_id):
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if not user_has_feature(user_id, "ai_outreach"):
+        return jsonify({
+            "error": "AI Lead Intelligence is available on Pro plan."
+        }), 403
+
+    lead = get_lead_by_id(lead_id, user_id)
+
+    if not lead:
+        return jsonify({"error": "Lead not found"}), 404
+
+    business_name = get_field(
+        lead,
+        "businessName",
+        "Unknown business"
+    )
+
+    link = get_field(
+        lead,
+        "link",
+        ""
+    )
+
+    contact = get_field(
+        lead,
+        "contact",
+        ""
+    )
+
+    notes = get_field(
+        lead,
+        "notes",
+        ""
+    )
+
+    priority = get_field(
+        lead,
+        "priority",
+        "Cold"
+    )
+
+    status = get_field(
+        lead,
+        "status",
+        "New"
+    )
+
+    information_points = 0
+
+    if business_name:
+        information_points += 20
+
+    if link:
+        information_points += 20
+
+    if contact:
+        information_points += 20
+
+    if notes:
+        information_points += 30
+
+    if status and status != "New":
+        information_points += 10
+
+    ai_score = min(information_points, 100)
+
+    if ai_score >= 80:
+        ai_confidence = "High"
+    elif ai_score >= 50:
+        ai_confidence = "Medium"
+    else:
+        ai_confidence = "Low"
+
+    if contact and "@" in contact:
+        ai_best_channel = "Email"
+    elif contact:
+        ai_best_channel = "WhatsApp or Call"
+    elif link:
+        ai_best_channel = "Website or LinkedIn"
+    else:
+        ai_best_channel = "Research Required"
+
+    if notes:
+        ai_summary = (
+            f"{business_name} is an existing AutoClient lead. "
+            f"Current notes indicate: {notes}"
+        )
+    else:
+        ai_summary = (
+            f"{business_name} is an AutoClient lead with limited "
+            "business context currently available."
+        )
+
+    if notes:
+        ai_opportunity = (
+            "Use the available lead notes to identify a specific "
+            "business problem, improvement opportunity, or service fit."
+        )
+    elif link:
+        ai_opportunity = (
+            "Review the business website or profile to identify a "
+            "specific problem or improvement opportunity before outreach."
+        )
+    else:
+        ai_opportunity = (
+            "More research is required before a strong personalized "
+            "sales opportunity can be identified."
+        )
+
+    if priority in ["Hot", "High"]:
+        ai_recommended_approach = (
+            "Use a direct, personalized approach focused on the lead's "
+            "most relevant business outcome and move quickly toward a conversation."
+        )
+    elif priority in ["Warm", "Medium"]:
+        ai_recommended_approach = (
+            "Use a consultative approach that highlights one clear opportunity "
+            "and invites the prospect to discuss it."
+        )
+    else:
+        ai_recommended_approach = (
+            "Start with low-pressure personalized outreach and focus on "
+            "building relevance before making a stronger offer."
+        )
+
+    if ai_best_channel == "Research Required":
+        ai_next_action = (
+            "Research the business and add contact information before outreach."
+        )
+    elif not notes:
+        ai_next_action = (
+            "Review the business and add useful notes before generating outreach."
+        )
+    else:
+        ai_next_action = (
+            f"Prepare personalized outreach for {business_name} "
+            f"using {ai_best_channel}."
+        )
+
+    ai_last_analyzed = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if USING_POSTGRES:
+        updated_lead = execute_query("""
+            UPDATE leads
+            SET aiSummary = %s,
+                aiOpportunity = %s,
+                aiRecommendedApproach = %s,
+                aiBestChannel = %s,
+                aiNextAction = %s,
+                aiConfidence = %s,
+                aiScore = %s,
+                aiLastAnalyzed = %s
+            WHERE id = %s
+              AND userId = %s
+            RETURNING *
+        """, (
+            ai_summary,
+            ai_opportunity,
+            ai_recommended_approach,
+            ai_best_channel,
+            ai_next_action,
+            ai_confidence,
+            ai_score,
+            ai_last_analyzed,
+            lead_id,
+            user_id
+        ), fetchone=True, commit=True)
+
+        updated_lead = row_to_dict(updated_lead)
+
+    else:
+        execute_query("""
+            UPDATE leads
+            SET aiSummary = ?,
+                aiOpportunity = ?,
+                aiRecommendedApproach = ?,
+                aiBestChannel = ?,
+                aiNextAction = ?,
+                aiConfidence = ?,
+                aiScore = ?,
+                aiLastAnalyzed = ?
+            WHERE id = ?
+              AND userId = ?
+        """, (
+            ai_summary,
+            ai_opportunity,
+            ai_recommended_approach,
+            ai_best_channel,
+            ai_next_action,
+            ai_confidence,
+            ai_score,
+            ai_last_analyzed,
+            lead_id,
+            user_id
+        ), commit=True)
+
+        updated_lead = get_lead_by_id(
+            lead_id,
+            user_id
+        )
+
+    log_activity(
+        user_id,
+        lead_id,
+        "Lead Intelligence Generated",
+        f"Lead intelligence generated for {business_name}."
+    )
+
+    return jsonify({
+        "leadId": lead_id,
+        "businessName": business_name,
+        "analysis": {
+            "summary": ai_summary,
+            "opportunity": ai_opportunity,
+            "recommendedApproach": ai_recommended_approach,
+            "bestChannel": ai_best_channel,
+            "nextAction": ai_next_action,
+            "confidence": ai_confidence,
+            "score": ai_score,
+            "lastAnalyzed": ai_last_analyzed
+        },
+        "lead": updated_lead
+    }), 200
+
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     if not is_trusted_origin():
@@ -2162,34 +2424,133 @@ def delete_lead(lead_id):
 def generate_message():
     if not is_trusted_origin():
         return jsonify({"error": "Invalid request origin"}), 403
-    
+
     user_id = session.get("user_id")
 
     if not user_id:
         return jsonify({"error": "Not authenticated"}), 401
 
     if not user_has_feature(user_id, "ai_outreach"):
-        return jsonify({"error": "AI outreach is available on Pro plan."}), 403
+        return jsonify({
+            "error": "AI outreach is available on Pro plan."
+        }), 403
 
     data = request.get_json() or {}
 
-    business = data.get("businessName")
-    service = data.get("service", "my services")
-    notes = data.get("notes", "")
-    style = data.get("style", "formal")
-    name = data.get("userName", "AutoClient User")
-    lead_id = data.get("leadId")
-
-    note_line = (
-        f"I noticed that {notes}."
-        if notes else
-        "I came across your business and saw potential to improve results."
+    business = (
+        data.get("businessName")
+        or "your business"
     )
 
-    if style == "casual":
-        msg = f"""Hi {business},
+    service = (
+        data.get("service")
+        or "my services"
+    )
 
-{note_line}
+    notes = (
+        data.get("notes")
+        or ""
+    )
+
+    style = (
+        data.get("style")
+        or "formal"
+    )
+
+    name = (
+        data.get("userName")
+        or "AutoClient User"
+    )
+
+    lead_id = data.get("leadId")
+
+    ai_summary = (
+        data.get("aiSummary")
+        or ""
+    )
+
+    ai_opportunity = (
+        data.get("aiOpportunity")
+        or ""
+    )
+
+    ai_recommended_approach = (
+        data.get("aiRecommendedApproach")
+        or ""
+    )
+
+    ai_best_channel = (
+        data.get("aiBestChannel")
+        or ""
+    )
+
+    ai_next_action = (
+        data.get("aiNextAction")
+        or ""
+    )
+
+    has_intelligence = any([
+        ai_summary,
+        ai_opportunity,
+        ai_recommended_approach,
+        ai_best_channel,
+        ai_next_action
+    ])
+
+    if ai_opportunity:
+        personalization_line = (
+            f"I noticed an opportunity around this: "
+            f"{ai_opportunity}"
+        )
+
+    elif notes:
+        clean_notes = notes.strip().rstrip(".!?")
+
+        personalization_line = (
+        f"I noticed that {clean_notes}."
+    )
+
+    elif ai_summary:
+        personalization_line = (
+            f"I took a look at your business and noticed "
+            f"{ai_summary}"
+        )
+
+    else:
+        personalization_line = (
+            "I came across your business and saw potential "
+            "to improve results."
+        )
+
+    if ai_recommended_approach:
+        value_line = (
+            f"My approach would be: "
+            f"{ai_recommended_approach}"
+        )
+    else:
+        value_line = (
+            f"I help businesses with {service}."
+        )
+
+    if style == "casual":
+        if has_intelligence:
+            msg = f"""Hi {business},
+
+{personalization_line}
+
+I help businesses with {service}, and I think there may be a useful fit here.
+
+{value_line}
+
+Would you be open to a quick chat?
+
+Thanks,
+{name}"""
+
+        else:
+            msg = f"""Hi {business},
+
+{personalization_line}
 
 I help businesses with {service} and thought this might be useful for you.
 
@@ -2199,7 +2560,21 @@ Thanks,
 {name}"""
 
     elif style == "direct":
-        msg = f"""Hi {business},
+        if has_intelligence:
+            msg = f"""Hi {business},
+
+Quick one.
+
+{personalization_line}
+
+I help businesses with {service}, and I believe there is a clear opportunity to improve results.
+
+Would you be open to a short discussion?
+
+{name}"""
+
+        else:
+            msg = f"""Hi {business},
 
 Quick one.
 
@@ -2210,7 +2585,21 @@ Interested in a quick discussion?
 {name}"""
 
     elif style == "followup":
-        msg = f"""Hi {business},
+        if has_intelligence:
+            msg = f"""Hi {business},
+
+Just following up.
+
+I still believe there is a good opportunity to help with {service}.
+
+{personalization_line}
+
+Would you be open to a quick conversation?
+
+{name}"""
+
+        else:
+            msg = f"""Hi {business},
 
 Just following up.
 
@@ -2221,9 +2610,24 @@ Let me know if you're open to chatting.
 {name}"""
 
     else:
-        msg = f"""Good day {business},
+        if has_intelligence:
+            msg = f"""Good day {business},
 
-{note_line}
+{personalization_line}
+
+I help businesses with {service}, and I believe there may be a strong opportunity to improve performance and results.
+
+{value_line}
+
+Would you be open to a short conversation?
+
+Kind regards,
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+{personalization_line}
 
 I help businesses with {service}. I believe there may be a strong opportunity to improve performance and results.
 
@@ -2236,11 +2640,13 @@ Kind regards,
         user_id,
         lead_id,
         "AI Outreach Generated",
-        f"Outreach message generated for {business}."
+        f"Personalized outreach message generated for {business}."
     )
 
-    return jsonify({"message": msg})
-
+    return jsonify({
+        "message": msg,
+        "usedLeadIntelligence": has_intelligence
+    }), 200
 
 @app.route("/api/send-email", methods=["POST"])
 @limiter.limit("30 per hour")
