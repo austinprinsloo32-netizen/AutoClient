@@ -2939,3 +2939,12 @@ if (manageBillingBtn) {
 injectSmartCRMStyles();
 applySavedTheme();
 checkAuth();
+
+// Close the mobile lead "More" menu when clicking outside it
+document.addEventListener("click", (event) => {
+  document.querySelectorAll(".lead-more-menu[open]").forEach((menu) => {
+    if (!menu.contains(event.target)) {
+      menu.removeAttribute("open");
+    }
+  });
+});

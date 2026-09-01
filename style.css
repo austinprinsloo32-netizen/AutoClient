@@ -2668,7 +2668,10 @@ body.dark-mode .lead-count-summary {
   top: calc(100% + 8px);
 
   width: 240px;
+  max-width: calc(100vw - 32px);
+
   padding: 10px;
+  box-sizing: border-box;
 
   display: grid;
   grid-template-columns: 1fr;
@@ -2677,9 +2680,10 @@ body.dark-mode .lead-count-summary {
   border: 1px solid #334155;
   border-radius: 14px;
   background: #0f172a;
+
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 
-  z-index: 100;
+  z-index: 1000;
 }
 
 .lead-more-actions button {
@@ -2710,11 +2714,28 @@ body.dark-mode .lead-count-summary {
     grid-template-columns: 1fr 1fr;
   }
 
+  .lead-more-menu {
+    position: static;
+  }
+
   .lead-more-actions {
-    right: 0;
-    width: min(240px, 90vw);
+    position: fixed;
+
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    top: auto;
+
+    width: auto;
+    max-width: none;
+
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+
+    z-index: 2000;
   }
 }
+
 /* =========================================================
    DASHBOARD V2 — STAT CARDS
    ========================================================= */
