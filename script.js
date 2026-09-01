@@ -1128,19 +1128,50 @@ loginForm.addEventListener("submit", async function (e) {
   }
 });
 
-logoutBtn.addEventListener("click", function () {
-  currentUser = null;
-  leads = [];
-  activities = [];
+logoutBtn.addEventListener("click", async function () {
+  try {
+    const response = await fetch(`${BASE_URL}/api/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
 
-  localStorage.removeItem("autoclient_user");
+    const data = await readJsonResponse(response);
 
-  renderLeads();
-  renderRecentActivity();
-  showAuth();
-  showPage("dashboardPage");
+    if (!response.ok) {
+      showToast(
+        data.error || "Could not log out.",
+        "error"
+      );
+      return;
+    }
 
-  showToast("Logged out successfully.", "info");
+    currentUser = null;
+    leads = [];
+    activities = [];
+
+    localStorage.removeItem("autoclient_user");
+
+    renderLeads();
+    renderRecentActivity();
+
+    showAuth();
+    showPage("dashboardPage");
+
+    showToast(
+      "Logged out successfully.",
+      "info"
+    );
+
+  } catch (error) {
+    console.error("Logout error:", error);
+
+    showToast(
+      "Could not log out. Please try again.",
+      "error"
+    );
+  }
 });
 
 async function fetchLeads() {
