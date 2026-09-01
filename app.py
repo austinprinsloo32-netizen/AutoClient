@@ -1181,10 +1181,10 @@ def create_paystack_checkout():
     plan_data = get_user_plan_data(user)
 
     if (
-    plan_data["plan"] == "pro"
-    and plan_data["subscriptionStatus"] in ["active", "trialing"]
-    and not PAYSTACK_SECRET_KEY.startswith("sk_test_")
-):
+        plan_data["plan"] == "pro"
+        and plan_data["subscriptionStatus"]
+        in ["active", "trialing", "non_renewing", "attention"]
+    ):
         return jsonify({
             "error": "Your Pro subscription is already active."
         }), 400
@@ -1214,9 +1214,10 @@ def create_paystack_checkout():
         response.raise_for_status()
         result = response.json()
 
-        authorization_url = result.get(
-            "data", {}
-        ).get("authorization_url")
+        authorization_url = (
+            result.get("data", {})
+            .get("authorization_url")
+        )
 
         if not authorization_url:
             return jsonify({
