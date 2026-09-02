@@ -1,4 +1,4 @@
-const BASE_URL =
+﻿const BASE_URL =
   window.location.hostname.includes("github.io")
     ? "https://autoclient-v2.onrender.com"
     : "";
@@ -768,27 +768,27 @@ function getLeadScore(lead) {
 
   if (score >= 55) {
     return {
-      label: "🔥 HOT",
+      label: "ðŸ”¥ HOT",
       level: "hot",
       score,
-      reason: reasons.slice(0, 2).join(" • ") || "High opportunity"
+      reason: reasons.slice(0, 2).join(" â€¢ ") || "High opportunity"
     };
   }
 
   if (score >= 25) {
     return {
-      label: "🌤 WARM",
+      label: "ðŸŒ¤ WARM",
       level: "warm",
       score,
-      reason: reasons.slice(0, 2).join(" • ") || "Needs follow-up"
+      reason: reasons.slice(0, 2).join(" â€¢ ") || "Needs follow-up"
     };
   }
 
   return {
-    label: "❄ COLD",
+    label: "â„ COLD",
     level: "cold",
     score,
-    reason: reasons.slice(0, 2).join(" • ") || "Needs attention"
+    reason: reasons.slice(0, 2).join(" â€¢ ") || "Needs attention"
   };
 }
 
@@ -841,25 +841,25 @@ function renderSmartDashboardWidgets() {
 
   smartGrid.innerHTML = `
     <div class="smart-widget">
-      <span>🔥 Hot Leads</span>
+      <span>ðŸ”¥ Hot Leads</span>
       <strong>${metrics.hotLeads.length}</strong>
       <p>Best opportunities to contact now.</p>
     </div>
 
     <div class="smart-widget">
-      <span>⏰ Due Today</span>
+      <span>â° Due Today</span>
       <strong>${metrics.todayFollowUps.length}</strong>
       <p>Follow-ups scheduled for today.</p>
     </div>
 
     <div class="smart-widget">
-      <span>⚠️ Overdue</span>
+      <span>âš ï¸ Overdue</span>
       <strong>${metrics.overdueFollowUps.length}</strong>
       <p>Follow-ups that need attention.</p>
     </div>
 
     <div class="smart-widget">
-      <span>📈 Pipeline Health</span>
+      <span>ðŸ“ˆ Pipeline Health</span>
       <strong>${metrics.pipelineHealth}%</strong>
       <p>${metrics.conversionRate}% conversion rate.</p>
     </div>
@@ -873,7 +873,7 @@ function getNotifications() {
   if (metrics.overdueFollowUps.length > 0) {
     notifications.push({
       type: "danger",
-      title: `⚠️ ${metrics.overdueFollowUps.length} overdue follow-up(s)`,
+      title: `âš ï¸ ${metrics.overdueFollowUps.length} overdue follow-up(s)`,
       message: "These leads need attention before they go cold."
     });
   }
@@ -881,7 +881,7 @@ function getNotifications() {
   if (metrics.todayFollowUps.length > 0) {
     notifications.push({
       type: "warning",
-      title: `⏰ ${metrics.todayFollowUps.length} follow-up(s) due today`,
+      title: `â° ${metrics.todayFollowUps.length} follow-up(s) due today`,
       message: "Contact these leads today to keep your pipeline active."
     });
   }
@@ -889,7 +889,7 @@ function getNotifications() {
   if (metrics.hotLeads.length > 0) {
     notifications.push({
       type: "success",
-      title: `🔥 ${metrics.hotLeads.length} hot lead(s) detected`,
+      title: `ðŸ”¥ ${metrics.hotLeads.length} hot lead(s) detected`,
       message: "Prioritize these opportunities first."
     });
   }
@@ -897,7 +897,7 @@ function getNotifications() {
   if (leads.length > 0 && metrics.pipelineHealth < 35) {
     notifications.push({
       type: "warning",
-      title: "📉 Pipeline needs movement",
+      title: "ðŸ“‰ Pipeline needs movement",
       message: "Move more leads from New into Contacted or Interested."
     });
   }
@@ -905,7 +905,7 @@ function getNotifications() {
   if (leads.length === 0) {
     notifications.push({
       type: "warning",
-      title: "📌 No leads yet",
+      title: "ðŸ“Œ No leads yet",
       message: "Add your first lead or use Quick Lead Finder."
     });
   }
@@ -913,7 +913,7 @@ function getNotifications() {
   if (notifications.length === 0) {
     notifications.push({
       type: "success",
-      title: "✅ Pipeline looks healthy",
+      title: "âœ… Pipeline looks healthy",
       message: "No urgent CRM issues right now."
     });
   }
@@ -934,7 +934,7 @@ function renderNotifications() {
 
     panelCard.innerHTML = `
       <div class="section-heading">
-        <span class="step">🔔</span>
+        <span class="step">ðŸ””</span>
         <div>
           <h2>Smart Notifications</h2>
           <p>AutoClient alerts based on follow-ups, lead scores, and pipeline health.</p>
@@ -1015,7 +1015,7 @@ function renderRecentActivity() {
   if (!activities.length) {
     recentActivity.innerHTML = `
       <div class="locked-feature-card">
-        <div class="locked-feature-icon">📈</div>
+        <div class="locked-feature-icon">ðŸ“ˆ</div>
 
         <h3>No CRM Activity Yet</h3>
 
@@ -1120,7 +1120,7 @@ async function showApp() {
   localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
 
   userDisplay.textContent = currentUser
-    ? `${currentUser.name} ${isCurrentAdmin() ? "• Admin" : ""}`
+    ? `${currentUser.name} ${isCurrentAdmin() ? "â€¢ Admin" : ""}`
     : "Logged in";
 
   adminOnlyLinks.forEach(link => {
@@ -1366,7 +1366,7 @@ function renderRecentLeads() {
   if (recent.length === 0) {
     recentLeads.innerHTML = `
       <div class="locked-feature-card">
-        <div class="locked-feature-icon">📂</div>
+        <div class="locked-feature-icon">ðŸ“‚</div>
 
         <h3>No Leads Yet</h3>
 
@@ -1390,7 +1390,7 @@ function renderRecentLeads() {
 
     const summary = document.createElement("span");
     summary.textContent =
-      `${score.label || ""} • ${lead.status || "New"} • ${lead.priority || "Cold"} Lead`;
+      `${score.label || ""} â€¢ ${lead.status || "New"} â€¢ ${lead.priority || "Cold"} Lead`;
 
     div.appendChild(businessName);
     div.appendChild(summary);
@@ -1405,7 +1405,7 @@ function renderAnalytics() {
   if (!currentPlan.features.analytics) {
     analyticsGrid.innerHTML = `
       <div class="locked-feature-card">
-        <div class="locked-feature-icon">🔒</div>
+        <div class="locked-feature-icon">ðŸ”’</div>
 
         <h3>Analytics Locked</h3>
 
@@ -1647,15 +1647,15 @@ function renderLeads() {
 
     leadCountSummary.textContent =
       visible === total
-        ? `• ${total} of ${maxLeads} leads used`
-        : `• Showing ${visible} of ${total} leads`;
+        ? `â€¢ ${total} of ${maxLeads} leads used`
+        : `â€¢ Showing ${visible} of ${total} leads`;
   }
 
   if (leads.length === 0) {
     leadList.innerHTML = `
       <div class="locked-feature-card">
 
-        <div class="locked-feature-icon">🚀</div>
+        <div class="locked-feature-icon">ðŸš€</div>
 
         <h3>Start Building Your CRM</h3>
 
@@ -1861,24 +1861,24 @@ function renderLeads() {
       "Review this lead"
     );
 
-    let followUpIcon = "○";
+    let followUpIcon = "â—‹";
 
     if (safeFollowUpState === "overdue") {
-      followUpIcon = "⚠";
+      followUpIcon = "âš ";
     } else if (safeFollowUpState === "due_today") {
-      followUpIcon = "●";
+      followUpIcon = "â—";
     } else if (safeFollowUpState === "upcoming") {
-      followUpIcon = "◷";
+      followUpIcon = "â—·";
     } else if (safeFollowUpState === "scheduled") {
-      followUpIcon = "◷";
+      followUpIcon = "â—·";
     } else if (safeFollowUpState === "needs_follow_up") {
-      followUpIcon = "↻";
+      followUpIcon = "â†»";
     } else if (safeFollowUpState === "not_contacted") {
-      followUpIcon = "○";
+      followUpIcon = "â—‹";
     } else if (
       safeFollowUpState === "closed_or_rejected"
     ) {
-      followUpIcon = "✓";
+      followUpIcon = "âœ“";
     } else if (
       safeFollowUpState === "unknown_date"
     ) {
@@ -1921,7 +1921,7 @@ function renderLeads() {
               "
               title="${safeScoreReason}"
             >
-              ${safeScoreLabel} • ${safeScore}
+              ${safeScoreLabel} â€¢ ${safeScore}
             </span>
 
             ${
@@ -2014,7 +2014,7 @@ function renderLeads() {
 
                 <div>
                   <span class="lead-intelligence-label">
-                    ✨ Lead Intelligence
+                    âœ¨ Lead Intelligence
                   </span>
 
                   <strong>
@@ -2185,7 +2185,7 @@ function renderLeads() {
           data-action="analyze"
           data-index="${index}"
         >
-          ✨ Analyze Lead
+          âœ¨ Analyze Lead
         </button>
 
         <button
@@ -2608,7 +2608,7 @@ ${currentUser ? currentUser.name : ""}`;
   if (style === "direct") {
     return `Hi ${lead.businessName},
 
-I’ll keep this short.
+Iâ€™ll keep this short.
 
 ${personalLine}
 
@@ -2677,130 +2677,6 @@ function typeText(element, text, speed = 18) {
 }
 
 async function handleGenerate(index) {
-  if (!requireFeature("ai_outreach")) return;
-
-  const lead = leads[index];
-
-  if (!lead) {
-    showToast("Lead not found.", "error");
-    return;
-  }
-
-  showPage("outreachPage");
-
-  messageOutput.value =
-    "Generating personalized outreach message...";
-
-  if (copyBtn) {
-    copyBtn.disabled = true;
-    copyBtn.textContent = "Generating...";
-  }
-
-  showToast(
-    "Generating personalized outreach...",
-    "info"
-  );
-
-  try {
-    const response = await fetch(
-      `${BASE_URL}/api/generate-message`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          businessName:
-            lead.businessName,
-
-          service:
-            serviceInput.value.trim() ||
-            "my services",
-
-          notes:
-            lead.notes || "",
-
-          style:
-            messageStyle.value,
-
-          userName:
-            currentUser
-              ? currentUser.name
-              : "AutoClient User",
-
-          userId:
-            currentUser
-              ? currentUser.id
-              : null,
-
-          leadId:
-            lead.id,
-
-          aiSummary:
-            lead.aiSummary || "",
-
-          aiOpportunity:
-            lead.aiOpportunity || "",
-
-          aiRecommendedApproach:
-            lead.aiRecommendedApproach || "",
-
-          aiBestChannel:
-            lead.aiBestChannel || "",
-
-          aiNextAction:
-            lead.aiNextAction || "",
-
-          aiConfidence:
-            lead.aiConfidence || "",
-
-          aiScore:
-            Number.isFinite(Number(lead.aiScore))
-              ? Number(lead.aiScore)
-              : null
-        })
-      }
-    );
-
-    const data =
-      await readJsonResponse(response);
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        "Message generation failed"
-      );
-    }
-
-    typeText(
-      messageOutput,
-      data.message
-    );
-
-    await fetchActivities();
-
-    showToast(
-      "Personalized outreach generated.",
-      "success"
-    );
-
-  } catch (error) {
-    console.error(
-      "Message error:",
-      error
-    );
-
-    typeText(
-      messageOutput,
-      generateMessage(lead)
-    );
-
-    showToast(
-      "Used fallback outreach generator.",
-      "warning"
-    );
-  }
-}async function handleGenerate(index) {
   if (!requireFeature("ai_outreach")) return;
 
   const lead = leads[index];
@@ -3375,7 +3251,7 @@ async function loadAdminDashboard() {
 
       const plan = document.createElement("span");
       plan.textContent =
-        `Plan: ${(user.plan || "free").toUpperCase()} • ${
+        `Plan: ${(user.plan || "free").toUpperCase()} â€¢ ${
           user.subscription_status ||
           user.subscriptionstatus ||
           "inactive"
@@ -3419,11 +3295,11 @@ async function loadAdminDashboard() {
 
         const status = document.createElement("span");
         status.textContent =
-          `${lead.status || "New"} • ${lead.priority || "Cold"} Lead`;
+          `${lead.status || "New"} â€¢ ${lead.priority || "Cold"} Lead`;
 
         const owner = document.createElement("span");
         owner.textContent =
-          `Owner: ${lead.ownerName || "Unknown"} — ${
+          `Owner: ${lead.ownerName || "Unknown"} â€” ${
             lead.ownerEmail || "N/A"
           }`;
 
@@ -3537,10 +3413,10 @@ function applySavedTheme() {
 
   if (savedTheme === "dark") {
     document.body.classList.add("dark-mode");
-    if (themeToggle) themeToggle.textContent = "☀️ Light";
+    if (themeToggle) themeToggle.textContent = "â˜€ï¸ Light";
   } else {
     document.body.classList.remove("dark-mode");
-    if (themeToggle) themeToggle.textContent = "🌙 Dark";
+    if (themeToggle) themeToggle.textContent = "ðŸŒ™ Dark";
   }
 }
 
@@ -3551,7 +3427,7 @@ if (themeToggle) {
     const isDark = document.body.classList.contains("dark-mode");
     localStorage.setItem("autoclient_theme", isDark ? "dark" : "light");
 
-    themeToggle.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+    themeToggle.textContent = isDark ? "â˜€ï¸ Light" : "ðŸŒ™ Dark";
 
     renderAnalyticsCharts();
   });
@@ -3589,7 +3465,7 @@ function renderKanbanBoard() {
 
   Object.entries(stageTitles).forEach(([status, element]) => {
     if (element) {
-      element.textContent = `${status} · ${stageCounts[status]}`;
+      element.textContent = `${status} Â· ${stageCounts[status]}`;
     }
   });
 
@@ -3603,7 +3479,7 @@ function renderKanbanBoard() {
     if (kanbanBoard) {
       kanbanBoard.innerHTML = `
         <div class="pipeline-locked-preview">
-          <div class="pipeline-preview-icon">🔒</div>
+          <div class="pipeline-preview-icon">ðŸ”’</div>
 
           <div class="pipeline-preview-content">
             <p class="eyebrow">Pro CRM Feature</p>
