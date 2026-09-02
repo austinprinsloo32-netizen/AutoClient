@@ -1,4 +1,4 @@
-const BASE_URL =
+﻿const BASE_URL =
   window.location.hostname.includes("github.io")
     ? "https://autoclient-v2.onrender.com"
     : "";
@@ -2836,11 +2836,11 @@ async function handleAnalyzeLead(index) {
       return;
     }
 
-    if (data.lead) {
-      leads[index] = data.lead;
-    }
-
-    renderLeads();
+    // Reload leads from the backend after analysis.
+    // This keeps Lead Intelligence and Follow-Up Intelligence
+    // synchronized instead of replacing the enriched lead
+    // with the raw analyze response.
+    await fetchLeads();
 
     showToast(
       "Lead Intelligence generated successfully.",
