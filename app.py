@@ -2797,6 +2797,18 @@ def generate_message():
 
     lead_id = data.get("leadId")
 
+    lead_status = (
+        data.get("status")
+        or ""
+    ).strip().lower()
+
+    follow_up_state = (
+        data.get("followUpState")
+        or ""
+    ).strip().lower()
+
+    days_until_follow_up = data.get("daysUntilFollowUp")
+
     ai_summary = (
         data.get("aiSummary")
         or ""
@@ -2830,8 +2842,25 @@ def generate_message():
         ai_next_action
     ])
 
-    # Never place raw internal CRM notes directly
-    # into customer-facing outreach.
+    closed_statuses = {
+        "closed",
+        "lost",
+        "rejected"
+    }
+
+    if (
+        lead_status in closed_statuses
+        or follow_up_state == "closed_or_rejected"
+    ):
+        return jsonify({
+            "error": (
+                "This lead is closed or rejected. "
+                "Reopen the lead before generating active outreach."
+            )
+        }), 400
+
+    # Never expose raw internal CRM notes
+    # in customer-facing outreach.
     if has_intelligence:
         personalization_line = (
             f"I came across {business} and thought there may be "
@@ -2888,9 +2917,292 @@ def generate_message():
             "to explore whether there is a useful fit."
         )
 
-    if style == "casual":
-        if has_intelligence:
+    interested_statuses = {
+        "interested",
+        "qualified",
+        "proposal",
+        "negotiation"
+    }
+
+    # --------------------------------------------------
+    # Smart outreach priority
+    #
+    # 1. Real scheduled follow-up states
+    # 2. Interested / qualified pipeline states
+    # 3. General follow-up states
+    # 4. First contact
+    # --------------------------------------------------
+
+    if follow_up_state == "overdue":
+        smart_follow_up_type = "overdue"
+
+    elif follow_up_state == "due_today":
+        smart_follow_up_type = "due_today"
+
+    elif follow_up_state in {"upcoming", "scheduled"}:
+        smart_follow_up_type = "upcoming"
+
+    elif follow_up_state == "needs_follow_up":
+        smart_follow_up_type = "needs_follow_up"
+
+    elif lead_status in interested_statuses:
+        smart_follow_up_type = "interested"
+
+    elif style == "followup":
+        smart_follow_up_type = "follow_up"
+
+    elif lead_status in {
+        "contacted",
+        "follow-up",
+        "follow_up"
+    }:
+        smart_follow_up_type = "follow_up"
+
+    elif follow_up_state == "not_contacted":
+        smart_follow_up_type = "first_contact"
+
+    else:
+        smart_follow_up_type = "first_contact"
+
+    # --------------------------------------------------
+    # Overdue follow-up
+    # --------------------------------------------------
+
+    if smart_follow_up_type == "overdue":
+        if style == "casual":
             msg = f"""Hi {business},
+
+Just checking back in on my previous message.
+
+I know things get busy, so I wanted to follow up and see whether {service} is still something worth discussing.
+
+If it is, I would be happy to have a quick chat and see whether there is a useful fit.
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+Following up on my previous message.
+
+I wanted to check whether there is still interest in discussing {service}.
+
+If so, I would be happy to arrange a short conversation.
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+I wanted to follow up on my previous message regarding {service}.
+
+I understand schedules can become busy, so I wanted to check whether this is still something worth discussing.
+
+If so, I would be happy to arrange a short conversation at a convenient time.
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # Follow-up due today
+    # --------------------------------------------------
+
+    elif smart_follow_up_type == "due_today":
+        if style == "casual":
+            msg = f"""Hi {business},
+
+Just following up as planned.
+
+I wanted to check whether you had a chance to consider my previous message about {service}.
+
+Happy to chat if the timing is right.
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+Following up as planned regarding {service}.
+
+Would you be open to a short conversation about the next step?
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+I am following up as planned regarding {service}.
+
+I wanted to check whether you would be open to continuing the conversation and discussing whether there is a suitable next step.
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # Upcoming / scheduled follow-up
+    # --------------------------------------------------
+
+    elif smart_follow_up_type == "upcoming":
+        if days_until_follow_up == 1:
+            timing_line = (
+                "I wanted to touch base ahead of our planned follow-up."
+            )
+        else:
+            timing_line = (
+                "I wanted to touch base ahead of the planned follow-up."
+            )
+
+        if style == "casual":
+            msg = f"""Hi {business},
+
+{timing_line}
+
+I thought I would check whether anything has changed regarding {service} and whether it would be useful to continue the conversation.
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+{timing_line}
+
+Is it still worth continuing the conversation about {service}?
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+{timing_line}
+
+I wanted to check whether there have been any developments and whether it would still be useful to continue our conversation regarding {service}.
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # Contacted but no next follow-up scheduled
+    # --------------------------------------------------
+
+    elif smart_follow_up_type == "needs_follow_up":
+        if style == "casual":
+            msg = f"""Hi {business},
+
+Just checking in after our previous contact.
+
+I wanted to see whether {service} is still something you would be interested in discussing.
+
+Happy to chat whenever it suits you.
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+Following up after our previous contact.
+
+Is there still interest in discussing {service}?
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+I wanted to follow up after our previous contact regarding {service}.
+
+Please let me know whether this is still something you would be open to discussing.
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # Interested / qualified / proposal / negotiation
+    # --------------------------------------------------
+
+    elif smart_follow_up_type == "interested":
+        if style == "casual":
+            msg = f"""Hi {business},
+
+Thanks for the interest so far.
+
+I would be happy to take the next step and discuss how {service} could work for your business.
+
+Would you be available for a quick chat?
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+It looks like there may be a good fit for {service}.
+
+Would you be available for a short conversation so we can discuss the next step?
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+Thank you for the interest shown so far.
+
+I would be happy to continue the conversation and discuss how {service} could support your business.
+
+Would you be available for a short conversation to discuss the next step?
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # Normal follow-up
+    # --------------------------------------------------
+
+    elif smart_follow_up_type == "follow_up":
+        if style == "casual":
+            msg = f"""Hi {business},
+
+Just following up on my previous message.
+
+I still think there may be a useful opportunity to help with {service}.
+
+Would you be open to a quick chat?
+
+Thanks,
+{name}"""
+
+        elif style == "direct":
+            msg = f"""Hi {business},
+
+Following up on my previous message regarding {service}.
+
+Is this something worth discussing further?
+
+{name}"""
+
+        else:
+            msg = f"""Good day {business},
+
+I wanted to follow up on my previous message regarding {service}.
+
+I believe there may still be an opportunity to create value for your business.
+
+Would you be open to a short conversation?
+
+Kind regards,
+{name}"""
+
+    # --------------------------------------------------
+    # First contact
+    # --------------------------------------------------
+
+    else:
+        if style == "casual":
+            if has_intelligence:
+                msg = f"""Hi {business},
 
 {personalization_line}
 
@@ -2903,8 +3215,8 @@ Would you be open to a quick chat?
 Thanks,
 {name}"""
 
-        else:
-            msg = f"""Hi {business},
+            else:
+                msg = f"""Hi {business},
 
 {personalization_line}
 
@@ -2915,9 +3227,9 @@ Would you be open to a quick chat?
 Thanks,
 {name}"""
 
-    elif style == "direct":
-        if has_intelligence:
-            msg = f"""Hi {business},
+        elif style == "direct":
+            if has_intelligence:
+                msg = f"""Hi {business},
 
 Quick one.
 
@@ -2931,8 +3243,8 @@ Open to a short conversation?
 
 {name}"""
 
-        else:
-            msg = f"""Hi {business},
+            else:
+                msg = f"""Hi {business},
 
 Quick one.
 
@@ -2942,34 +3254,9 @@ Open to a short conversation?
 
 {name}"""
 
-    elif style == "followup":
-        if has_intelligence:
-            msg = f"""Hi {business},
-
-Just following up on my previous message.
-
-I still believe there may be a useful opportunity to help with {service}.
-
-If it makes sense, I would be happy to have a quick conversation and see whether there is a fit.
-
-Regards,
-{name}"""
-
         else:
-            msg = f"""Hi {business},
-
-Just following up on my previous message.
-
-I still believe I may be able to help with {service}.
-
-Let me know if you would be open to a quick conversation.
-
-Regards,
-{name}"""
-
-    else:
-        if has_intelligence:
-            msg = f"""Good day {business},
+            if has_intelligence:
+                msg = f"""Good day {business},
 
 {personalization_line}
 
@@ -2982,8 +3269,8 @@ Would you be open to a short conversation to see whether this could be useful fo
 Kind regards,
 {name}"""
 
-        else:
-            msg = f"""Good day {business},
+            else:
+                msg = f"""Good day {business},
 
 {personalization_line}
 
@@ -2997,13 +3284,14 @@ Kind regards,
     log_activity(
         user_id,
         lead_id,
-        "AI Outreach Generated",
-        f"Personalized outreach message generated for {business}."
+        "Smart Outreach Generated",
+        f"Context-aware outreach message generated for {business}."
     )
 
     return jsonify({
         "message": msg,
-        "usedLeadIntelligence": has_intelligence
+        "usedLeadIntelligence": has_intelligence,
+        "smartFollowUpType": smart_follow_up_type
     }), 200
 
 @app.route("/api/send-email", methods=["POST"])

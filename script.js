@@ -2702,6 +2702,9 @@ async function handleGenerate(index) {
   );
 
   try {
+    const followUp =
+      lead.followUpIntelligence || {};
+
     const response = await fetch(
       `${BASE_URL}/api/generate-message`,
       {
@@ -2716,9 +2719,6 @@ async function handleGenerate(index) {
           service:
             serviceInput.value.trim() ||
             "my services",
-
-          notes:
-            lead.notes || "",
 
           style:
             messageStyle.value,
@@ -2735,6 +2735,19 @@ async function handleGenerate(index) {
 
           leadId:
             lead.id,
+
+          status:
+            lead.status || "",
+
+          followUpState:
+            followUp.state || "",
+
+          daysUntilFollowUp:
+            Number.isFinite(
+              Number(followUp.daysUntilFollowUp)
+            )
+              ? Number(followUp.daysUntilFollowUp)
+              : null,
 
           aiSummary:
             lead.aiSummary || "",
@@ -2780,7 +2793,7 @@ async function handleGenerate(index) {
     await fetchActivities();
 
     showToast(
-      "Personalized outreach generated.",
+      "Smart outreach generated.",
       "success"
     );
 
@@ -2796,9 +2809,16 @@ async function handleGenerate(index) {
     );
 
     showToast(
+      error.message ||
       "Used fallback outreach generator.",
       "warning"
     );
+
+  } finally {
+    if (copyBtn) {
+      copyBtn.disabled = false;
+      copyBtn.textContent = "Copy Message";
+    }
   }
 }
 
