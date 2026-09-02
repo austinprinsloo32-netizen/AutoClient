@@ -2440,54 +2440,49 @@ def generate_message():
     business = (
         data.get("businessName")
         or "your business"
-    )
+    ).strip()
 
     service = (
         data.get("service")
         or "my services"
-    )
-
-    notes = (
-        data.get("notes")
-        or ""
-    )
+    ).strip()
 
     style = (
         data.get("style")
         or "formal"
-    )
+    ).strip().lower()
 
     name = (
         data.get("userName")
         or "AutoClient User"
-    )
+    ).strip()
 
     lead_id = data.get("leadId")
 
     ai_summary = (
         data.get("aiSummary")
         or ""
-    )
+    ).strip()
 
     ai_opportunity = (
         data.get("aiOpportunity")
         or ""
-    )
+    ).strip()
 
     ai_recommended_approach = (
         data.get("aiRecommendedApproach")
         or ""
-    )
+    ).strip()
 
     ai_best_channel = (
         data.get("aiBestChannel")
         or ""
-    )
+    ).strip()
 
     ai_next_action = (
         data.get("aiNextAction")
         or ""
-    )
+    ).strip()
 
     has_intelligence = any([
         ai_summary,
@@ -2497,39 +2492,62 @@ def generate_message():
         ai_next_action
     ])
 
-    if ai_opportunity:
+    # Never place raw internal CRM notes directly
+    # into customer-facing outreach.
+    if has_intelligence:
         personalization_line = (
-            f"I noticed an opportunity around this: "
-            f"{ai_opportunity}"
+            f"I came across {business} and thought there may be "
+            "a worthwhile opportunity to connect."
         )
-
-    elif notes:
-        clean_notes = notes.strip().rstrip(".!?")
-
-        personalization_line = (
-        f"I noticed that {clean_notes}."
-    )
-
-    elif ai_summary:
-        personalization_line = (
-            f"I took a look at your business and noticed "
-            f"{ai_summary}"
-        )
-
     else:
         personalization_line = (
-            "I came across your business and saw potential "
-            "to improve results."
+            f"I came across {business} and wanted to reach out."
+        )
+
+    if ai_opportunity:
+        opportunity_line = (
+            "There may be an opportunity to strengthen an area "
+            "of the business and create better results."
+        )
+    else:
+        opportunity_line = (
+            f"I believe {service} could potentially support "
+            "your business goals."
         )
 
     if ai_recommended_approach:
-        value_line = (
-            f"My approach would be: "
-            f"{ai_recommended_approach}"
-        )
+        approach_lower = ai_recommended_approach.lower()
+
+        if "direct" in approach_lower:
+            value_line = (
+                f"I help businesses with {service}, with a practical "
+                "focus on measurable results."
+            )
+
+        elif "consultative" in approach_lower:
+            value_line = (
+                f"I help businesses with {service} by first understanding "
+                "where the strongest opportunity is and then focusing "
+                "on a solution that makes sense."
+            )
+
+        elif "low-pressure" in approach_lower:
+            value_line = (
+                f"I work with businesses on {service} and prefer a "
+                "straightforward, no-pressure conversation to see "
+                "whether there is a useful fit."
+            )
+
+        else:
+            value_line = (
+                f"I help businesses with {service} and would be happy "
+                "to explore whether there is a useful fit."
+            )
+
     else:
         value_line = (
-            f"I help businesses with {service}."
+            f"I help businesses with {service} and would be happy "
+            "to explore whether there is a useful fit."
         )
 
     if style == "casual":
@@ -2538,7 +2556,7 @@ def generate_message():
 
 {personalization_line}
 
-I help businesses with {service}, and I think there may be a useful fit here.
+{opportunity_line}
 
 {value_line}
 
@@ -2552,9 +2570,9 @@ Thanks,
 
 {personalization_line}
 
-I help businesses with {service} and thought this might be useful for you.
+I help businesses with {service} and thought it might be worth connecting.
 
-Open to a quick chat?
+Would you be open to a quick chat?
 
 Thanks,
 {name}"""
@@ -2567,9 +2585,11 @@ Quick one.
 
 {personalization_line}
 
-I help businesses with {service}, and I believe there is a clear opportunity to improve results.
+{opportunity_line}
 
-Would you be open to a short discussion?
+I help businesses with {service} and would be happy to discuss whether I can help.
+
+Open to a short conversation?
 
 {name}"""
 
@@ -2578,9 +2598,9 @@ Would you be open to a short discussion?
 
 Quick one.
 
-I help businesses with {service}. If you want better results or more clients, I can help.
+I help businesses with {service} and thought there may be an opportunity to help.
 
-Interested in a quick discussion?
+Open to a short conversation?
 
 {name}"""
 
@@ -2588,25 +2608,25 @@ Interested in a quick discussion?
         if has_intelligence:
             msg = f"""Hi {business},
 
-Just following up.
+Just following up on my previous message.
 
-I still believe there is a good opportunity to help with {service}.
+I still believe there may be a useful opportunity to help with {service}.
 
-{personalization_line}
+If it makes sense, I would be happy to have a quick conversation and see whether there is a fit.
 
-Would you be open to a quick conversation?
-
+Regards,
 {name}"""
 
         else:
             msg = f"""Hi {business},
 
-Just following up.
+Just following up on my previous message.
 
-I still believe I can help your business with {service}.
+I still believe I may be able to help with {service}.
 
-Let me know if you're open to chatting.
+Let me know if you would be open to a quick conversation.
 
+Regards,
 {name}"""
 
     else:
@@ -2615,11 +2635,11 @@ Let me know if you're open to chatting.
 
 {personalization_line}
 
-I help businesses with {service}, and I believe there may be a strong opportunity to improve performance and results.
+{opportunity_line}
 
 {value_line}
 
-Would you be open to a short conversation?
+Would you be open to a short conversation to see whether this could be useful for your business?
 
 Kind regards,
 {name}"""
@@ -2629,7 +2649,7 @@ Kind regards,
 
 {personalization_line}
 
-I help businesses with {service}. I believe there may be a strong opportunity to improve performance and results.
+I help businesses with {service}, and I believe there may be an opportunity to create stronger results.
 
 Would you be open to a short conversation?
 
