@@ -1796,7 +1796,7 @@ function renderLeads() {
                   </span>
 
                   <strong>
-                    ${safeAiScore}/100
+                    Lead Quality ${safeAiScore}/100
                   </strong>
                 </div>
 
@@ -2138,6 +2138,7 @@ function renderLeads() {
     }
   });
 }
+
 leadForm.addEventListener("submit", async function (e) {
   e.preventDefault();
 

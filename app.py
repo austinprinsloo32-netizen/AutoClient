@@ -1940,99 +1940,276 @@ def analyze_lead(lead_id):
         "New"
     )
 
-    information_points = 0
+    last_contacted = get_field(
+        lead,
+        "lastContacted",
+        ""
+    )
 
-    if business_name:
-        information_points += 20
+    next_follow_up = get_field(
+        lead,
+        "nextFollowUp",
+        ""
+    )
+
+    # --------------------------------------------------
+    # Analysis Confidence
+    # Measures how much useful information AutoClient has.
+    # --------------------------------------------------
+
+    confidence_points = 0
+
+    if business_name and business_name != "Unknown business":
+        confidence_points += 15
 
     if link:
-        information_points += 20
+        confidence_points += 20
 
     if contact:
-        information_points += 20
+        confidence_points += 20
 
     if notes:
-        information_points += 30
+        confidence_points += 30
 
-    if status and status != "New":
-        information_points += 10
+    if last_contacted:
+        confidence_points += 10
 
-    ai_score = min(information_points, 100)
+    if next_follow_up:
+        confidence_points += 5
 
-    if ai_score >= 80:
+    confidence_points = min(confidence_points, 100)
+
+    if confidence_points >= 75:
         ai_confidence = "High"
-    elif ai_score >= 50:
+    elif confidence_points >= 45:
         ai_confidence = "Medium"
     else:
         ai_confidence = "Low"
 
-    if contact and "@" in contact:
+    # --------------------------------------------------
+    # Lead Quality Score
+    # Measures how actionable/promising the CRM lead appears.
+    # This is NOT a prediction that the customer will buy.
+    # --------------------------------------------------
+
+    lead_quality_score = 0
+
+    # Reachability
+    if contact:
+        lead_quality_score += 20
+
+    # Researchability
+    if link:
+        lead_quality_score += 10
+
+    # Useful context
+    if notes:
+        lead_quality_score += 15
+
+    # User-defined priority
+    priority_lower = str(priority).strip().lower()
+
+    if priority_lower in ["hot", "high"]:
+        lead_quality_score += 25
+    elif priority_lower in ["warm", "medium"]:
+        lead_quality_score += 15
+    elif priority_lower in ["cold", "low"]:
+        lead_quality_score += 5
+
+    # Pipeline progress
+    status_lower = str(status).strip().lower()
+
+    if status_lower in [
+        "qualified",
+        "proposal",
+        "negotiation",
+        "interested"
+    ]:
+        lead_quality_score += 20
+
+    elif status_lower in [
+        "contacted",
+        "follow up",
+        "follow-up"
+    ]:
+        lead_quality_score += 15
+
+    elif status_lower in [
+        "new"
+    ]:
+        lead_quality_score += 5
+
+    elif status_lower in [
+        "closed",
+        "lost",
+        "rejected"
+    ]:
+        lead_quality_score -= 20
+
+    # Engagement / follow-up readiness
+    if last_contacted:
+        lead_quality_score += 5
+
+    if next_follow_up:
+        lead_quality_score += 5
+
+    ai_score = max(
+        0,
+        min(lead_quality_score, 100)
+    )
+
+    # --------------------------------------------------
+    # Best communication channel
+    # --------------------------------------------------
+
+    contact_text = str(contact).strip()
+
+    if contact_text and "@" in contact_text:
         ai_best_channel = "Email"
-    elif contact:
+
+    elif contact_text:
         ai_best_channel = "WhatsApp or Call"
+
     elif link:
         ai_best_channel = "Website or LinkedIn"
+
     else:
         ai_best_channel = "Research Required"
 
-    if notes:
-        ai_summary = (
-            f"{business_name} is an existing AutoClient lead. "
-            f"Current notes indicate: {notes}"
-        )
-    else:
-        ai_summary = (
-            f"{business_name} is an AutoClient lead with limited "
-            "business context currently available."
-        )
+    # --------------------------------------------------
+    # Internal intelligence summary
+    # --------------------------------------------------
 
     if notes:
-        ai_opportunity = (
-            "Use the available lead notes to identify a specific "
-            "business problem, improvement opportunity, or service fit."
+        ai_summary = (
+            f"{business_name} has useful CRM context available. "
+            "The lead should be approached using the stored business "
+            "information while keeping internal notes private."
         )
+
+    elif link and contact:
+        ai_summary = (
+            f"{business_name} has both a business/profile link and "
+            "contact information available, making the lead ready "
+            "for further qualification and outreach."
+        )
+
+    elif link:
+        ai_summary = (
+            f"{business_name} has a business/profile link available "
+            "but still needs additional context or contact information "
+            "before highly personalized outreach."
+        )
+
+    elif contact:
+        ai_summary = (
+            f"{business_name} has contact information available but "
+            "limited business context. Additional research would improve "
+            "personalization before outreach."
+        )
+
+    else:
+        ai_summary = (
+            f"{business_name} currently has limited information available. "
+            "More research is recommended before personalized outreach."
+        )
+
+    # --------------------------------------------------
+    # Opportunity assessment
+    # --------------------------------------------------
+
+    if notes and link:
+        ai_opportunity = (
+            "There is enough context to investigate a specific business "
+            "need, service fit, or improvement opportunity before outreach."
+        )
+
+    elif notes:
+        ai_opportunity = (
+            "The stored CRM context can be used to identify a relevant "
+            "business need or service opportunity."
+        )
+
     elif link:
         ai_opportunity = (
-            "Review the business website or profile to identify a "
-            "specific problem or improvement opportunity before outreach."
-        )
-    else:
-        ai_opportunity = (
-            "More research is required before a strong personalized "
-            "sales opportunity can be identified."
+            "Review the available business website or profile to identify "
+            "a specific need or improvement opportunity."
         )
 
-    if priority in ["Hot", "High"]:
-        ai_recommended_approach = (
-            "Use a direct, personalized approach focused on the lead's "
-            "most relevant business outcome and move quickly toward a conversation."
+    else:
+        ai_opportunity = (
+            "Additional research is required before a strong business "
+            "opportunity can be identified."
         )
-    elif priority in ["Warm", "Medium"]:
+
+    # --------------------------------------------------
+    # Recommended outreach approach
+    # --------------------------------------------------
+
+    if ai_score >= 70:
         ai_recommended_approach = (
-            "Use a consultative approach that highlights one clear opportunity "
-            "and invites the prospect to discuss it."
+            "Use a direct, personalized approach focused on one clear "
+            "business outcome and move toward a conversation."
         )
+
+    elif ai_score >= 45:
+        ai_recommended_approach = (
+            "Use a consultative approach that highlights one relevant "
+            "opportunity and invites the prospect to discuss it."
+        )
+
     else:
         ai_recommended_approach = (
-            "Start with low-pressure personalized outreach and focus on "
-            "building relevance before making a stronger offer."
+            "Use low-pressure outreach focused on relevance and research "
+            "before making a stronger offer."
         )
+
+    # --------------------------------------------------
+    # Recommended next action
+    # --------------------------------------------------
 
     if ai_best_channel == "Research Required":
         ai_next_action = (
-            "Research the business and add contact information before outreach."
+            "Research the business and add valid contact information "
+            "before starting outreach."
         )
+
+    elif not notes and link:
+        ai_next_action = (
+            "Review the business website or profile and add useful CRM "
+            "context before generating highly personalized outreach."
+        )
+
     elif not notes:
         ai_next_action = (
-            "Review the business and add useful notes before generating outreach."
+            "Add useful business context before generating personalized outreach."
         )
+
+    elif status_lower in [
+        "closed",
+        "lost",
+        "rejected"
+    ]:
+        ai_next_action = (
+            "Review whether this lead should be reopened before starting "
+            "new outreach."
+        )
+
+    elif next_follow_up:
+        ai_next_action = (
+            f"Follow up with {business_name} using {ai_best_channel} "
+            "and the existing CRM context."
+        )
+
     else:
         ai_next_action = (
             f"Prepare personalized outreach for {business_name} "
             f"using {ai_best_channel}."
         )
 
-    ai_last_analyzed = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ai_last_analyzed = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     if USING_POSTGRES:
         updated_lead = execute_query("""
@@ -2112,6 +2289,7 @@ def analyze_lead(lead_id):
             "nextAction": ai_next_action,
             "confidence": ai_confidence,
             "score": ai_score,
+            "scoreLabel": "Lead Quality",
             "lastAnalyzed": ai_last_analyzed
         },
         "lead": updated_lead
