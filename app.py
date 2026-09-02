@@ -208,7 +208,38 @@ def execute_query(
 
 
 def row_to_dict(row):
-    return dict(row) if row else None
+    if not row:
+        return None
+
+    data = dict(row)
+
+    normalized = {}
+
+    key_map = {
+        "userid": "userId",
+        "businessname": "businessName",
+        "createdat": "createdAt",
+        "lastcontacted": "lastContacted",
+        "nextfollowup": "nextFollowUp",
+        "aisummary": "aiSummary",
+        "aiopportunity": "aiOpportunity",
+        "airecommendedapproach": "aiRecommendedApproach",
+        "aibestchannel": "aiBestChannel",
+        "ainextaction": "aiNextAction",
+        "aiconfidence": "aiConfidence",
+        "aiscore": "aiScore",
+        "ailastanalyzed": "aiLastAnalyzed"
+    }
+
+    for key, value in data.items():
+        normalized_key = key_map.get(
+            key.lower(),
+            key
+        )
+
+        normalized[normalized_key] = value
+
+    return normalized
 
 
 def placeholder():
