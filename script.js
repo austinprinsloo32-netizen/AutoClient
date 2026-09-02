@@ -1389,8 +1389,13 @@ function renderAnalytics() {
 }
 
 function getFilteredLeads() {
-  const searchTerm = searchInput.value.toLowerCase();
-  const selectedStatus = filterStatus.value;
+  const searchTerm =
+    (searchInput?.value || "")
+      .trim()
+      .toLowerCase();
+
+  const selectedStatus =
+    filterStatus?.value || "all";
 
   return leads
     .map((lead, index) => ({
@@ -1398,14 +1403,38 @@ function getFilteredLeads() {
       index
     }))
     .filter(({ lead }) => {
+      if (!lead) {
+        return false;
+      }
+
+      const businessName =
+        String(lead.businessName || "")
+          .toLowerCase();
+
+      const contact =
+        String(lead.contact || "")
+          .toLowerCase();
+
+      const notes =
+        String(lead.notes || "")
+          .toLowerCase();
+
+      const link =
+        String(lead.link || "")
+          .toLowerCase();
+
+      const status =
+        String(lead.status || "New");
+
       const matchesSearch =
-        lead.businessName.toLowerCase().includes(searchTerm) ||
-        (lead.contact || "").toLowerCase().includes(searchTerm) ||
-        (lead.notes || "").toLowerCase().includes(searchTerm) ||
-        (lead.link || "").toLowerCase().includes(searchTerm);
+        businessName.includes(searchTerm) ||
+        contact.includes(searchTerm) ||
+        notes.includes(searchTerm) ||
+        link.includes(searchTerm);
 
       const matchesStatus =
-        selectedStatus === "all" || lead.status === selectedStatus;
+        selectedStatus === "all" ||
+        status === selectedStatus;
 
       return matchesSearch && matchesStatus;
     });
