@@ -3447,6 +3447,113 @@ body.dark-mode .kanban-card .kanban-priority {
   font-weight: 700;
 }
 
+.follow-up-intelligence {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.follow-up-intelligence-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  background: rgba(127, 127, 127, 0.12);
+}
+
+.follow-up-intelligence-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.follow-up-intelligence-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.follow-up-intelligence-content strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.follow-up-intelligence-content p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: 0.8;
+}
+
+.follow-up-overdue {
+  border-left: 4px solid #dc3545;
+}
+
+.follow-up-due_today {
+  border-left: 4px solid #fd7e14;
+}
+
+.follow-up-upcoming,
+.follow-up-scheduled {
+  border-left: 4px solid #0d6efd;
+}
+
+.follow-up-needs_follow_up {
+  border-left: 4px solid #ffc107;
+}
+
+.follow-up-not_contacted {
+  border-left: 4px solid #6c757d;
+}
+
+.follow-up-closed_or_rejected {
+  border-left: 4px solid #198754;
+}
+
+.follow-up-unknown_date {
+  border-left: 4px solid #6f42c1;
+}
+
+.dark-mode .follow-up-intelligence {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 600px) {
+  .follow-up-intelligence {
+    padding: 11px 12px;
+    gap: 10px;
+  }
+
+  .follow-up-intelligence-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .follow-up-intelligence-content strong {
+    font-size: 13px;
+  }
+
+  .follow-up-intelligence-content p {
+    font-size: 12px;
+  }
+}
+
 /* Dark mode */
 
 body.dark-mode .lead-intelligence-card {

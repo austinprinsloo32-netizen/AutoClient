@@ -1905,14 +1905,143 @@ def get_leads():
 
     p = placeholder()
 
-    leads = execute_query(
-        f"SELECT * FROM leads WHERE userId = {p} ORDER BY id DESC",
+    lead_rows = execute_query(
+        f"""
+        SELECT *
+        FROM leads
+        WHERE userId = {p}
+        ORDER BY id DESC
+        """,
         (user_id,),
         fetchall=True
     )
 
-    return jsonify([row_to_dict(lead) for lead in leads])
+    today = datetime.now().date()
 
+    enriched_leads = []
+
+    for row in lead_rows:
+        lead = row_to_dict(row)
+
+        if not lead:
+            continue
+
+        status = str(
+            lead.get("status") or "New"
+        ).strip()
+
+        next_follow_up = str(
+            lead.get("nextFollowUp") or ""
+        ).strip()
+
+        last_contacted = str(
+            lead.get("lastContacted") or ""
+        ).strip()
+
+        status_lower = status.lower()
+
+        follow_up_state = "no_follow_up"
+        follow_up_label = "No follow-up scheduled"
+        follow_up_action = "Schedule a follow-up"
+        follow_up_days = None
+
+        if status_lower in [
+            "closed",
+            "rejected",
+            "lost"
+        ]:
+            follow_up_state = "closed_or_rejected"
+            follow_up_label = "No active follow-up needed"
+            follow_up_action = "Review lead if you want to reopen it"
+
+        elif next_follow_up:
+            parsed_follow_up = None
+
+            for date_format in [
+                "%Y-%m-%d",
+                "%Y-%m-%d %H:%M:%S",
+                "%m/%d/%Y",
+                "%d/%m/%Y"
+            ]:
+                try:
+                    parsed_follow_up = datetime.strptime(
+                        next_follow_up,
+                        date_format
+                    ).date()
+                    break
+
+                except ValueError:
+                    continue
+
+            if parsed_follow_up:
+                day_difference = (
+                    parsed_follow_up - today
+                ).days
+
+                follow_up_days = day_difference
+
+                if day_difference < 0:
+                    days_overdue = abs(day_difference)
+
+                    follow_up_state = "overdue"
+
+                    follow_up_label = (
+                        f"Follow-up overdue by "
+                        f"{days_overdue} day"
+                        f"{'' if days_overdue == 1 else 's'}"
+                    )
+
+                    follow_up_action = "Follow up as soon as possible"
+
+                elif day_difference == 0:
+                    follow_up_state = "due_today"
+                    follow_up_label = "Follow-up due today"
+                    follow_up_action = "Follow up today"
+
+                elif day_difference <= 3:
+                    follow_up_state = "upcoming"
+                    follow_up_label = (
+                        f"Follow-up due in "
+                        f"{day_difference} day"
+                        f"{'' if day_difference == 1 else 's'}"
+                    )
+
+                    follow_up_action = "Prepare your follow-up message"
+
+                else:
+                    follow_up_state = "scheduled"
+                    follow_up_label = (
+                        f"Follow-up scheduled in "
+                        f"{day_difference} days"
+                    )
+
+                    follow_up_action = "No immediate action needed"
+
+            else:
+                follow_up_state = "unknown_date"
+                follow_up_label = "Follow-up date could not be read"
+                follow_up_action = "Review the scheduled follow-up date"
+
+        elif last_contacted:
+            follow_up_state = "needs_follow_up"
+            follow_up_label = "Contacted with no follow-up scheduled"
+            follow_up_action = "Schedule the next follow-up"
+
+        else:
+            follow_up_state = "not_contacted"
+            follow_up_label = "Lead has not been contacted yet"
+            follow_up_action = "Start outreach or schedule first contact"
+
+        lead["followUpIntelligence"] = {
+            "state": follow_up_state,
+            "label": follow_up_label,
+            "action": follow_up_action,
+            "daysUntilFollowUp": follow_up_days
+        }
+
+        enriched_leads.append(lead)
+
+    return jsonify(enriched_leads)
 
 @app.route("/api/analyze-lead/<int:lead_id>", methods=["POST"])
 @limiter.limit("20 per hour")

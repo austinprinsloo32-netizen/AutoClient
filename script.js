@@ -333,20 +333,120 @@ async function readJsonResponse(response) {
 }
 
 function normalizeLead(lead) {
+  if (!lead) {
+    return null;
+  }
+
   return {
     id: lead.id,
-    userId: lead.userId || lead.userid,
-    businessName: lead.businessName || lead.businessname || "",
-    link: lead.link || "",
-    contact: lead.contact || "",
-    priority: lead.priority || "Cold",
-    notes: lead.notes || "",
-    status: lead.status || "New",
-    createdAt: lead.createdAt || lead.createdat || "",
-    lastContacted: lead.lastContacted || lead.lastcontacted || "",
-    nextFollowUp: lead.nextFollowUp || lead.nextfollowup || "",
-    ownerName: lead.ownerName || lead.ownername || "",
-    ownerEmail: lead.ownerEmail || lead.owneremail || ""
+
+    userId:
+      lead.userId ??
+      lead.userid ??
+      null,
+
+    businessName:
+      lead.businessName ??
+      lead.businessname ??
+      "",
+
+    link:
+      lead.link ??
+      "",
+
+    contact:
+      lead.contact ??
+      "",
+
+    priority:
+      lead.priority ??
+      "Cold",
+
+    notes:
+      lead.notes ??
+      "",
+
+    status:
+      lead.status ??
+      "New",
+
+    createdAt:
+      lead.createdAt ??
+      lead.createdat ??
+      "",
+
+    lastContacted:
+      lead.lastContacted ??
+      lead.lastcontacted ??
+      "",
+
+    nextFollowUp:
+      lead.nextFollowUp ??
+      lead.nextfollowup ??
+      "",
+
+    ownerName:
+      lead.ownerName ??
+      lead.ownername ??
+      "",
+
+    ownerEmail:
+      lead.ownerEmail ??
+      lead.owneremail ??
+      "",
+
+    /*
+     * V3 Lead Intelligence
+     */
+
+    aiSummary:
+      lead.aiSummary ??
+      lead.aisummary ??
+      "",
+
+    aiOpportunity:
+      lead.aiOpportunity ??
+      lead.aiopportunity ??
+      "",
+
+    aiRecommendedApproach:
+      lead.aiRecommendedApproach ??
+      lead.airecommendedapproach ??
+      "",
+
+    aiBestChannel:
+      lead.aiBestChannel ??
+      lead.aibestchannel ??
+      "",
+
+    aiNextAction:
+      lead.aiNextAction ??
+      lead.ainextaction ??
+      "",
+
+    aiConfidence:
+      lead.aiConfidence ??
+      lead.aiconfidence ??
+      "",
+
+    aiScore:
+      lead.aiScore ??
+      lead.aiscore ??
+      null,
+
+    aiLastAnalyzed:
+      lead.aiLastAnalyzed ??
+      lead.ailastanalyzed ??
+      "",
+
+    /*
+     * Follow-Up Intelligence
+     */
+
+    followUpIntelligence:
+      lead.followUpIntelligence ??
+      lead.followupintelligence ??
+      null
   };
 }
 
@@ -1721,6 +1821,70 @@ function renderLeads() {
       lead.aiNextAction
     );
 
+    /*
+     * Follow-Up Intelligence
+     */
+
+    const followUpIntelligence =
+      lead.followUpIntelligence || {};
+
+    const followUpState =
+      String(
+        followUpIntelligence.state ||
+        "no_follow_up"
+      );
+
+    const allowedFollowUpStates = [
+      "overdue",
+      "due_today",
+      "upcoming",
+      "scheduled",
+      "needs_follow_up",
+      "not_contacted",
+      "closed_or_rejected",
+      "unknown_date",
+      "no_follow_up"
+    ];
+
+    const safeFollowUpState =
+      allowedFollowUpStates.includes(followUpState)
+        ? followUpState
+        : "no_follow_up";
+
+    const safeFollowUpLabel = escapeHTML(
+      followUpIntelligence.label ||
+      "No follow-up information"
+    );
+
+    const safeFollowUpAction = escapeHTML(
+      followUpIntelligence.action ||
+      "Review this lead"
+    );
+
+    let followUpIcon = "○";
+
+    if (safeFollowUpState === "overdue") {
+      followUpIcon = "⚠";
+    } else if (safeFollowUpState === "due_today") {
+      followUpIcon = "●";
+    } else if (safeFollowUpState === "upcoming") {
+      followUpIcon = "◷";
+    } else if (safeFollowUpState === "scheduled") {
+      followUpIcon = "◷";
+    } else if (safeFollowUpState === "needs_follow_up") {
+      followUpIcon = "↻";
+    } else if (safeFollowUpState === "not_contacted") {
+      followUpIcon = "○";
+    } else if (
+      safeFollowUpState === "closed_or_rejected"
+    ) {
+      followUpIcon = "✓";
+    } else if (
+      safeFollowUpState === "unknown_date"
+    ) {
+      followUpIcon = "?";
+    }
+
     div.className = isOverdue(
       lead.nextFollowUp
     )
@@ -1811,6 +1975,35 @@ function renderLeads() {
           `
           : ""
       }
+
+      <div
+        class="
+          follow-up-intelligence
+          follow-up-${safeFollowUpState}
+        "
+      >
+
+        <div class="follow-up-intelligence-icon">
+          ${followUpIcon}
+        </div>
+
+        <div class="follow-up-intelligence-content">
+
+          <span class="follow-up-intelligence-title">
+            Follow-Up Intelligence
+          </span>
+
+          <strong>
+            ${safeFollowUpLabel}
+          </strong>
+
+          <p>
+            ${safeFollowUpAction}
+          </p>
+
+        </div>
+
+      </div>
 
       ${
         hasLeadIntelligence
