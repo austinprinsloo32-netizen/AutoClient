@@ -572,3 +572,286 @@ def test_pro_user_can_generate_smart_outreach(
 
     assert activity_calls[0]["user_id"] == 999999
     assert activity_calls[0]["lead_id"] == 12345
+
+@pytest.fixture
+def authenticated_email_client(monkeypatch):
+    """
+    Create an authenticated Pro test client for
+    testing the email endpoint without using the
+    real database.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "user_has_feature",
+        lambda user_id, feature_name: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "RESEND_API_KEY",
+        "test-resend-key"
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        yield client
+
+
+def test_user_cannot_email_another_users_lead(
+    authenticated_email_client,
+    monkeypatch
+):
+    """
+    A user must not be able to send email using
+    a lead that does not belong to them.
+    """
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: None
+    )
+
+    email_request_called = False
+
+    def fake_post(*args, **kwargs):
+        nonlocal email_request_called
+        email_request_called = True
+
+        raise AssertionError(
+            "External email request should not occur"
+        )
+
+    monkeypatch.setattr(
+        autoclient.requests,
+        "post",
+        fake_post
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 12345,
+            "to": "lead@example.com",
+            "subject": "Test",
+            "message": "Test message"
+        }
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Lead not found"
+
+    assert email_request_called is False
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "Closed",
+        "Lost",
+        "Rejected"
+    ]
+)
+def test_closed_lead_cannot_be_emailed(
+    authenticated_email_client,
+    monkeypatch,
+    status
+):
+    """
+    Closed, Lost and Rejected leads must not
+    be allowed through the email endpoint.
+    """
+
+    lead = {
+        "id": 12345,
+        "userId": 999999,
+        "businessName": "Closed Lead Test",
+        "status": status
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: lead
+    )
+
+    email_request_called = False
+
+    def fake_post(*args, **kwargs):
+        nonlocal email_request_called
+        email_request_called = True
+
+        raise AssertionError(
+            "External email request should not occur"
+        )
+
+    monkeypatch.setattr(
+        autoclient.requests,
+        "post",
+        fake_post
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 12345,
+            "to": "lead@example.com",
+            "subject": "Test",
+            "message": "Test message"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+
+    assert (
+        "closed or rejected"
+        in data["error"].lower()
+    )
+
+    assert email_request_called is False
+
+
+def test_active_owned_lead_can_reach_email_service(
+    authenticated_email_client,
+    monkeypatch
+):
+    """
+    A valid active lead owned by the logged-in
+    user should be allowed to reach the email
+    provider.
+    """
+
+    lead = {
+        "id": 12345,
+        "userId": 999999,
+        "businessName": "Active Lead Test",
+        "status": "New"
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: lead
+    )
+
+    activity_calls = []
+
+    def fake_log_activity(
+        user_id,
+        lead_id,
+        action,
+        details=""
+    ):
+        activity_calls.append({
+            "user_id": user_id,
+            "lead_id": lead_id,
+            "action": action,
+            "details": details
+        })
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        fake_log_activity
+    )
+
+    email_requests = []
+
+    class FakeEmailResponse:
+        status_code = 200
+        text = ""
+
+        def json(self):
+            return {
+                "id": "test-email-id"
+            }
+
+    def fake_post(
+        url,
+        headers=None,
+        json=None,
+        timeout=None
+    ):
+        email_requests.append({
+            "url": url,
+            "headers": headers,
+            "json": json,
+            "timeout": timeout
+        })
+
+        return FakeEmailResponse()
+
+    monkeypatch.setattr(
+        autoclient.requests,
+        "post",
+        fake_post
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 12345,
+            "to": "lead@example.com",
+            "subject": "AutoClient Test",
+            "message": "This is a safe automated test."
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["message"] == "Email sent successfully"
+
+    assert len(email_requests) == 1
+
+    email_request = email_requests[0]
+
+    assert (
+        email_request["url"]
+        == "https://api.resend.com/emails"
+    )
+
+    assert email_request["json"]["to"] == [
+        "lead@example.com"
+    ]
+
+    assert (
+        email_request["json"]["subject"]
+        == "AutoClient Test"
+    )
+
+    assert (
+        email_request["json"]["text"]
+        == "This is a safe automated test."
+    )
+
+    assert len(activity_calls) == 1
+
+    assert (
+        activity_calls[0]["action"]
+        == "Email Sent"
+    )
+
+    assert activity_calls[0]["user_id"] == 999999
+    assert activity_calls[0]["lead_id"] == 12345

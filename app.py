@@ -3298,34 +3298,122 @@ Kind regards,
 @limiter.limit("30 per hour")
 def send_email():
     if not is_trusted_origin():
-        return jsonify({"error": "Invalid request origin"}), 403
+        return jsonify({
+            "error": "Invalid request origin"
+        }), 403
+
     user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return jsonify({
+            "error": "Not authenticated"
+        }), 401
 
-    if not user_has_feature(user_id, "email_integration"):
-        return jsonify({"error": "Email sending is available on Pro plan."}), 403
+    if not user_has_feature(
+        user_id,
+        "email_integration"
+    ):
+        return jsonify({
+            "error": "Email sending is available on Pro plan."
+        }), 403
 
     data = request.get_json() or {}
 
     lead_id = data.get("leadId")
-    to_email = data.get("to", "").strip()
-    subject = data.get("subject", "Message from AutoClient").strip()
-    message = data.get("message", "").strip()
-    business_name = data.get("businessName", "Lead")
+
+    if not lead_id:
+        return jsonify({
+            "error": "Lead is required"
+        }), 400
+
+    # Load the lead using BOTH the lead ID and
+    # the logged-in user's ID.
+    #
+    # This prevents one user from sending email
+    # using another user's CRM lead.
+    lead = get_lead_by_id(
+        lead_id,
+        user_id
+    )
+
+    if not lead:
+        return jsonify({
+            "error": "Lead not found"
+        }), 404
+
+    lead_status = str(
+        get_field(
+            lead,
+            "status",
+            "New"
+        )
+    ).strip().lower()
+
+    closed_statuses = {
+        "closed",
+        "lost",
+        "rejected"
+    }
+
+    # Enforce the closed-lead rule on the server.
+    # Frontend protection alone is not sufficient.
+    if lead_status in closed_statuses:
+        return jsonify({
+            "error": (
+                "This lead is closed or rejected. "
+                "Reopen it before sending outreach."
+            )
+        }), 400
+
+    to_email = str(
+        data.get("to") or ""
+    ).strip()
+
+    subject = str(
+        data.get("subject")
+        or "Message from AutoClient"
+    ).strip()
+
+    message = str(
+        data.get("message") or ""
+    ).strip()
+
+    business_name = get_field(
+        lead,
+        "businessName",
+        "Lead"
+    )
 
     if not RESEND_API_KEY:
-       return jsonify({"error": "Email service is temporarily unavailable"}), 500
+        return jsonify({
+            "error": "Email service is temporarily unavailable"
+        }), 500
 
     if not to_email:
-        return jsonify({"error": "Recipient email is required"}), 400
+        return jsonify({
+            "error": "Recipient email is required"
+        }), 400
 
-    if "@" not in to_email:
-        return jsonify({"error": "Invalid recipient email address"}), 400
+    if (
+        len(to_email) > 254
+        or not re.fullmatch(
+            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            to_email
+        )
+    ):
+        return jsonify({
+            "error": "Invalid recipient email address"
+        }), 400
+
+    if not subject:
+        return jsonify({
+            "error": "Email subject is required"
+        }), 400
 
     if not message:
-        return jsonify({"error": "Email message is required"}), 400
+        return jsonify({
+            "error": "Email message is required"
+        }), 400
 
     try:
         response = requests.post(
@@ -3345,21 +3433,27 @@ def send_email():
 
         try:
             result = response.json()
+
         except Exception:
-            result = {"raw": response.text}
+            result = {
+                "raw": response.text
+            }
 
         if response.status_code >= 400:
             print("Resend email request failed")
+
             return jsonify({
-                "error": result.get("message", "Email failed to send"),
-                "details": result
+                "error": "Email failed to send"
             }), response.status_code
 
         log_activity(
             user_id,
             lead_id,
             "Email Sent",
-            f"Email sent to {business_name} at {to_email}."
+            (
+                f"Email sent to "
+                f"{business_name} at {to_email}."
+            )
         )
 
         return jsonify({
@@ -3367,10 +3461,14 @@ def send_email():
             "resend": result
         }), 200
 
-    except Exception:
-        print("Email send failed")
-        return jsonify({"error": "Email sending failed"}), 500
+    except requests.RequestException:
+        print("Email send request failed")
 
+        return jsonify({
+            "error": "Email sending failed"
+        }), 500
+
+    
 @app.route("/api/find-leads", methods=["POST"])
 @limiter.limit("30 per hour")
 def find_leads():
