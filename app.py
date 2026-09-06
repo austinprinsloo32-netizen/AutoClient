@@ -2784,14 +2784,18 @@ def add_lead():
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
     if not is_trusted_origin():
-        return jsonify({"error": "Invalid request origin"}), 403
-    
+        return jsonify({
+            "error": "Invalid request origin"
+        }), 403
+
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return jsonify({
+            "error": "Not authenticated"
+        }), 401
 
     p = placeholder()
 
@@ -2804,10 +2808,114 @@ def update_lead(lead_id):
     old_lead = row_to_dict(old_lead)
 
     if not old_lead:
-        return jsonify({"error": "Lead not found"}), 404
+        return jsonify({
+            "error": "Lead not found"
+        }), 404
 
-    old_status = old_lead.get("status")
-    new_status = data.get("status")
+    business_name = str(
+        data.get("businessName") or ""
+    ).strip()
+
+    link = str(
+        data.get("link") or ""
+    ).strip()
+
+    contact = str(
+        data.get("contact") or ""
+    ).strip()
+
+    priority = str(
+        data.get("priority") or "Cold"
+    ).strip()
+
+    notes = str(
+        data.get("notes") or ""
+    ).strip()
+
+    status = str(
+        data.get("status") or "New"
+    ).strip()
+
+    created_at = str(
+        data.get("createdAt") or ""
+    ).strip()
+
+    last_contacted = str(
+        data.get("lastContacted") or ""
+    ).strip()
+
+    next_follow_up = str(
+        data.get("nextFollowUp") or ""
+    ).strip()
+
+    if not business_name:
+        return jsonify({
+            "error": "Business name is required"
+        }), 400
+
+    if len(business_name) > 150:
+        return jsonify({
+            "error": (
+                "Business name must be "
+                "150 characters or fewer"
+            )
+        }), 400
+
+    if len(link) > 2048:
+        return jsonify({
+            "error": (
+                "Link must be 2048 characters or fewer"
+            )
+        }), 400
+
+    if len(contact) > 254:
+        return jsonify({
+            "error": (
+                "Contact must be 254 characters or fewer"
+            )
+        }), 400
+
+    if len(priority) > 30:
+        return jsonify({
+            "error": (
+                "Priority must be 30 characters or fewer"
+            )
+        }), 400
+
+    if len(notes) > 5000:
+        return jsonify({
+            "error": (
+                "Notes must be 5000 characters or fewer"
+            )
+        }), 400
+
+    if len(status) > 50:
+        return jsonify({
+            "error": (
+                "Status must be 50 characters or fewer"
+            )
+        }), 400
+
+    if len(created_at) > 50:
+        return jsonify({
+            "error": "Invalid created date"
+        }), 400
+
+    if len(last_contacted) > 50:
+        return jsonify({
+            "error": "Invalid last contacted date"
+        }), 400
+
+    if len(next_follow_up) > 50:
+        return jsonify({
+            "error": "Invalid follow-up date"
+        }), 400
+
+    old_status = str(
+        old_lead.get("status") or ""
+    ).strip()
+
+    new_status = status
 
     if USING_POSTGRES:
         lead = execute_query("""
@@ -2824,15 +2932,15 @@ def update_lead(lead_id):
             WHERE id=%s AND userId=%s
             RETURNING *
         """, (
-            data.get("businessName"),
-            data.get("link"),
-            data.get("contact"),
-            data.get("priority"),
-            data.get("notes"),
-            data.get("status"),
-            data.get("createdAt"),
-            data.get("lastContacted", ""),
-            data.get("nextFollowUp", ""),
+            business_name,
+            link,
+            contact,
+            priority,
+            notes,
+            status,
+            created_at,
+            last_contacted,
+            next_follow_up,
             lead_id,
             user_id
         ), fetchone=True, commit=True)
@@ -2840,34 +2948,52 @@ def update_lead(lead_id):
         lead_dict = row_to_dict(lead)
 
         if not lead_dict:
-            return jsonify({"error": "Lead not found"}), 404
+            return jsonify({
+                "error": "Lead not found"
+            }), 404
 
-        business_name = get_field(
+        business_name_for_activity = get_field(
             lead_dict,
             "businessName",
-            data.get("businessName") or "Lead"
+            business_name or "Lead"
         )
 
-        if old_status and new_status and old_status != new_status:
+        if (
+            old_status
+            and new_status
+            and old_status != new_status
+        ):
             log_activity(
                 user_id,
                 lead_id,
                 "Lead Status Changed",
-                f"{business_name} moved from {old_status} to {new_status}."
+                (
+                    f"{business_name_for_activity} "
+                    f"moved from {old_status} "
+                    f"to {new_status}."
+                )
             )
-        elif data.get("nextFollowUp"):
+
+        elif next_follow_up:
             log_activity(
                 user_id,
                 lead_id,
                 "Follow-up Scheduled",
-                f"Next follow-up set for {data.get('nextFollowUp')}."
+                (
+                    "Next follow-up set for "
+                    f"{next_follow_up}."
+                )
             )
+
         else:
             log_activity(
                 user_id,
                 lead_id,
                 "Lead Updated",
-                f"{business_name} was updated."
+                (
+                    f"{business_name_for_activity} "
+                    "was updated."
+                )
             )
 
         return jsonify(lead_dict)
@@ -2885,44 +3011,65 @@ def update_lead(lead_id):
             nextFollowUp=?
         WHERE id=? AND userId=?
     """, (
-        data.get("businessName"),
-        data.get("link"),
-        data.get("contact"),
-        data.get("priority"),
-        data.get("notes"),
-        data.get("status"),
-        data.get("createdAt"),
-        data.get("lastContacted", ""),
-        data.get("nextFollowUp", ""),
+        business_name,
+        link,
+        contact,
+        priority,
+        notes,
+        status,
+        created_at,
+        last_contacted,
+        next_follow_up,
         lead_id,
         user_id
     ), commit=True)
 
-    business_name = data.get("businessName") or "Lead"
+    business_name_for_activity = (
+        business_name or "Lead"
+    )
 
-    if old_status and new_status and old_status != new_status:
+    if (
+        old_status
+        and new_status
+        and old_status != new_status
+    ):
         log_activity(
             user_id,
             lead_id,
             "Lead Status Changed",
-            f"{business_name} moved from {old_status} to {new_status}."
+            (
+                f"{business_name_for_activity} "
+                f"moved from {old_status} "
+                f"to {new_status}."
+            )
         )
-    elif data.get("nextFollowUp"):
+
+    elif next_follow_up:
         log_activity(
             user_id,
             lead_id,
             "Follow-up Scheduled",
-            f"Next follow-up set for {data.get('nextFollowUp')}."
+            (
+                "Next follow-up set for "
+                f"{next_follow_up}."
+            )
         )
+
     else:
         log_activity(
             user_id,
             lead_id,
             "Lead Updated",
-            f"{business_name} was updated."
+            (
+                f"{business_name_for_activity} "
+                "was updated."
+            )
         )
 
-    return jsonify({"message": "Lead updated"})
+    return jsonify({
+        "message": "Lead updated"
+    })
+
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])
 def delete_lead(lead_id):

@@ -1491,3 +1491,277 @@ def test_lead_creation_rejects_follow_up_over_50_characters(
         data["error"]
         == "Invalid follow-up date"
     )
+@pytest.fixture
+def lead_update_validation_client(monkeypatch):
+    """
+    Create an authenticated client for testing
+    lead update validation without modifying
+    the real database.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    existing_lead = {
+        "id": 123,
+        "userId": 999999,
+        "businessName": "Existing Lead",
+        "link": "",
+        "contact": "",
+        "priority": "Cold",
+        "notes": "",
+        "status": "New",
+        "createdAt": "2026-09-06 12:00:00",
+        "lastContacted": "",
+        "nextFollowUp": ""
+    }
+
+    def fake_execute_query(
+        query,
+        params=None,
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        if "SELECT * FROM leads" in query:
+            return existing_lead
+
+        raise AssertionError(
+            "Validation test unexpectedly reached database update"
+        )
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        yield client
+
+
+def test_lead_update_requires_business_name(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "",
+            "status": "New"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Business name is required"
+    )
+
+
+def test_lead_update_rejects_business_name_over_150_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "A" * 151
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Business name must be 150 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_link_over_2048_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "link": "https://example.com/" + ("a" * 2030)
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Link must be 2048 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_contact_over_254_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "contact": "A" * 255
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Contact must be 254 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_priority_over_30_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "priority": "A" * 31
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Priority must be 30 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_notes_over_5000_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "notes": "A" * 5001
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Notes must be 5000 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_status_over_50_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "status": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Status must be 50 characters or fewer"
+    )
+
+
+def test_lead_update_rejects_created_date_over_50_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "createdAt": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid created date"
+    )
+
+
+def test_lead_update_rejects_last_contacted_over_50_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "lastContacted": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid last contacted date"
+    )
+
+
+def test_lead_update_rejects_follow_up_over_50_characters(
+    lead_update_validation_client
+):
+    response = lead_update_validation_client.put(
+        "/api/leads/123",
+        json={
+            "businessName": "Existing Lead",
+            "nextFollowUp": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid follow-up date"
+    )
