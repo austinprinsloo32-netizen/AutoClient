@@ -3610,13 +3610,37 @@ def admin_leads():
 
 @app.route("/<path:path>")
 def serve_static(path):
-    if os.path.exists(path):
+    """
+    Serve only explicitly approved frontend files.
+
+    Never serve arbitrary files from the application
+    root because that could expose source code,
+    databases, environment files, or other secrets.
+    """
+
+    allowed_root_files = {
+        "index.html",
+        "landing.html",
+        "style.css",
+        "script.js",
+        "landing.css",
+        "landing.js",
+        "AutoClient_Icon.png",
+    }
+
+    if path in allowed_root_files:
         return send_from_directory(".", path)
 
-    return send_from_directory("static", path)
+    if path.startswith("images/"):
+        image_path = path.removeprefix("images/")
 
+        if image_path:
+            return send_from_directory(
+                "images",
+                image_path
+            )
 
-init_db()
-
-if __name__ == "__main__":
-    app.run(debug=False)
+    return send_from_directory(
+        "static",
+        path
+    )
