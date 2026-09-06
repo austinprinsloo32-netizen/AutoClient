@@ -1765,3 +1765,117 @@ def test_lead_update_rejects_follow_up_over_50_characters(
         data["error"]
         == "Invalid follow-up date"
     )
+
+
+def test_email_rejects_subject_over_200_characters(
+    authenticated_email_client,
+    monkeypatch
+):
+    lead = {
+        "id": 123,
+        "userId": 999999,
+        "businessName": "Email Test Lead",
+        "status": "New"
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: lead
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 123,
+            "to": "lead@example.com",
+            "subject": "A" * 201,
+            "message": "Test message"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Email subject must be 200 characters or fewer"
+    )
+
+
+def test_email_rejects_message_over_10000_characters(
+    authenticated_email_client,
+    monkeypatch
+):
+    lead = {
+        "id": 123,
+        "userId": 999999,
+        "businessName": "Email Test Lead",
+        "status": "New"
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: lead
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 123,
+            "to": "lead@example.com",
+            "subject": "Test subject",
+            "message": "A" * 10001
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Email message must be 10000 characters or fewer"
+    )
+
+
+def test_email_rejects_invalid_recipient_address(
+    authenticated_email_client,
+    monkeypatch
+):
+    lead = {
+        "id": 123,
+        "userId": 999999,
+        "businessName": "Email Test Lead",
+        "status": "New"
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: lead
+    )
+
+    response = authenticated_email_client.post(
+        "/api/send-email",
+        json={
+            "leadId": 123,
+            "to": "not-an-email",
+            "subject": "Test subject",
+            "message": "Test message"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid recipient email address"
+    )

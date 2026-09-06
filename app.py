@@ -3764,9 +3764,25 @@ def send_email():
             "error": "Email subject is required"
         }), 400
 
+    if len(subject) > 200:
+        return jsonify({
+            "error": (
+                "Email subject must be "
+                "200 characters or fewer"
+            )
+        }), 400
+
     if not message:
         return jsonify({
             "error": "Email message is required"
+        }), 400
+
+    if len(message) > 10000:
+        return jsonify({
+            "error": (
+                "Email message must be "
+                "10000 characters or fewer"
+            )
         }), 400
 
     try:
@@ -3821,7 +3837,6 @@ def send_email():
         return jsonify({
             "error": "Email sending failed"
         }), 500
-
     
 @app.route("/api/find-leads", methods=["POST"])
 @limiter.limit("30 per hour")
