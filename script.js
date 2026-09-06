@@ -2981,29 +2981,95 @@ async function sendEmail(index) {
 
   const lead = leads[index];
 
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
+
   if (!currentUser) {
     showToast("Please login first.", "warning");
     return;
   }
 
-  const defaultEmail = lead.contact && lead.contact.includes("@") ? lead.contact : "";
-  const email = prompt("Enter recipient email address:", defaultEmail);
+  const status =
+    lead.status
+      ? lead.status.trim().toLowerCase()
+      : "";
+
+  const followUpState =
+    lead.followUpIntelligence &&
+    lead.followUpIntelligence.state
+      ? lead.followUpIntelligence.state
+      : "";
+
+  const closedStatuses = [
+    "closed",
+    "lost",
+    "rejected"
+  ];
+
+  if (
+    closedStatuses.includes(status) ||
+    followUpState === "closed_or_rejected"
+  ) {
+    showToast(
+      "This lead is closed/rejected. Reopen it before sending outreach.",
+      "warning"
+    );
+    return;
+  }
+
+  const defaultEmail =
+    lead.contact && lead.contact.includes("@")
+      ? lead.contact
+      : "";
+
+  const email = prompt(
+    "Enter recipient email address:",
+    defaultEmail
+  );
 
   if (!email) return;
 
-  if (!email.includes("@")) {
-    showToast("Please enter a valid email address.", "warning");
+  const cleanEmail = email.trim();
+
+  if (
+    !cleanEmail ||
+    !cleanEmail.includes("@")
+  ) {
+    showToast(
+      "Please enter a valid email address.",
+      "warning"
+    );
     return;
   }
 
   const subject = prompt(
     "Email subject:",
-    `Quick message for ${lead.businessName}`
+    `Quick message for ${lead.businessName || "your business"}`
   );
 
   if (!subject) return;
 
+  const cleanSubject = subject.trim();
+
+  if (!cleanSubject) {
+    showToast(
+      "Please enter an email subject.",
+      "warning"
+    );
+    return;
+  }
+
   const message = generateMessage(lead);
+
+  if (!message || !message.trim()) {
+    showToast(
+      "No outreach message could be generated for this lead.",
+      "warning"
+    );
+    return;
+  }
 
   try {
     showToast("Sending email...", "info");
@@ -3017,9 +3083,9 @@ async function sendEmail(index) {
         userId: currentUser.id,
         leadId: lead.id,
         businessName: lead.businessName,
-        to: email.trim(),
-        subject: subject.trim(),
-        message
+        to: cleanEmail,
+        subject: cleanSubject,
+        message: message.trim()
       })
     });
 
@@ -3027,18 +3093,42 @@ async function sendEmail(index) {
 
     if (!response.ok) {
       console.error("Email send error:", data);
-      alert(data.error || "Email failed. Check Render logs.");
-      showToast(data.error || "Email failed to send.", "error");
+
+      alert(
+        data.error ||
+        "Email failed. Check Render logs."
+      );
+
+      showToast(
+        data.error ||
+        "Email failed to send.",
+        "error"
+      );
+
       return;
     }
 
     await fetchActivities();
 
-    showToast("Email sent successfully.", "success");
+    showToast(
+      "Email sent successfully.",
+      "success"
+    );
+
   } catch (error) {
-    console.error("Send email connection error:", error);
-    alert("Could not connect to email backend. Check Render logs.");
-    showToast("Could not connect to email backend.", "error");
+    console.error(
+      "Send email connection error:",
+      error
+    );
+
+    alert(
+      "Could not connect to email backend. Check Render logs."
+    );
+
+    showToast(
+      "Could not connect to email backend.",
+      "error"
+    );
   }
 }
 
