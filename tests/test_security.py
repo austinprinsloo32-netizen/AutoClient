@@ -1,6 +1,9 @@
 import pytest
 
 import app as autoclient
+import json
+import hmac
+import hashlib
 
 
 @pytest.fixture
@@ -1879,3 +1882,504 @@ def test_email_rejects_invalid_recipient_address(
         data["error"]
         == "Invalid recipient email address"
     )
+@pytest.fixture
+def paystack_webhook_client(monkeypatch):
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "PAYSTACK_SECRET_KEY",
+        "test-paystack-secret"
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_paystack_customer",
+        lambda customer_code: {
+            "subscriptions": [
+                {
+                    "status": "active",
+                    "subscription_code": "SUB_test123"
+                }
+            ]
+        }
+    )
+
+    with autoclient.app.test_client() as client:
+        yield client
+
+
+def build_paystack_webhook_request(
+    payload,
+    secret="test-paystack-secret"
+):
+    raw_payload = json.dumps(
+        payload,
+        separators=(",", ":")
+    ).encode("utf-8")
+
+    signature = hmac.new(
+        secret.encode("utf-8"),
+        raw_payload,
+        hashlib.sha512
+    ).hexdigest()
+
+    return raw_payload, signature
+
+
+def test_paystack_webhook_rejects_unverified_transaction(
+    paystack_webhook_client,
+    monkeypatch
+):
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: None
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_test_1"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Could not verify Paystack transaction"
+    )
+
+
+def test_paystack_webhook_rejects_wrong_currency(
+    paystack_webhook_client,
+    monkeypatch
+):
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "USD",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_test_2"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Unexpected transaction currency"
+    )
+
+
+def test_paystack_webhook_rejects_wrong_amount(
+    paystack_webhook_client,
+    monkeypatch
+):
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19800,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_test_3"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Unexpected transaction amount"
+    )
+
+
+def test_paystack_webhook_rejects_wrong_plan(
+    paystack_webhook_client,
+    monkeypatch
+):
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "free",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_test_4"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Unexpected subscription plan"
+    )
+
+
+def test_paystack_webhook_activates_valid_pro_transaction(
+    paystack_webhook_client,
+    monkeypatch
+):
+    updates = []
+    activities = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(
+            kwargs
+        )
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        lambda *args: activities.append(
+            args
+        )
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_test_5"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 200
+
+    assert len(updates) == 1
+    assert updates[0]["user_id"] == "999999"
+    assert updates[0]["plan"] == "pro"
+    assert (
+        updates[0]["subscription_status"]
+        == "active"
+    )
+
+    assert len(activities) == 1
+
+def test_paystack_webhook_ignores_duplicate_transaction(
+    paystack_webhook_client,
+    monkeypatch
+):
+    updates = []
+    activities = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: False
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(
+            kwargs
+        )
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        lambda *args: activities.append(
+            args
+        )
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_duplicate_test"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["received"] is True
+    assert data["duplicate"] is True
+
+    assert updates == []
+    assert activities == []
+
+def test_paystack_webhook_releases_claim_on_activation_failure(
+    paystack_webhook_client,
+    monkeypatch
+):
+    released_references = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: (
+            _ for _ in ()
+        ).throw(
+            RuntimeError(
+                "Simulated activation failure"
+            )
+        )
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "release_paystack_transaction",
+        lambda reference: (
+            released_references.append(
+                reference
+            )
+        )
+    )
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": "ref_retry_test"
+        }
+    }
+
+    raw_payload, signature = (
+        build_paystack_webhook_request(
+            payload
+        )
+    )
+
+    response = paystack_webhook_client.post(
+        "/paystack-webhook",
+        data=raw_payload,
+        content_type="application/json",
+        headers={
+            "x-paystack-signature": signature
+        }
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Could not process Paystack subscription"
+    )
+
+    assert released_references == [
+        "ref_retry_test"
+    ]

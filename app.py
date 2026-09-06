@@ -352,6 +352,15 @@ def init_db():
             )
         """, commit=True)
 
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS paystack_transactions (
+                reference TEXT PRIMARY KEY,
+                eventType TEXT,
+                userId INTEGER,
+                createdAt TEXT
+            )
+        """, commit=True)
+
     else:
         execute_query("""
             CREATE TABLE IF NOT EXISTS users (
@@ -390,27 +399,116 @@ def init_db():
             )
         """, commit=True)
 
-    add_column_if_missing("leads", "lastContacted", "TEXT")
-    add_column_if_missing("leads", "nextFollowUp", "TEXT")
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS paystack_transactions (
+                reference TEXT PRIMARY KEY,
+                eventType TEXT,
+                userId INTEGER,
+                createdAt TEXT
+            )
+        """, commit=True)
 
-    add_column_if_missing("leads", "aiSummary", "TEXT")
-    add_column_if_missing("leads", "aiOpportunity", "TEXT")
-    add_column_if_missing("leads", "aiRecommendedApproach", "TEXT")
-    add_column_if_missing("leads", "aiBestChannel", "TEXT")
-    add_column_if_missing("leads", "aiNextAction", "TEXT")
-    add_column_if_missing("leads", "aiConfidence", "TEXT")
-    add_column_if_missing("leads", "aiScore", "INTEGER")
-    add_column_if_missing("leads", "aiLastAnalyzed", "TEXT")
+    add_column_if_missing(
+        "leads",
+        "lastContacted",
+        "TEXT"
+    )
 
-    add_column_if_missing("users", "plan", "TEXT DEFAULT 'free'")
-    add_column_if_missing("users", "stripe_customer_id", "TEXT")
-    add_column_if_missing("users", "stripe_subscription_id", "TEXT")
-    add_column_if_missing("users", "paystack_customer_code", "TEXT")
-    add_column_if_missing("users", "paystack_subscription_code", "TEXT")
-    add_column_if_missing("users", "subscription_status", "TEXT DEFAULT 'inactive'")
-    add_column_if_missing("users", "plan_updated_at", "TEXT")
+    add_column_if_missing(
+        "leads",
+        "nextFollowUp",
+        "TEXT"
+    )
 
-    
+    add_column_if_missing(
+        "leads",
+        "aiSummary",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiOpportunity",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiRecommendedApproach",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiBestChannel",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiNextAction",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiConfidence",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiScore",
+        "INTEGER"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "aiLastAnalyzed",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "plan",
+        "TEXT DEFAULT 'free'"
+    )
+
+    add_column_if_missing(
+        "users",
+        "stripe_customer_id",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "stripe_subscription_id",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "paystack_customer_code",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "paystack_subscription_code",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "subscription_status",
+        "TEXT DEFAULT 'inactive'"
+    )
+
+    add_column_if_missing(
+        "users",
+        "plan_updated_at",
+        "TEXT"
+    )
 
 
 def get_user_by_id(user_id):
@@ -1678,6 +1776,148 @@ def stripe_webhook():
 
     return jsonify({"received": True}), 200
 
+def verify_paystack_transaction(reference):
+    """
+    Verify a Paystack transaction directly with
+    Paystack before granting subscription access.
+
+    Returns the verified transaction data on
+    success, otherwise returns None.
+    """
+
+    if not PAYSTACK_SECRET_KEY:
+        return None
+
+    reference = str(
+        reference or ""
+    ).strip()
+
+    if not reference:
+        return None
+
+    try:
+        response = requests.get(
+            (
+                "https://api.paystack.co/"
+                f"transaction/verify/{reference}"
+            ),
+            headers={
+                "Authorization": (
+                    f"Bearer {PAYSTACK_SECRET_KEY}"
+                )
+            },
+            timeout=15
+        )
+
+        if response.status_code != 200:
+            print(
+                "Paystack transaction verification failed"
+            )
+            return None
+
+        result = response.json()
+
+        if not result.get("status"):
+            return None
+
+        verified_data = (
+            result.get("data", {}) or {}
+        )
+
+        return verified_data
+
+    except (
+        requests.RequestException,
+        ValueError
+    ):
+        print(
+            "Paystack transaction verification request failed"
+        )
+        return None
+
+def claim_paystack_transaction(
+    reference,
+    event_type,
+    user_id
+):
+    reference = str(reference or "").strip()
+    event_type = str(event_type or "").strip()
+
+    if not reference:
+        return False
+
+    created_at = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    if USING_POSTGRES:
+        result = execute_query("""
+            INSERT INTO paystack_transactions (
+                reference,
+                eventType,
+                userId,
+                createdAt
+            )
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (reference)
+            DO NOTHING
+            RETURNING reference
+        """, (
+            reference,
+            event_type,
+            user_id,
+            created_at
+        ), fetchone=True, commit=True)
+
+    else:
+        result = execute_query("""
+            INSERT INTO paystack_transactions (
+                reference,
+                eventType,
+                userId,
+                createdAt
+            )
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (reference)
+            DO NOTHING
+            RETURNING reference
+        """, (
+            reference,
+            event_type,
+            user_id,
+            created_at
+        ), fetchone=True, commit=True)
+
+    return result is not None
+
+
+def release_paystack_transaction(reference):
+    reference = str(reference or "").strip()
+
+    if not reference:
+        return
+
+    if USING_POSTGRES:
+        execute_query(
+            """
+            DELETE FROM paystack_transactions
+            WHERE reference = %s
+            """,
+            (reference,),
+            commit=True
+        )
+
+    else:
+        execute_query(
+            """
+            DELETE FROM paystack_transactions
+            WHERE reference = ?
+            """,
+            (reference,),
+            commit=True
+        )
+
+
 @app.route("/paystack-webhook", methods=["POST"])
 def paystack_webhook():
     if not PAYSTACK_SECRET_KEY:
@@ -1686,6 +1926,7 @@ def paystack_webhook():
         }), 500
 
     payload = request.get_data()
+
     signature = request.headers.get(
         "x-paystack-signature",
         ""
@@ -1705,52 +1946,192 @@ def paystack_webhook():
             "error": "Webhook verification failed"
         }), 400
 
-    event = request.get_json(silent=True) or {}
-    event_type = event.get("event")
-    data_object = event.get("data", {}) or {}
+    event = request.get_json(
+        silent=True
+    ) or {}
 
-    print("Paystack event:", event_type)
+    event_type = event.get("event")
+
+    data_object = (
+        event.get("data", {}) or {}
+    )
+
+    print(
+        "Paystack event:",
+        event_type
+    )
 
     if event_type == "charge.success":
-        metadata = data_object.get("metadata", {}) or {}
-        user_id = metadata.get("userId")
+        reference = str(
+            data_object.get("reference") or ""
+        ).strip()
 
-        customer = data_object.get("customer", {}) or {}
-        paystack_customer_code = customer.get(
-            "customer_code"
+        if not reference:
+            return jsonify({
+                "error": "Missing transaction reference"
+            }), 400
+
+        verified_transaction = (
+            verify_paystack_transaction(
+                reference
+            )
         )
 
-        paystack_customer = get_paystack_customer(
-            paystack_customer_code
+        if not verified_transaction:
+            return jsonify({
+                "error": (
+                    "Could not verify Paystack transaction"
+                )
+            }), 400
+
+        verified_status = str(
+            verified_transaction.get("status")
+            or ""
+        ).strip().lower()
+
+        verified_reference = str(
+            verified_transaction.get("reference")
+            or ""
+        ).strip()
+
+        verified_currency = str(
+            verified_transaction.get("currency")
+            or ""
+        ).strip().upper()
+
+        verified_amount = (
+            verified_transaction.get("amount")
         )
 
-        subscriptions = (
-            (paystack_customer or {}).get(
-                "subscriptions",
-                []
-            ) or []
+        metadata = (
+            verified_transaction.get(
+                "metadata",
+                {}
+            ) or {}
         )
 
-        active_subscription = next(
-            (
-                subscription
-                for subscription in subscriptions
-                if subscription.get("status")
-                in ["active", "non-renewing", "attention"]
-            ),
-            None
+        metadata_plan = str(
+            metadata.get("plan") or ""
+        ).strip().lower()
+
+        user_id = metadata.get(
+            "userId"
         )
 
-        paystack_subscription_code = None
+        if verified_status != "success":
+            return jsonify({
+                "error": (
+                    "Paystack transaction "
+                    "was not successful"
+                )
+            }), 400
 
-        if active_subscription:
-            paystack_subscription_code = (
-                active_subscription.get(
-                    "subscription_code"
+        if verified_reference != reference:
+            return jsonify({
+                "error": (
+                    "Paystack transaction "
+                    "reference mismatch"
+                )
+            }), 400
+
+        if verified_currency != "ZAR":
+            return jsonify({
+                "error": (
+                    "Unexpected transaction currency"
+                )
+            }), 400
+
+        if verified_amount != 19900:
+            return jsonify({
+                "error": (
+                    "Unexpected transaction amount"
+                )
+            }), 400
+
+        if metadata_plan != "pro":
+            return jsonify({
+                "error": (
+                    "Unexpected subscription plan"
+                )
+            }), 400
+
+        if not user_id:
+            return jsonify({
+                "error": (
+                    "Missing subscription user"
+                )
+            }), 400
+
+        transaction_claimed = (
+            claim_paystack_transaction(
+                reference=reference,
+                event_type=event_type,
+                user_id=user_id
+            )
+        )
+
+        if not transaction_claimed:
+            print(
+                "Duplicate Paystack transaction ignored:",
+                reference
+            )
+
+            return jsonify({
+                "received": True,
+                "duplicate": True
+            }), 200
+
+        try:
+            customer = (
+                verified_transaction.get(
+                    "customer",
+                    {}
+                ) or {}
+            )
+
+            paystack_customer_code = (
+                customer.get(
+                    "customer_code"
                 )
             )
 
-        if user_id:
+            paystack_customer = (
+                get_paystack_customer(
+                    paystack_customer_code
+                )
+            )
+
+            subscriptions = (
+                (paystack_customer or {}).get(
+                    "subscriptions",
+                    []
+                ) or []
+            )
+
+            active_subscription = next(
+                (
+                    subscription
+                    for subscription
+                    in subscriptions
+                    if subscription.get("status")
+                    in [
+                        "active",
+                        "non-renewing",
+                        "attention"
+                    ]
+                ),
+                None
+            )
+
+            paystack_subscription_code = None
+
+            if active_subscription:
+                paystack_subscription_code = (
+                    active_subscription.get(
+                        "subscription_code"
+                    )
+                )
+
             update_user_paystack_subscription(
                 user_id=user_id,
                 plan="pro",
@@ -1767,21 +2148,53 @@ def paystack_webhook():
                 user_id,
                 None,
                 "Subscription Activated",
-                "User upgraded to PRO plan via Paystack."
+                (
+                    "User upgraded to PRO plan "
+                    "via Paystack."
+                )
             )
 
+        except Exception:
+            try:
+                release_paystack_transaction(
+                    reference
+                )
+            except Exception:
+                print(
+                    "Could not release failed "
+                    "Paystack transaction claim"
+                )
+
+            print(
+                "Paystack subscription "
+                "activation failed"
+            )
+
+            return jsonify({
+                "error": (
+                    "Could not process "
+                    "Paystack subscription"
+                )
+            }), 500
+
     elif event_type == "subscription.create":
-        subscription_code = data_object.get(
-            "subscription_code"
+        subscription_code = (
+            data_object.get(
+                "subscription_code"
+            )
         )
 
-        customer = data_object.get(
-            "customer",
-            {}
-        ) or {}
+        customer = (
+            data_object.get(
+                "customer",
+                {}
+            ) or {}
+        )
 
-        customer_code = customer.get(
-            "customer_code"
+        customer_code = (
+            customer.get(
+                "customer_code"
+            )
         )
 
         print(
@@ -1791,8 +2204,10 @@ def paystack_webhook():
         )
 
     elif event_type == "subscription.not_renew":
-        subscription_code = data_object.get(
-            "subscription_code"
+        subscription_code = (
+            data_object.get(
+                "subscription_code"
+            )
         )
 
         if subscription_code:
@@ -1801,25 +2216,37 @@ def paystack_webhook():
                     subscription_code
                 ),
                 plan="pro",
-                subscription_status="non_renewing"
+                subscription_status=(
+                    "non_renewing"
+                )
             )
 
         print(
-            "Paystack subscription non-renewing:",
+            (
+                "Paystack subscription "
+                "non-renewing:"
+            ),
             subscription_code
         )
 
     elif event_type == "subscription.disable":
-        subscription_code = data_object.get(
-            "subscription_code"
+        subscription_code = (
+            data_object.get(
+                "subscription_code"
+            )
         )
 
-        status_value = data_object.get(
-            "status",
-            "cancelled"
+        status_value = (
+            data_object.get(
+                "status",
+                "cancelled"
+            )
         )
 
-        if status_value in ["complete", "completed"]:
+        if status_value in [
+            "complete",
+            "completed"
+        ]:
             final_status = "completed"
         else:
             final_status = "cancelled"
@@ -1830,23 +2257,32 @@ def paystack_webhook():
                     subscription_code
                 ),
                 plan="free",
-                subscription_status=final_status
+                subscription_status=(
+                    final_status
+                )
             )
 
         print(
-            "Paystack subscription disabled:",
+            (
+                "Paystack subscription "
+                "disabled:"
+            ),
             subscription_code,
             final_status
         )
 
     elif event_type == "invoice.payment_failed":
-        subscription = data_object.get(
-            "subscription",
-            {}
-        ) or {}
+        subscription = (
+            data_object.get(
+                "subscription",
+                {}
+            ) or {}
+        )
 
-        subscription_code = subscription.get(
-            "subscription_code"
+        subscription_code = (
+            subscription.get(
+                "subscription_code"
+            )
         )
 
         if subscription_code:
@@ -1855,25 +2291,36 @@ def paystack_webhook():
                     subscription_code
                 ),
                 plan="pro",
-                subscription_status="attention"
+                subscription_status=(
+                    "attention"
+                )
             )
 
         print(
-            "Paystack subscription payment issue:",
+            (
+                "Paystack subscription "
+                "payment issue:"
+            ),
             subscription_code
         )
 
     elif event_type == "invoice.update":
-        subscription = data_object.get(
-            "subscription",
-            {}
-        ) or {}
-
-        subscription_code = subscription.get(
-            "subscription_code"
+        subscription = (
+            data_object.get(
+                "subscription",
+                {}
+            ) or {}
         )
 
-        paid = data_object.get("paid")
+        subscription_code = (
+            subscription.get(
+                "subscription_code"
+            )
+        )
+
+        paid = data_object.get(
+            "paid"
+        )
 
         if subscription_code and paid:
             update_subscription_by_paystack_code(
@@ -1885,11 +2332,17 @@ def paystack_webhook():
             )
 
             print(
-                "Paystack renewal payment succeeded:",
+                (
+                    "Paystack renewal "
+                    "payment succeeded:"
+                ),
                 subscription_code
             )
 
-    return jsonify({"received": True}), 200
+    return jsonify({
+        "received": True
+    }), 200
+
 
 @app.route("/api/activities", methods=["GET"])
 def get_activities():
