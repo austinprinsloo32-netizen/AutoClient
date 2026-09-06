@@ -451,3 +451,124 @@ def test_user_can_delete_own_lead(
         12345,
         999999
     )
+
+
+def test_free_user_cannot_generate_smart_outreach(
+    monkeypatch
+):
+    """
+    An authenticated Free user must not be able
+    to access the Pro Smart Outreach feature.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "user_has_feature",
+        lambda user_id, feature_name: False
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        response = client.post(
+            "/api/generate-message",
+            json={
+                "businessName": "Free Plan Test",
+                "service": "web development",
+                "style": "formal",
+                "userName": "Test User",
+                "status": "new",
+                "followUpState": "not_contacted"
+            }
+        )
+
+    assert response.status_code == 403
+
+    data = response.get_json()
+
+    assert data is not None
+    assert "error" in data
+
+    assert (
+        "pro plan"
+        in data["error"].lower()
+    )
+
+    assert "message" not in data
+
+
+def test_pro_user_can_generate_smart_outreach(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    An authenticated Pro user must be able to
+    generate outreach for an active lead.
+    """
+
+    activity_calls = []
+
+    def fake_log_activity(
+        user_id,
+        lead_id,
+        action,
+        details=""
+    ):
+        activity_calls.append({
+            "user_id": user_id,
+            "lead_id": lead_id,
+            "action": action,
+            "details": details
+        })
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        fake_log_activity
+    )
+
+    response = authenticated_pro_client.post(
+        "/api/generate-message",
+        json={
+            "businessName": "Pro Plan Test",
+            "service": "web development",
+            "style": "formal",
+            "userName": "Test User",
+            "leadId": 12345,
+            "status": "new",
+            "followUpState": "not_contacted"
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+
+    assert "message" in data
+    assert data["message"].strip() != ""
+
+    assert (
+        data["smartFollowUpType"]
+        == "first_contact"
+    )
+
+    assert len(activity_calls) == 1
+
+    assert (
+        activity_calls[0]["action"]
+        == "Smart Outreach Generated"
+    )
+
+    assert activity_calls[0]["user_id"] == 999999
+    assert activity_calls[0]["lead_id"] == 12345
