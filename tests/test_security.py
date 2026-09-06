@@ -288,3 +288,166 @@ def test_user_cannot_delete_another_users_lead(
         "DELETE FROM leads" in call["query"]
         for call in database_calls
     )
+
+def test_user_can_update_own_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A logged-in user must be able to update
+    a lead that belongs to them.
+    """
+
+    database_calls = []
+
+    owned_lead = {
+        "id": 12345,
+        "userId": 999999,
+        "businessName": "My Test Lead",
+        "status": "New"
+    }
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "fetchone": fetchone,
+            "fetchall": fetchall,
+            "commit": commit
+        })
+
+        if (
+            "SELECT * FROM leads" in query
+            and fetchone
+        ):
+            return owned_lead
+
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    response = authenticated_pro_client.put(
+        "/api/leads/12345",
+        json={
+            "businessName": "Updated Test Lead",
+            "link": "",
+            "contact": "test@example.com",
+            "priority": "Hot",
+            "notes": "Safe test data",
+            "status": "Interested",
+            "createdAt": "2026-09-06",
+            "lastContacted": "",
+            "nextFollowUp": ""
+        }
+    )
+
+    assert response.status_code == 200
+
+    assert any(
+        "UPDATE leads" in call["query"]
+        and call["commit"] is True
+        for call in database_calls
+    )
+
+    update_calls = [
+        call
+        for call in database_calls
+        if "UPDATE leads" in call["query"]
+    ]
+
+    assert len(update_calls) == 1
+
+    update_call = update_calls[0]
+
+    # The final parameters must scope the update
+    # to this lead AND the logged-in owner.
+    assert update_call["params"][-2:] == (
+        12345,
+        999999
+    )
+
+
+def test_user_can_delete_own_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A logged-in user must be able to delete
+    a lead that belongs to them.
+    """
+
+    database_calls = []
+
+    owned_lead = {
+        "id": 12345,
+        "userId": 999999,
+        "businessName": "My Test Lead",
+        "status": "New"
+    }
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "fetchone": fetchone,
+            "fetchall": fetchall,
+            "commit": commit
+        })
+
+        if (
+            "SELECT * FROM leads" in query
+            and fetchone
+        ):
+            return owned_lead
+
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    response = authenticated_pro_client.delete(
+        "/api/leads/12345"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["message"] == "Lead deleted"
+
+    delete_calls = [
+        call
+        for call in database_calls
+        if "DELETE FROM leads" in call["query"]
+    ]
+
+    assert len(delete_calls) == 1
+
+    delete_call = delete_calls[0]
+
+    assert delete_call["commit"] is True
+
+    assert delete_call["params"] == (
+        12345,
+        999999
+    )
