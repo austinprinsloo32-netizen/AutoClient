@@ -141,3 +141,150 @@ def test_closed_follow_up_state_blocks_outreach(
     )
 
     assert "message" not in data
+
+
+def test_user_cannot_update_another_users_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A logged-in user must not be able to update
+    a lead that does not belong to them.
+    """
+
+    database_calls = []
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "fetchone": fetchone,
+            "fetchall": fetchall,
+            "commit": commit
+        })
+
+        # Simulate the ownership lookup finding no lead
+        # belonging to the logged-in user.
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    response = authenticated_pro_client.put(
+        "/api/leads/12345",
+        json={
+            "businessName": "Another User Lead",
+            "link": "",
+            "contact": "test@example.com",
+            "priority": "Hot",
+            "notes": "Should never be changed",
+            "status": "Interested",
+            "createdAt": "2026-09-06",
+            "lastContacted": "",
+            "nextFollowUp": ""
+        }
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Lead not found"
+
+    # The route should stop after the ownership lookup.
+    assert len(database_calls) == 1
+
+    lookup = database_calls[0]
+
+    assert lookup["fetchone"] is True
+    assert lookup["commit"] is False
+
+    # The ownership query must include both the
+    # lead ID and logged-in user ID.
+    assert lookup["params"] == (
+        12345,
+        999999
+    )
+
+    # No UPDATE query should ever have been executed.
+    assert not any(
+        "UPDATE leads" in call["query"]
+        for call in database_calls
+    )
+
+
+def test_user_cannot_delete_another_users_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A logged-in user must not be able to delete
+    a lead that does not belong to them.
+    """
+
+    database_calls = []
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "fetchone": fetchone,
+            "fetchall": fetchall,
+            "commit": commit
+        })
+
+        # Simulate the ownership lookup finding no lead
+        # belonging to the logged-in user.
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    response = authenticated_pro_client.delete(
+        "/api/leads/12345"
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Lead not found"
+
+    # The route should stop after the ownership lookup.
+    assert len(database_calls) == 1
+
+    lookup = database_calls[0]
+
+    assert lookup["fetchone"] is True
+    assert lookup["commit"] is False
+
+    assert lookup["params"] == (
+        12345,
+        999999
+    )
+
+    # No DELETE query should ever have been executed.
+    assert not any(
+        "DELETE FROM leads" in call["query"]
+        for call in database_calls
+    )
