@@ -1876,24 +1876,55 @@ def get_activities():
 @app.route("/api/activities/log", methods=["POST"])
 def create_activity():
     if not is_trusted_origin():
-        return jsonify({"error": "Invalid request origin"}), 403
-    
+        return jsonify({
+            "error": "Invalid request origin"
+        }), 403
+
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
     lead_id = data.get("leadId")
-    action = data.get("action", "").strip()
-    details = data.get("details", "").strip()
+    action = str(
+        data.get("action") or ""
+    ).strip()
+    details = str(
+        data.get("details") or ""
+    ).strip()
 
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return jsonify({
+            "error": "Not authenticated"
+        }), 401
 
     if not action:
-        return jsonify({"error": "Action is required"}), 400
+        return jsonify({
+            "error": "Action is required"
+        }), 400
 
-    log_activity(user_id, lead_id, action, details)
+    # If an activity is linked to a lead,
+    # verify that the lead belongs to the
+    # currently authenticated user.
+    if lead_id is not None:
+        lead = get_lead_by_id(
+            lead_id,
+            user_id
+        )
 
-    return jsonify({"message": "Activity logged successfully"}), 201
+        if not lead:
+            return jsonify({
+                "error": "Lead not found"
+            }), 404
+
+    log_activity(
+        user_id,
+        lead_id,
+        action,
+        details
+    )
+
+    return jsonify({
+        "message": "Activity logged successfully"
+    }), 201
 
 
 @app.route("/api/leads", methods=["GET"])

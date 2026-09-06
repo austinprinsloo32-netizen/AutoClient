@@ -855,3 +855,218 @@ def test_active_owned_lead_can_reach_email_service(
 
     assert activity_calls[0]["user_id"] == 999999
     assert activity_calls[0]["lead_id"] == 12345
+
+def test_user_cannot_log_activity_for_another_users_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A user must not be able to create an activity
+    linked to a lead that does not belong to them.
+    """
+
+    lookup_calls = []
+    activity_calls = []
+
+    def fake_get_lead_by_id(
+        lead_id,
+        user_id
+    ):
+        lookup_calls.append(
+            (lead_id, user_id)
+        )
+
+        return None
+
+    def fake_log_activity(
+        user_id,
+        lead_id,
+        action,
+        details=""
+    ):
+        activity_calls.append({
+            "user_id": user_id,
+            "lead_id": lead_id,
+            "action": action,
+            "details": details
+        })
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        fake_get_lead_by_id
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        fake_log_activity
+    )
+
+    response = authenticated_pro_client.post(
+        "/api/activities/log",
+        json={
+            "leadId": 12345,
+            "action": "Manual Note",
+            "details": "Security test"
+        }
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Lead not found"
+
+    assert lookup_calls == [
+        (12345, 999999)
+    ]
+
+    assert activity_calls == []
+
+
+def test_user_can_log_activity_for_own_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    A user should still be able to create an
+    activity for a lead they own.
+    """
+
+    activity_calls = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        lambda lead_id, user_id: {
+            "id": lead_id,
+            "userId": user_id,
+            "businessName": "Owned Lead",
+            "status": "New"
+        }
+    )
+
+    def fake_log_activity(
+        user_id,
+        lead_id,
+        action,
+        details=""
+    ):
+        activity_calls.append({
+            "user_id": user_id,
+            "lead_id": lead_id,
+            "action": action,
+            "details": details
+        })
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        fake_log_activity
+    )
+
+    response = authenticated_pro_client.post(
+        "/api/activities/log",
+        json={
+            "leadId": 12345,
+            "action": "Manual Note",
+            "details": "Owned lead test"
+        }
+    )
+
+    assert response.status_code == 201
+
+    data = response.get_json()
+
+    assert data is not None
+
+    assert (
+        data["message"]
+        == "Activity logged successfully"
+    )
+
+    assert len(activity_calls) == 1
+
+    assert (
+        activity_calls[0]["user_id"]
+        == 999999
+    )
+
+    assert (
+        activity_calls[0]["lead_id"]
+        == 12345
+    )
+
+    assert (
+        activity_calls[0]["action"]
+        == "Manual Note"
+    )
+
+
+def test_user_can_log_activity_without_lead(
+    authenticated_pro_client,
+    monkeypatch
+):
+    """
+    General activities that are not linked to a
+    lead should continue to work.
+    """
+
+    activity_calls = []
+
+    def fake_get_lead_by_id(
+        lead_id,
+        user_id
+    ):
+        raise AssertionError(
+            "Lead lookup should not occur"
+        )
+
+    def fake_log_activity(
+        user_id,
+        lead_id,
+        action,
+        details=""
+    ):
+        activity_calls.append({
+            "user_id": user_id,
+            "lead_id": lead_id,
+            "action": action,
+            "details": details
+        })
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_lead_by_id",
+        fake_get_lead_by_id
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        fake_log_activity
+    )
+
+    response = authenticated_pro_client.post(
+        "/api/activities/log",
+        json={
+            "action": "General Activity",
+            "details": "No lead attached"
+        }
+    )
+
+    assert response.status_code == 201
+
+    data = response.get_json()
+
+    assert data is not None
+
+    assert (
+        data["message"]
+        == "Activity logged successfully"
+    )
+
+    assert len(activity_calls) == 1
+    assert activity_calls[0]["lead_id"] is None
