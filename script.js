@@ -2582,69 +2582,168 @@ async function updateLead(leadId, payload) {
 }
 
 function generateMessage(lead) {
-  const service = serviceInput.value.trim() || "my services";
-  const notes = lead.notes ? lead.notes.trim() : "";
+  const service =
+    serviceInput.value.trim() || "my services";
+
   const style = messageStyle.value;
 
-  const personalLine = notes
-    ? `I noticed this about your business: ${notes}`
-    : "I wanted to reach out because your business looks like it could benefit from extra support.";
+  const businessName =
+    lead && lead.businessName
+      ? lead.businessName.trim()
+      : "your business";
+
+  const userName =
+    currentUser && currentUser.name
+      ? currentUser.name.trim()
+      : "AutoClient User";
+
+  const followUp =
+    lead && lead.followUpIntelligence
+      ? lead.followUpIntelligence
+      : {};
+
+  const followUpState =
+    followUp.state || "";
+
+  const status =
+    lead && lead.status
+      ? lead.status.trim().toLowerCase()
+      : "";
+
+  const interestedStatuses = [
+    "interested",
+    "qualified",
+    "proposal",
+    "negotiation"
+  ];
+
+  const closedStatuses = [
+    "closed",
+    "lost",
+    "rejected"
+  ];
+
+  // Internal CRM notes are deliberately excluded
+  // from all customer-facing fallback messages.
+
+  if (
+    closedStatuses.includes(status) ||
+    followUpState === "closed_or_rejected"
+  ) {
+    return "";
+  }
+
+  if (followUpState === "overdue") {
+    return `Good day ${businessName},
+
+I wanted to follow up on my previous message regarding ${service}.
+
+I understand schedules can become busy, so I wanted to check whether this is still something worth discussing.
+
+If so, I would be happy to arrange a short conversation at a convenient time.
+
+Kind regards,
+${userName}`;
+  }
+
+  if (followUpState === "due_today") {
+    return `Good day ${businessName},
+
+I am following up as planned regarding ${service}.
+
+I wanted to check whether you would be open to continuing the conversation and discussing whether there is a suitable next step.
+
+Kind regards,
+${userName}`;
+  }
+
+  if (
+    followUpState === "upcoming" ||
+    followUpState === "scheduled"
+  ) {
+    return `Good day ${businessName},
+
+I wanted to touch base ahead of our planned follow-up.
+
+I wanted to check whether there have been any developments and whether it would still be useful to continue our conversation regarding ${service}.
+
+Kind regards,
+${userName}`;
+  }
+
+  if (followUpState === "needs_follow_up") {
+    return `Good day ${businessName},
+
+I wanted to follow up after our previous contact regarding ${service}.
+
+Please let me know whether this is still something you would be open to discussing.
+
+Kind regards,
+${userName}`;
+  }
+
+  if (interestedStatuses.includes(status)) {
+    return `Good day ${businessName},
+
+Thank you for the interest shown so far.
+
+I would be happy to continue the conversation and discuss how ${service} could support your business.
+
+Would you be available for a short conversation to discuss the next step?
+
+Kind regards,
+${userName}`;
+  }
+
+  if (style === "followup") {
+    return `Good day ${businessName},
+
+I wanted to follow up on my previous message regarding ${service}.
+
+I believe there may still be an opportunity to create value for your business.
+
+Would you be open to a short conversation?
+
+Kind regards,
+${userName}`;
+  }
 
   if (style === "casual") {
-    return `Hi ${lead.businessName},
+    return `Hi ${businessName},
 
 I came across your business and thought I would reach out.
 
-${personalLine}
-
-I help businesses with ${service}, and I think I could possibly help you get better results.
+I help businesses with ${service}, and I thought there may be an opportunity to help.
 
 Would you be open to a quick chat?
 
 Thanks,
-${currentUser ? currentUser.name : ""}`;
+${userName}`;
   }
 
   if (style === "direct") {
-    return `Hi ${lead.businessName},
+    return `Hi ${businessName},
 
-I’ll keep this short.
+I'll keep this short.
 
-${personalLine}
+I help businesses with ${service} and thought there may be an opportunity to help.
 
-I help businesses with ${service}. If you want more clients, a better online presence, or a smoother system, I can help.
-
-Are you open to discussing how I could help your business grow?
+Would you be open to a short conversation to see whether there is a useful fit?
 
 Regards,
-${currentUser ? currentUser.name : ""}`;
+${userName}`;
   }
 
-  if (style === "followup") {
-    return `Hi ${lead.businessName},
+  return `Good day ${businessName},
 
-Just following up on my previous message.
+I came across your business and wanted to reach out.
 
-I help businesses with ${service}, and I still think there may be a good opportunity to help your business improve results.
+I help businesses with ${service}, and I believe there may be an opportunity to support your business.
 
-Would now be a better time for a quick conversation?
-
-Kind regards,
-${currentUser ? currentUser.name : ""}`;
-  }
-
-  return `Good day ${lead.businessName},
-
-I hope you are well.
-
-${personalLine}
-
-I help businesses with ${service}. I believe there may be an opportunity to support your business by improving visibility, attracting more customers, or saving valuable time.
-
-Would you be open to a brief conversation this week?
+Would you be open to a brief conversation?
 
 Kind regards,
-${currentUser ? currentUser.name : ""}`;
+${userName}`;
 }
 
 function typeText(element, text, speed = 18) {
