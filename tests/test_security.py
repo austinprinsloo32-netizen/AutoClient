@@ -1221,3 +1221,273 @@ def test_registration_rejects_invalid_email_format(
         data["error"]
         == "Please enter a valid email address"
     )
+
+
+@pytest.fixture
+def lead_creation_client(monkeypatch):
+    """
+    Create an authenticated test client for
+    lead creation validation without touching
+    the real database.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "email": "test@example.com",
+            "plan": "pro",
+            "subscription_status": "active"
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_plan_data",
+        lambda user: {
+            "planName": "Pro",
+            "features": {
+                "max_leads": 1000
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_lead_count",
+        lambda user_id: 0
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        yield client
+
+
+def test_lead_creation_requires_business_name(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "",
+            "contact": "lead@example.com"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Business name is required"
+    )
+
+
+def test_lead_creation_rejects_business_name_over_150_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "A" * 151
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Business name must be 150 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_link_over_2048_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "link": "https://example.com/" + ("a" * 2030)
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Link must be 2048 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_contact_over_254_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "contact": "a" * 255
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Contact must be 254 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_priority_over_30_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "priority": "A" * 31
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Priority must be 30 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_notes_over_5000_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "notes": "A" * 5001
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Notes must be 5000 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_status_over_50_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "status": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Status must be 50 characters or fewer"
+    )
+
+
+def test_lead_creation_rejects_created_date_over_50_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "createdAt": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid created date"
+    )
+
+
+def test_lead_creation_rejects_last_contacted_over_50_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "lastContacted": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid last contacted date"
+    )
+
+
+def test_lead_creation_rejects_follow_up_over_50_characters(
+    lead_creation_client
+):
+    response = lead_creation_client.post(
+        "/api/leads",
+        json={
+            "businessName": "Test Lead",
+            "nextFollowUp": "A" * 51
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Invalid follow-up date"
+    )

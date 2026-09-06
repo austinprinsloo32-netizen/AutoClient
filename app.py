@@ -2531,20 +2531,27 @@ def analyze_lead(lead_id):
 @app.route("/api/leads", methods=["POST"])
 def add_lead():
     if not is_trusted_origin():
-        return jsonify({"error": "Invalid request origin"}), 403
-    
+        return jsonify({
+            "error": "Invalid request origin"
+        }), 403
+
     data = request.get_json() or {}
 
     user_id = session.get("user_id")
 
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return jsonify({
+            "error": "Not authenticated"
+        }), 401
 
     user = get_user_by_id(user_id)
 
     if not user:
         session.clear()
-        return jsonify({"error": "User not found"}), 404
+
+        return jsonify({
+            "error": "User not found"
+        }), 404
 
     plan_data = get_user_plan_data(user)
     current_count = get_user_lead_count(user_id)
@@ -2552,49 +2559,164 @@ def add_lead():
 
     if current_count >= max_leads:
         return jsonify({
-            "error": f"{plan_data['planName']} plan limit reached. Upgrade to add more leads."
+            "error": (
+                f"{plan_data['planName']} plan limit reached. "
+                "Upgrade to add more leads."
+            )
         }), 403
 
-    if not data.get("businessName"):
-        return jsonify({"error": "Business name is required"}), 400
+    business_name = str(
+        data.get("businessName") or ""
+    ).strip()
 
-    created_at = data.get("createdAt") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    last_contacted = data.get("lastContacted", "")
-    next_follow_up = data.get("nextFollowUp", "")
+    link = str(
+        data.get("link") or ""
+    ).strip()
+
+    contact = str(
+        data.get("contact") or ""
+    ).strip()
+
+    priority = str(
+        data.get("priority") or "Cold"
+    ).strip()
+
+    notes = str(
+        data.get("notes") or ""
+    ).strip()
+
+    status = str(
+        data.get("status") or "New"
+    ).strip()
+
+    created_at = str(
+        data.get("createdAt") or ""
+    ).strip()
+
+    last_contacted = str(
+        data.get("lastContacted") or ""
+    ).strip()
+
+    next_follow_up = str(
+        data.get("nextFollowUp") or ""
+    ).strip()
+
+    if not business_name:
+        return jsonify({
+            "error": "Business name is required"
+        }), 400
+
+    if len(business_name) > 150:
+        return jsonify({
+            "error": (
+                "Business name must be "
+                "150 characters or fewer"
+            )
+        }), 400
+
+    if len(link) > 2048:
+        return jsonify({
+            "error": (
+                "Link must be 2048 characters or fewer"
+            )
+        }), 400
+
+    if len(contact) > 254:
+        return jsonify({
+            "error": (
+                "Contact must be 254 characters or fewer"
+            )
+        }), 400
+
+    if len(priority) > 30:
+        return jsonify({
+            "error": (
+                "Priority must be 30 characters or fewer"
+            )
+        }), 400
+
+    if len(notes) > 5000:
+        return jsonify({
+            "error": (
+                "Notes must be 5000 characters or fewer"
+            )
+        }), 400
+
+    if len(status) > 50:
+        return jsonify({
+            "error": (
+                "Status must be 50 characters or fewer"
+            )
+        }), 400
+
+    if len(created_at) > 50:
+        return jsonify({
+            "error": "Invalid created date"
+        }), 400
+
+    if len(last_contacted) > 50:
+        return jsonify({
+            "error": "Invalid last contacted date"
+        }), 400
+
+    if len(next_follow_up) > 50:
+        return jsonify({
+            "error": "Invalid follow-up date"
+        }), 400
+
+    if not created_at:
+        created_at = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
     if USING_POSTGRES:
         lead = execute_query("""
             INSERT INTO leads (
-                userId, businessName, link, contact, priority, notes,
-                status, createdAt, lastContacted, nextFollowUp
+                userId,
+                businessName,
+                link,
+                contact,
+                priority,
+                notes,
+                status,
+                createdAt,
+                lastContacted,
+                nextFollowUp
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s
+            )
             RETURNING *
         """, (
             user_id,
-            data.get("businessName"),
-            data.get("link", ""),
-            data.get("contact", ""),
-            data.get("priority", "Cold"),
-            data.get("notes", ""),
-            data.get("status", "New"),
+            business_name,
+            link,
+            contact,
+            priority,
+            notes,
+            status,
             created_at,
             last_contacted,
             next_follow_up
         ), fetchone=True, commit=True)
 
         lead_dict = row_to_dict(lead)
-        business_name = get_field(
+
+        business_name_for_activity = get_field(
             lead_dict,
             "businessName",
-            data.get("businessName")
+            business_name
         )
 
         log_activity(
             user_id,
             lead_dict["id"],
             "Lead Created",
-            f"{business_name} was added to your CRM."
+            (
+                f"{business_name_for_activity} "
+                "was added to your CRM."
+            )
         )
 
         return jsonify(lead_dict), 201
@@ -2602,50 +2724,62 @@ def add_lead():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        INSERT INTO leads (
-            userId, businessName, link, contact, priority, notes,
-            status, createdAt, lastContacted, nextFollowUp
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        user_id,
-        data.get("businessName"),
-        data.get("link", ""),
-        data.get("contact", ""),
-        data.get("priority", "Cold"),
-        data.get("notes", ""),
-        data.get("status", "New"),
-        created_at,
-        last_contacted,
-        next_follow_up
-    ))
+    try:
+        cursor.execute("""
+            INSERT INTO leads (
+                userId,
+                businessName,
+                link,
+                contact,
+                priority,
+                notes,
+                status,
+                createdAt,
+                lastContacted,
+                nextFollowUp
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            business_name,
+            link,
+            contact,
+            priority,
+            notes,
+            status,
+            created_at,
+            last_contacted,
+            next_follow_up
+        ))
 
-    conn.commit()
-    lead_id = cursor.lastrowid
-    cursor.close()
-    conn.close()
+        conn.commit()
+        lead_id = cursor.lastrowid
+
+    finally:
+        cursor.close()
+        conn.close()
 
     log_activity(
         user_id,
         lead_id,
         "Lead Created",
-        f"{data.get('businessName')} was added to your CRM."
+        f"{business_name} was added to your CRM."
     )
 
     return jsonify({
         "id": lead_id,
         "userId": user_id,
-        "businessName": data.get("businessName"),
-        "link": data.get("link", ""),
-        "contact": data.get("contact", ""),
-        "priority": data.get("priority", "Cold"),
-        "notes": data.get("notes", ""),
-        "status": data.get("status", "New"),
+        "businessName": business_name,
+        "link": link,
+        "contact": contact,
+        "priority": priority,
+        "notes": notes,
+        "status": status,
         "createdAt": created_at,
         "lastContacted": last_contacted,
         "nextFollowUp": next_follow_up
     }), 201
+
 
 @app.route("/api/leads/<int:lead_id>", methods=["PUT"])
 def update_lead(lead_id):
