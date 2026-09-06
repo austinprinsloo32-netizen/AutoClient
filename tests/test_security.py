@@ -1070,3 +1070,154 @@ def test_user_can_log_activity_without_lead(
 
     assert len(activity_calls) == 1
     assert activity_calls[0]["lead_id"] is None
+
+@pytest.fixture
+def registration_client(monkeypatch):
+    """
+    Create a test client for registration validation
+    without touching the real user database.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_email",
+        lambda email: None
+    )
+
+    with autoclient.app.test_client() as client:
+        yield client
+
+
+def test_registration_rejects_name_over_100_characters(
+    registration_client
+):
+    response = registration_client.post(
+        "/api/register",
+        json={
+            "name": "A" * 101,
+            "email": "test@example.com",
+            "password": "password123"
+        },
+        environ_overrides={
+            "REMOTE_ADDR": "127.0.0.101"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Name must be 100 characters or fewer"
+    )
+
+
+def test_registration_rejects_password_under_8_characters(
+    registration_client
+):
+    response = registration_client.post(
+        "/api/register",
+        json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "password": "short"
+        },
+        environ_overrides={
+            "REMOTE_ADDR": "127.0.0.102"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Password must be at least 8 characters long"
+    )
+
+
+def test_registration_rejects_password_over_128_characters(
+    registration_client
+):
+    response = registration_client.post(
+        "/api/register",
+        json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "password": "A" * 129
+        },
+        environ_overrides={
+            "REMOTE_ADDR": "127.0.0.103"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Password must be 128 characters or fewer"
+    )
+
+
+def test_registration_rejects_email_over_254_characters(
+    registration_client
+):
+    response = registration_client.post(
+        "/api/register",
+        json={
+            "name": "Test User",
+            "email": (
+                ("a" * 246)
+                + "@example.com"
+            ),
+            "password": "password123"
+        },
+        environ_overrides={
+            "REMOTE_ADDR": "127.0.0.104"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Please enter a valid email address"
+    )
+
+
+def test_registration_rejects_invalid_email_format(
+    registration_client
+):
+    response = registration_client.post(
+        "/api/register",
+        json={
+            "name": "Test User",
+            "email": "not-an-email",
+            "password": "password123"
+        },
+        environ_overrides={
+            "REMOTE_ADDR": "127.0.0.105"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Please enter a valid email address"
+    )

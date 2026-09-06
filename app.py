@@ -769,21 +769,48 @@ def status():
 def register():
     data = request.get_json() or {}
 
-    name = data.get("name", "").strip()
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "").strip()
+    name = str(
+        data.get("name") or ""
+    ).strip()
+
+    email = str(
+        data.get("email") or ""
+    ).strip().lower()
+
+    password = str(
+        data.get("password") or ""
+    ).strip()
 
     if not name or not email or not password:
         return jsonify({
             "error": "Name, email and password are required"
         }), 400
 
+    # Prevent excessively large registration input.
+    if len(name) > 100:
+        return jsonify({
+            "error": "Name must be 100 characters or fewer"
+        }), 400
+
+    if len(email) > 254:
+        return jsonify({
+            "error": "Please enter a valid email address"
+        }), 400
+
     if len(password) < 8:
         return jsonify({
             "error": "Password must be at least 8 characters long"
         }), 400
-    
-    if len(email) > 254 or not re.fullmatch(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+
+    if len(password) > 128:
+        return jsonify({
+            "error": "Password must be 128 characters or fewer"
+        }), 400
+
+    if not re.fullmatch(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email
+    ):
         return jsonify({
             "error": "Please enter a valid email address"
         }), 400
@@ -796,7 +823,10 @@ def register():
         }), 409
 
     password_hash = generate_password_hash(password)
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    created_at = datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     if USING_POSTGRES:
         user = execute_query("""
@@ -856,11 +886,12 @@ def register():
 
     if not user:
         return jsonify({
-            "error": "Account was created but could not be loaded"
+            "error": (
+                "Account was created but "
+                "could not be loaded"
+            )
         }), 500
 
-    # IMPORTANT:
-    # Registration now creates the same Flask session as login.
     session["user_id"] = user["id"]
 
     log_activity(
@@ -876,9 +907,19 @@ def register():
             "id": user["id"],
             "name": user["name"],
             "email": user["email"],
-            "createdAt": get_field(user, "createdAt"),
-            "isAdmin": user["email"].lower() == ADMIN_EMAIL,
-            "plan": get_field(user, "plan", "free"),
+            "createdAt": get_field(
+                user,
+                "createdAt"
+            ),
+            "isAdmin": (
+                user["email"].lower()
+                == ADMIN_EMAIL
+            ),
+            "plan": get_field(
+                user,
+                "plan",
+                "free"
+            ),
             "subscriptionStatus": get_field(
                 user,
                 "subscription_status",
@@ -886,6 +927,7 @@ def register():
             )
         }
     }), 201
+
 
 @app.route("/api/login", methods=["POST"])
 @limiter.limit("5 per minute")
