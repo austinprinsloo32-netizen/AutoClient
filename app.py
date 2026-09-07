@@ -524,7 +524,7 @@ def init_db():
         "plan_updated_at",
         "TEXT"
     )
-
+init_db()
 
 def get_user_by_id(user_id):
     if not user_id:
