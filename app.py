@@ -272,7 +272,11 @@ def get_field(row, key, fallback=""):
     )
 
 
-def add_column_if_missing(table_name, column_name, column_type):
+def add_column_if_missing(
+    table_name,
+    column_name,
+    column_type
+):
     if USING_POSTGRES:
         existing = execute_query("""
             SELECT column_name
@@ -286,7 +290,11 @@ def add_column_if_missing(table_name, column_name, column_type):
 
         if not existing:
             execute_query(
-                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}",
+                (
+                    f"ALTER TABLE {table_name} "
+                    f"ADD COLUMN {column_name} "
+                    f"{column_type}"
+                ),
                 commit=True
             )
 
@@ -299,15 +307,22 @@ def add_column_if_missing(table_name, column_name, column_type):
             ).fetchall()
 
             exists = any(
-                column["name"].lower() == column_name.lower()
+                (
+                    column["name"].lower()
+                    == column_name.lower()
+                )
                 for column in columns
             )
 
             if not exists:
                 conn.execute(
-                    f"ALTER TABLE {table_name} "
-                    f"ADD COLUMN {column_name} {column_type}"
+                    (
+                        f"ALTER TABLE {table_name} "
+                        f"ADD COLUMN {column_name} "
+                        f"{column_type}"
+                    )
                 )
+
                 conn.commit()
 
         finally:
@@ -1432,12 +1447,12 @@ def create_paystack_checkout():
         return jsonify({
             "error": "Could not start Paystack checkout."
         }), 500
-    
+
 @app.route("/api/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     if not is_trusted_origin():
         return jsonify({"error": "Invalid request origin"}), 403
-    
+
     if not STRIPE_SECRET_KEY:
         return jsonify({
             "error": "Stripe billing is not configured."
@@ -1676,7 +1691,7 @@ def stripe_webhook():
         )
     except Exception:
         print("Stripe webhook verification failed")
-        
+
         return jsonify({"error": "Webhook verification failed"}), 400
 
     event_type = event["type"]
@@ -4290,13 +4305,13 @@ def send_email():
         return jsonify({
             "error": "Email sending failed"
         }), 500
-    
+
 @app.route("/api/find-leads", methods=["POST"])
 @limiter.limit("30 per hour")
 def find_leads():
     if not is_trusted_origin():
         return jsonify({"error": "Invalid request origin"}), 403
-    
+
     user_id = session.get("user_id")
 
     if not user_id:
