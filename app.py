@@ -1106,6 +1106,11 @@ def change_password():
             "error": "New password must be at least 8 characters long"
         }), 400
 
+    if len(new_password) > 128:
+        return jsonify({
+            "error": "New password must be 128 characters or fewer"
+        }), 400
+
     user = get_user_by_id(user_id)
 
     if not user:

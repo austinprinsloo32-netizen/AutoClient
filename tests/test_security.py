@@ -2737,3 +2737,37 @@ def test_paystack_callback_releases_claim_on_failure(
     assert released_references == [
         "ref_callback_retry"
     ]
+
+
+def test_change_password_rejects_password_over_128_characters(monkeypatch):
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "password": autoclient.generate_password_hash("CurrentPass123")
+        }
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        response = client.post(
+            "/api/change-password",
+            json={
+                "currentPassword": "CurrentPass123",
+                "newPassword": "A" * 129
+            }
+        )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == (
+        "New password must be 128 characters or fewer"
+    )
