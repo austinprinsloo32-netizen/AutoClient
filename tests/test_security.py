@@ -2383,3 +2383,357 @@ def test_paystack_webhook_releases_claim_on_activation_failure(
     assert released_references == [
         "ref_retry_test"
     ]
+
+@pytest.fixture
+def paystack_callback_client(monkeypatch):
+    """
+    Create an authenticated test client for the
+    Paystack callback recovery route.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "PAYSTACK_SECRET_KEY",
+        "test-paystack-secret"
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "FRONTEND_URL",
+        "https://example.com"
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_paystack_customer",
+        lambda customer_code: {
+            "subscriptions": [
+                {
+                    "status": "active",
+                    "subscription_code": "SUB_test123"
+                }
+            ]
+        }
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        yield client
+
+
+def test_paystack_callback_rejects_unverified_transaction(
+    paystack_callback_client,
+    monkeypatch
+):
+    """
+    The callback must never activate Pro when
+    Paystack cannot verify the transaction.
+    """
+
+    updates = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: None
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(kwargs)
+    )
+
+    response = paystack_callback_client.get(
+        "/paystack-callback?reference=ref_callback_bad"
+    )
+
+    assert response.status_code == 302
+
+    assert (
+        response.headers["Location"]
+        == "https://example.com/app?billing=error"
+    )
+
+    assert updates == []
+
+
+def test_paystack_callback_rejects_wrong_user(
+    paystack_callback_client,
+    monkeypatch
+):
+    """
+    A valid Paystack transaction belonging to
+    another user must never activate this account.
+    """
+
+    claims = []
+    updates = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "123456"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: claims.append(kwargs)
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(kwargs)
+    )
+
+    response = paystack_callback_client.get(
+        "/paystack-callback?reference=ref_wrong_user"
+    )
+
+    assert response.status_code == 302
+
+    assert (
+        response.headers["Location"]
+        == "https://example.com/app?billing=error"
+    )
+
+    assert claims == []
+    assert updates == []
+
+
+def test_paystack_callback_activates_valid_transaction(
+    paystack_callback_client,
+    monkeypatch
+):
+    """
+    A verified transaction belonging to the
+    logged-in user should activate Pro.
+    """
+
+    claims = []
+    updates = []
+    activities = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    def fake_claim(**kwargs):
+        claims.append(kwargs)
+        return True
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        fake_claim
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(kwargs)
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        lambda *args: activities.append(args)
+    )
+
+    response = paystack_callback_client.get(
+        "/paystack-callback?reference=ref_callback_good"
+    )
+
+    assert response.status_code == 302
+
+    assert (
+        response.headers["Location"]
+        == "https://example.com/app?billing=success"
+    )
+
+    assert len(claims) == 1
+
+    assert (
+        claims[0]["reference"]
+        == "ref_callback_good"
+    )
+
+    assert claims[0]["event_type"] == "callback"
+    assert claims[0]["user_id"] == "999999"
+
+    assert len(updates) == 1
+    assert updates[0]["user_id"] == "999999"
+    assert updates[0]["plan"] == "pro"
+
+    assert (
+        updates[0]["subscription_status"]
+        == "active"
+    )
+
+    assert len(activities) == 1
+
+
+def test_paystack_callback_does_not_repeat_activation(
+    paystack_callback_client,
+    monkeypatch
+):
+    """
+    A transaction already claimed by the webhook
+    or callback must not activate Pro twice.
+    """
+
+    updates = []
+    activities = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: False
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: updates.append(kwargs)
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        lambda *args: activities.append(args)
+    )
+
+    response = paystack_callback_client.get(
+        "/paystack-callback?reference=ref_duplicate_callback"
+    )
+
+    assert response.status_code == 302
+
+    assert (
+        response.headers["Location"]
+        == "https://example.com/app?billing=success"
+    )
+
+    assert updates == []
+    assert activities == []
+
+
+def test_paystack_callback_releases_claim_on_failure(
+    paystack_callback_client,
+    monkeypatch
+):
+    """
+    If activation fails after claiming the
+    transaction, release it so recovery can retry.
+    """
+
+    released_references = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "verify_paystack_transaction",
+        lambda reference: {
+            "status": "success",
+            "reference": reference,
+            "currency": "ZAR",
+            "amount": 19900,
+            "metadata": {
+                "plan": "pro",
+                "userId": "999999"
+            },
+            "customer": {
+                "customer_code": "CUS_test123"
+            }
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "claim_paystack_transaction",
+        lambda **kwargs: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "update_user_paystack_subscription",
+        lambda **kwargs: (
+            _ for _ in ()
+        ).throw(
+            RuntimeError(
+                "Simulated callback activation failure"
+            )
+        )
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "release_paystack_transaction",
+        lambda reference: (
+            released_references.append(reference)
+        )
+    )
+
+    response = paystack_callback_client.get(
+        "/paystack-callback?reference=ref_callback_retry"
+    )
+
+    assert response.status_code == 302
+
+    assert (
+        response.headers["Location"]
+        == "https://example.com/app?billing=error"
+    )
+
+    assert released_references == [
+        "ref_callback_retry"
+    ]

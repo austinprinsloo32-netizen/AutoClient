@@ -1396,7 +1396,12 @@ def create_paystack_checkout():
     if (
         plan_data["plan"] == "pro"
         and plan_data["subscriptionStatus"]
-        in ["active", "trialing", "non_renewing", "attention"]
+        in [
+            "active",
+            "trialing",
+            "non_renewing",
+            "attention"
+        ]
     ):
         return jsonify({
             "error": "Your Pro subscription is already active."
@@ -1406,7 +1411,9 @@ def create_paystack_checkout():
         "email": user["email"],
         "plan": PAYSTACK_PRO_PLAN_CODE,
         "currency": "ZAR",
-        "callback_url": f"{FRONTEND_URL}/app?billing=success",
+        "callback_url": (
+            f"{FRONTEND_URL}/paystack-callback"
+        ),
         "metadata": {
             "userId": str(user_id),
             "plan": "pro"
@@ -1415,9 +1422,14 @@ def create_paystack_checkout():
 
     try:
         response = requests.post(
-            "https://api.paystack.co/transaction/initialize",
+            (
+                "https://api.paystack.co/"
+                "transaction/initialize"
+            ),
             headers={
-                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                "Authorization": (
+                    f"Bearer {PAYSTACK_SECRET_KEY}"
+                ),
                 "Content-Type": "application/json"
             },
             json=payload,
@@ -1425,6 +1437,7 @@ def create_paystack_checkout():
         )
 
         response.raise_for_status()
+
         result = response.json()
 
         authorization_url = (
@@ -1434,7 +1447,10 @@ def create_paystack_checkout():
 
         if not authorization_url:
             return jsonify({
-                "error": "Paystack did not return a checkout URL."
+                "error": (
+                    "Paystack did not return "
+                    "a checkout URL."
+                )
             }), 502
 
         return jsonify({
@@ -1442,11 +1458,326 @@ def create_paystack_checkout():
         }), 200
 
     except requests.RequestException:
-        print("Paystack checkout request failed")
+        print(
+            "Paystack checkout request failed"
+        )
 
         return jsonify({
-            "error": "Could not start Paystack checkout."
+            "error": (
+                "Could not start "
+                "Paystack checkout."
+            )
         }), 500
+
+@app.route("/paystack-callback", methods=["GET"])
+def paystack_callback():
+    if not PAYSTACK_SECRET_KEY:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    session_user_id = session.get("user_id")
+
+    if not session_user_id:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=login_required"
+                )
+            }
+        )
+
+    reference = str(
+        request.args.get("reference") or ""
+    ).strip()
+
+    if not reference:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    verified_transaction = (
+        verify_paystack_transaction(
+            reference
+        )
+    )
+
+    if not verified_transaction:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    verified_status = str(
+        verified_transaction.get("status")
+        or ""
+    ).strip().lower()
+
+    verified_reference = str(
+        verified_transaction.get("reference")
+        or ""
+    ).strip()
+
+    verified_currency = str(
+        verified_transaction.get("currency")
+        or ""
+    ).strip().upper()
+
+    verified_amount = (
+        verified_transaction.get("amount")
+    )
+
+    metadata = (
+        verified_transaction.get(
+            "metadata",
+            {}
+        ) or {}
+    )
+
+    metadata_plan = str(
+        metadata.get("plan") or ""
+    ).strip().lower()
+
+    metadata_user_id = str(
+        metadata.get("userId") or ""
+    ).strip()
+
+    if verified_status != "success":
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if verified_reference != reference:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if verified_currency != "ZAR":
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if verified_amount != 19900:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if metadata_plan != "pro":
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if not metadata_user_id:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    if metadata_user_id != str(session_user_id):
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
+
+    transaction_claimed = (
+        claim_paystack_transaction(
+            reference=reference,
+            event_type="callback",
+            user_id=metadata_user_id
+        )
+    )
+
+    if not transaction_claimed:
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=success"
+                )
+            }
+        )
+
+    try:
+        customer = (
+            verified_transaction.get(
+                "customer",
+                {}
+            ) or {}
+        )
+
+        paystack_customer_code = (
+            customer.get(
+                "customer_code"
+            )
+        )
+
+        paystack_customer = (
+            get_paystack_customer(
+                paystack_customer_code
+            )
+        )
+
+        subscriptions = (
+            (paystack_customer or {}).get(
+                "subscriptions",
+                []
+            ) or []
+        )
+
+        active_subscription = next(
+            (
+                subscription
+                for subscription
+                in subscriptions
+                if subscription.get("status")
+                in [
+                    "active",
+                    "non-renewing",
+                    "attention"
+                ]
+            ),
+            None
+        )
+
+        paystack_subscription_code = None
+
+        if active_subscription:
+            paystack_subscription_code = (
+                active_subscription.get(
+                    "subscription_code"
+                )
+            )
+
+        update_user_paystack_subscription(
+            user_id=metadata_user_id,
+            plan="pro",
+            paystack_customer_code=(
+                paystack_customer_code
+            ),
+            paystack_subscription_code=(
+                paystack_subscription_code
+            ),
+            subscription_status="active"
+        )
+
+        log_activity(
+            metadata_user_id,
+            None,
+            "Subscription Activated",
+            (
+                "User upgraded to PRO plan "
+                "via verified Paystack callback."
+            )
+        )
+
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=success"
+                )
+            }
+        )
+
+    except Exception:
+        try:
+            release_paystack_transaction(
+                reference
+            )
+        except Exception:
+            print(
+                "Could not release failed "
+                "Paystack callback claim"
+            )
+
+        print(
+            "Paystack callback activation failed"
+        )
+
+        return (
+            "",
+            302,
+            {
+                "Location": (
+                    f"{FRONTEND_URL}/app"
+                    "?billing=error"
+                )
+            }
+        )
 
 @app.route("/api/create-checkout-session", methods=["POST"])
 def create_checkout_session():
