@@ -568,6 +568,19 @@ button:hover,
   color: var(--muted);
   font-size: 13px;
 }
+.table-row {
+  display: grid;
+  gap: 8px;
+}
+
+.table-row span {
+  display: block;
+}
+
+.table-row .btn {
+  width: fit-content;
+  margin-top: 4px;
+}
 
 .settings-box {
   display: grid;

@@ -4,6 +4,7 @@ import app as autoclient
 import json
 import hmac
 import hashlib
+from datetime import datetime, timedelta
 
 
 @pytest.fixture
@@ -2771,3 +2772,239 @@ def test_change_password_rejects_password_over_128_characters(monkeypatch):
     assert response.get_json()["error"] == (
         "New password must be 128 characters or fewer"
     )
+
+def test_active_beta_access_grants_pro_features():
+    future_date = (
+        datetime.now() + timedelta(days=30)
+    ).strftime("%Y-%m-%d %H:%M:%S")
+
+    user = {
+        "plan": "free",
+        "subscription_status": "inactive",
+        "beta_pro_until": future_date
+    }
+
+    plan_data = autoclient.get_user_plan_data(user)
+
+    assert plan_data["plan"] == "pro"
+    assert plan_data["planName"] == "Pro"
+    assert plan_data["subscriptionStatus"] == "beta"
+    assert plan_data["betaAccess"] is True
+
+def test_expired_beta_access_does_not_grant_pro_features():
+    expired_date = (
+        datetime.now() - timedelta(days=1)
+    ).strftime("%Y-%m-%d %H:%M:%S")
+
+    user = {
+        "plan": "free",
+        "subscription_status": "inactive",
+        "beta_pro_until": expired_date
+    }
+
+    plan_data = autoclient.get_user_plan_data(user)
+
+    assert plan_data["plan"] == "free"
+    assert plan_data["planName"] == "Free"
+    assert plan_data["subscriptionStatus"] == "inactive"
+    assert plan_data["betaAccess"] is False
+
+def test_non_admin_cannot_grant_beta_access(monkeypatch):
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_admin_user",
+        lambda user_id: False
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        response = client.post(
+            "/api/admin/users/123/grant-beta",
+            json={
+                "days": 30
+            }
+        )
+
+    assert response.status_code == 403
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Admin access required"
+
+def test_admin_can_grant_beta_access(monkeypatch):
+    autoclient.app.config["TESTING"] = True
+
+    database_calls = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_admin_user",
+        lambda user_id: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "email": "beta@example.com"
+        }
+    )
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "commit": commit
+        })
+
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 1
+
+        response = client.post(
+            "/api/admin/users/123/grant-beta",
+            json={
+                "days": 30
+            }
+        )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["message"] == "Beta Pro access granted"
+    assert data["userId"] == 123
+
+    assert len(database_calls) == 1
+    assert database_calls[0]["commit"] is True
+    assert database_calls[0]["params"][-1] == 123
+
+def test_non_admin_cannot_revoke_beta_access(monkeypatch):
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_admin_user",
+        lambda user_id: False
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        response = client.post(
+            "/api/admin/users/123/revoke-beta"
+        )
+
+    assert response.status_code == 403
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Admin access required"
+
+def test_admin_can_revoke_beta_access(monkeypatch):
+    autoclient.app.config["TESTING"] = True
+
+    database_calls = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_admin_user",
+        lambda user_id: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "email": "beta@example.com"
+        }
+    )
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "commit": commit
+        })
+
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 1
+
+        response = client.post(
+            "/api/admin/users/123/revoke-beta"
+        )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["message"] == "Beta Pro access revoked"
+    assert data["userId"] == 123
+
+    assert len(database_calls) == 1
+    assert database_calls[0]["commit"] is True
+    assert database_calls[0]["params"][-1] == 123

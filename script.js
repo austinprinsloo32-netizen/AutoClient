@@ -493,53 +493,78 @@ function renderPlanUI() {
   const settingsUserPlan = document.getElementById("settingsUserPlan");
   const subscriptionStatus = document.getElementById("subscriptionStatus");
   const planLimits = document.getElementById("planLimits");
-
-  if (planBadge) {
-    planBadge.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
-    planBadge.className = `plan-badge ${currentPlan.plan}`;
-  }
-
-  if (settingsUserPlan) {
-    settingsUserPlan.textContent = `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
-  }
-if (subscriptionStatus) {
+  const topPlanStatus = document.getElementById("topPlanStatus");
 
   const status =
     (currentPlan.subscriptionStatus || "inactive").toLowerCase();
 
-  subscriptionStatus.className = "subscription-status";
+  if (planBadge) {
+    planBadge.textContent =
+      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
 
-  if (status === "active") {
-
-    subscriptionStatus.textContent = "ACTIVE";
-    subscriptionStatus.style.color = "#22c55e";
-
+    planBadge.className =
+      `plan-badge ${currentPlan.plan}`;
   }
 
-  else if (status === "cancelled") {
-
-    subscriptionStatus.textContent = "CANCELLED";
-    subscriptionStatus.style.color = "#ef4444";
-
+  if (settingsUserPlan) {
+    settingsUserPlan.textContent =
+      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
   }
 
-  else if (status === "past_due") {
+  if (topPlanStatus) {
+    if (status === "beta") {
+      topPlanStatus.textContent = "BETA";
+    }
 
-    subscriptionStatus.textContent = "PAST DUE";
-    subscriptionStatus.style.color = "#f59e0b";
+    else if (status === "active") {
+      topPlanStatus.textContent = "LIVE";
+    }
 
+    else if (status === "cancelled") {
+      topPlanStatus.textContent = "CANCELLED";
+    }
+
+    else if (status === "past_due") {
+      topPlanStatus.textContent = "PAST DUE";
+    }
+
+    else {
+      topPlanStatus.textContent = "FREE";
+    }
   }
 
-  else {
+  if (subscriptionStatus) {
+    subscriptionStatus.className = "subscription-status";
 
-    subscriptionStatus.textContent = "FREE PLAN";
-    subscriptionStatus.style.color = "#94a3b8";
+    if (status === "active") {
+      subscriptionStatus.textContent = "ACTIVE";
+      subscriptionStatus.style.color = "#22c55e";
+    }
 
+    else if (status === "cancelled") {
+      subscriptionStatus.textContent = "CANCELLED";
+      subscriptionStatus.style.color = "#ef4444";
+    }
+
+    else if (status === "past_due") {
+      subscriptionStatus.textContent = "PAST DUE";
+      subscriptionStatus.style.color = "#f59e0b";
+    }
+
+    else if (status === "beta") {
+      subscriptionStatus.textContent = "BETA";
+      subscriptionStatus.style.color = "#38bdf8";
+    }
+
+    else {
+      subscriptionStatus.textContent = "FREE PLAN";
+      subscriptionStatus.style.color = "#94a3b8";
+    }
   }
-}
 
   if (planLimits) {
-    planLimits.textContent = `Lead limit: ${currentPlan.features.max_leads}`;
+    planLimits.textContent =
+      `Lead limit: ${currentPlan.features.max_leads}`;
   }
 }
 
@@ -3470,10 +3495,127 @@ async function loadAdminDashboard() {
       joined.textContent =
         `Joined: ${user.createdAt || user.createdat || "N/A"}`;
 
+      const betaUntil =
+        user.beta_pro_until ||
+        user.betaprountil ||
+        "";
+
+      const betaActive =
+        betaUntil &&
+        new Date(betaUntil.replace(" ", "T")) > new Date();
+
+      const betaStatus = document.createElement("span");
+
+      if (betaActive) {
+        betaStatus.textContent =
+          `Beta Pro until: ${betaUntil}`;
+      } else {
+        betaStatus.textContent = "Beta Pro: Not active";
+      }
+
+      const betaButton = document.createElement("button");
+      betaButton.type = "button";
+      betaButton.className = "btn secondary-btn";
+
+      if (betaActive) {
+        betaButton.textContent = "Revoke Beta Pro";
+
+        betaButton.addEventListener("click", async () => {
+          try {
+            betaButton.disabled = true;
+            betaButton.textContent = "Revoking...";
+
+            const response = await fetch(
+              `${BASE_URL}/api/admin/users/${user.id}/revoke-beta`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                }
+              }
+            );
+
+            const data = await readJsonResponse(response);
+
+            if (!response.ok) {
+              throw new Error(
+                data.error || "Could not revoke beta access"
+              );
+            }
+
+            showToast(
+              "Beta Pro access revoked",
+              "success"
+            );
+
+            await loadAdminDashboard();
+          } catch (error) {
+            console.error("Revoke beta error:", error);
+
+            showToast(
+              error.message || "Could not revoke beta access",
+              "error"
+            );
+
+            betaButton.disabled = false;
+            betaButton.textContent = "Revoke Beta Pro";
+          }
+        });
+      } else {
+        betaButton.textContent = "Grant Beta Pro";
+
+        betaButton.addEventListener("click", async () => {
+          try {
+            betaButton.disabled = true;
+            betaButton.textContent = "Granting...";
+
+            const response = await fetch(
+              `${BASE_URL}/api/admin/users/${user.id}/grant-beta`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  days: 30
+                })
+              }
+            );
+
+            const data = await readJsonResponse(response);
+
+            if (!response.ok) {
+              throw new Error(
+                data.error || "Could not grant beta access"
+              );
+            }
+
+            showToast(
+              `Beta Pro granted until ${data.betaProUntil}`,
+              "success"
+            );
+
+            await loadAdminDashboard();
+          } catch (error) {
+            console.error("Grant beta error:", error);
+
+            showToast(
+              error.message || "Could not grant beta access",
+              "error"
+            );
+
+            betaButton.disabled = false;
+            betaButton.textContent = "Grant Beta Pro";
+          }
+        });
+      }
+
       div.appendChild(name);
       div.appendChild(email);
       div.appendChild(plan);
       div.appendChild(joined);
+      div.appendChild(betaStatus);
+      div.appendChild(betaButton);
 
       adminUsersList.appendChild(div);
     });

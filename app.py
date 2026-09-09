@@ -2,7 +2,7 @@ import re
 import os
 import secrets
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import hashlib
 import hmac
@@ -524,6 +524,20 @@ def init_db():
         "plan_updated_at",
         "TEXT"
     )
+
+    add_column_if_missing(
+        "users",
+        "beta_pro_granted_at",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "beta_pro_until",
+        "TEXT"
+    )
+
+
 init_db()
 
 def get_user_by_id(user_id):
@@ -600,19 +614,67 @@ def get_user_by_email(email):
 
 
 def get_user_plan_data(user):
-    plan = normalize_plan(get_field(user, "plan", "free") if user else "free")
+    plan = normalize_plan(
+        get_field(user, "plan", "free") if user else "free"
+    )
+
+    beta_pro_until = (
+        get_field(user, "beta_pro_until", "")
+        if user
+        else ""
+    )
+
+    beta_active = False
+
+    if beta_pro_until:
+        try:
+            beta_expiry = datetime.strptime(
+                beta_pro_until,
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            beta_active = datetime.now() < beta_expiry
+        except (TypeError, ValueError):
+            beta_active = False
+
+    effective_plan = "pro" if beta_active else plan
 
     return {
-        "plan": plan,
-        "planName": PLAN_LIMITS[plan]["name"],
-        "subscriptionStatus": get_field(user, "subscription_status", "inactive") if user else "inactive",
-        "stripeCustomerId": get_field(user, "stripe_customer_id", "") if user else "",
-        "stripeSubscriptionId": get_field(user, "stripe_subscription_id", "") if user else "",
-        "paystackCustomerCode": get_field(user, "paystack_customer_code", "") if user else "",
-        "paystackSubscriptionCode": get_field(user, "paystack_subscription_code", "") if user else "",
-        "features": PLAN_LIMITS[plan]
+        "plan": effective_plan,
+        "planName": PLAN_LIMITS[effective_plan]["name"],
+        "subscriptionStatus": (
+            "beta"
+            if beta_active
+            else get_field(
+                user,
+                "subscription_status",
+                "inactive"
+            )
+        ),
+        "betaAccess": beta_active,
+        "betaProUntil": beta_pro_until,
+        "stripeCustomerId": get_field(
+            user,
+            "stripe_customer_id",
+            ""
+        ) if user else "",
+        "stripeSubscriptionId": get_field(
+            user,
+            "stripe_subscription_id",
+            ""
+        ) if user else "",
+        "paystackCustomerCode": get_field(
+            user,
+            "paystack_customer_code",
+            ""
+        ) if user else "",
+        "paystackSubscriptionCode": get_field(
+            user,
+            "paystack_subscription_code",
+            ""
+        ) if user else "",
+        "features": PLAN_LIMITS[effective_plan]
     }
-
 
 def user_has_feature(user_id, feature_name):
     user = get_user_by_id(user_id)
@@ -4754,9 +4816,17 @@ def admin_users():
         return jsonify({"error": "Admin access required"}), 403
 
     users = execute_query("""
-        SELECT id, name, email, createdAt, plan, subscription_status
-        FROM users
-        ORDER BY id DESC
+        SELECT
+    id,
+    name,
+    email,
+    createdAt,
+    plan,
+    subscription_status,
+    beta_pro_granted_at,
+    beta_pro_until
+FROM users
+ORDER BY id DESC
     """, fetchall=True)
 
     return jsonify([row_to_dict(user) for user in users])
@@ -4780,6 +4850,109 @@ def admin_leads():
     """, fetchall=True)
 
     return jsonify([row_to_dict(lead) for lead in leads])
+
+@app.route(
+    "/api/admin/users/<int:target_user_id>/grant-beta",
+    methods=["POST"]
+)
+def admin_grant_beta(target_user_id):
+    admin_user_id = session.get("user_id")
+
+    if not admin_user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if not is_admin_user(admin_user_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    data = request.get_json(silent=True) or {}
+    days = data.get("days", 30)
+
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid beta duration"}), 400
+
+    if days < 1 or days > 90:
+        return jsonify({
+            "error": "Beta duration must be between 1 and 90 days"
+        }), 400
+
+    target_user = get_user_by_id(target_user_id)
+
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    now = datetime.now()
+    beta_until = now + timedelta(days=days)
+
+    p = placeholder()
+
+    execute_query(
+        f"""
+        UPDATE users
+        SET beta_pro_granted_at = {p},
+            beta_pro_until = {p}
+        WHERE id = {p}
+        """,
+        (
+            now.strftime("%Y-%m-%d %H:%M:%S"),
+            beta_until.strftime("%Y-%m-%d %H:%M:%S"),
+            target_user_id
+        ),
+        commit=True
+    )
+
+    return jsonify({
+        "message": "Beta Pro access granted",
+        "userId": target_user_id,
+        "betaProUntil": beta_until.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    }), 200
+
+@app.route(
+    "/api/admin/users/<int:target_user_id>/revoke-beta",
+    methods=["POST"]
+)
+def admin_revoke_beta(target_user_id):
+    admin_user_id = session.get("user_id")
+
+    if not admin_user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    if not is_admin_user(admin_user_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    target_user = get_user_by_id(target_user_id)
+
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    p = placeholder()
+
+    execute_query(
+        f"""
+        UPDATE users
+        SET beta_pro_granted_at = NULL,
+            beta_pro_until = NULL
+        WHERE id = {p}
+        """,
+        (
+            target_user_id,
+        ),
+        commit=True
+    )
+
+    return jsonify({
+        "message": "Beta Pro access revoked",
+        "userId": target_user_id
+    }), 200
 
 @app.route("/<path:path>")
 def serve_static(path):
