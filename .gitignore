@@ -19,3 +19,6 @@ Thumbs.db
 autoclient.db
 autoclient.db-shm
 autoclient.db-wal
+autoclient-recovery-*.db-shm
+autoclient-recovery-*.db-wal
+restore_to_postgres.py
