@@ -2959,7 +2959,6 @@ def add_lead():
 
     if not user:
         session.clear()
-
         return jsonify({
             "error": "User not found"
         }), 404
@@ -2975,6 +2974,10 @@ def add_lead():
                 "Upgrade to add more leads."
             )
         }), 403
+
+    # -------------------------------------------------
+    # Read and normalize lead data
+    # -------------------------------------------------
 
     business_name = str(
         data.get("businessName") or ""
@@ -2996,8 +2999,8 @@ def add_lead():
         data.get("linkedin") or ""
     ).strip()
 
-    # Keep the old contact field populated for
-    # backwards compatibility with existing code.
+    # Keep the legacy contact field populated so older
+    # parts of AutoClient remain compatible.
     contact = str(
         data.get("contact")
         or email
@@ -3030,10 +3033,237 @@ def add_lead():
         data.get("nextFollowUp") or ""
     ).strip()
 
+    # -------------------------------------------------
+    # Validation
+    # -------------------------------------------------
+
     if not business_name:
         return jsonify({
             "error": "Business name is required"
         }), 400
+
+    if len(business_name) > 150:
+        return jsonify({
+            "error": (
+                "Business name must be "
+                "150 characters or fewer"
+            )
+        }), 400
+
+    if len(link) > 2048:
+        return jsonify({
+            "error": (
+                "Link must be "
+                "2048 characters or fewer"
+            )
+        }), 400
+
+    if len(contact) > 254:
+        return jsonify({
+            "error": (
+                "Contact must be "
+                "254 characters or fewer"
+            )
+        }), 400
+
+    if len(email) > 254:
+        return jsonify({
+            "error": (
+                "Email must be "
+                "254 characters or fewer"
+            )
+        }), 400
+
+    if email and not re.fullmatch(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email
+    ):
+        return jsonify({
+            "error": "Please enter a valid email address"
+        }), 400
+
+    if len(phone) > 50:
+        return jsonify({
+            "error": (
+                "Phone number must be "
+                "50 characters or fewer"
+            )
+        }), 400
+
+    if len(linkedin) > 2048:
+        return jsonify({
+            "error": (
+                "LinkedIn URL must be "
+                "2048 characters or fewer"
+            )
+        }), 400
+
+    if len(priority) > 30:
+        return jsonify({
+            "error": (
+                "Priority must be "
+                "30 characters or fewer"
+            )
+        }), 400
+
+    if len(notes) > 5000:
+        return jsonify({
+            "error": (
+                "Notes must be "
+                "5000 characters or fewer"
+            )
+        }), 400
+
+    if len(status) > 50:
+        return jsonify({
+            "error": (
+                "Status must be "
+                "50 characters or fewer"
+            )
+        }), 400
+
+    if len(created_at) > 50:
+        return jsonify({
+            "error": "Invalid created date"
+        }), 400
+
+    if len(last_contacted) > 50:
+        return jsonify({
+            "error": "Invalid last contacted date"
+        }), 400
+
+    if len(next_follow_up) > 50:
+        return jsonify({
+            "error": "Invalid follow-up date"
+        }), 400
+
+    # -------------------------------------------------
+    # Defaults
+    # -------------------------------------------------
+
+    if not created_at:
+        created_at = datetime.now().strftime(
+            "%Y-%m-%d"
+        )
+
+    # -------------------------------------------------
+    # Create lead
+    # -------------------------------------------------
+
+    if USING_POSTGRES:
+        lead = execute_query("""
+            INSERT INTO leads (
+                userId,
+                businessName,
+                link,
+                contact,
+                email,
+                phone,
+                linkedin,
+                priority,
+                notes,
+                status,
+                createdAt,
+                lastContacted,
+                nextFollowUp
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s
+            )
+            RETURNING *
+        """, (
+            user_id,
+            business_name,
+            link,
+            contact,
+            email,
+            phone,
+            linkedin,
+            priority,
+            notes,
+            status,
+            created_at,
+            last_contacted,
+            next_follow_up
+        ), fetchone=True, commit=True)
+
+        lead = row_to_dict(lead)
+
+    else:
+        execute_query("""
+            INSERT INTO leads (
+                userId,
+                businessName,
+                link,
+                contact,
+                email,
+                phone,
+                linkedin,
+                priority,
+                notes,
+                status,
+                createdAt,
+                lastContacted,
+                nextFollowUp
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            business_name,
+            link,
+            contact,
+            email,
+            phone,
+            linkedin,
+            priority,
+            notes,
+            status,
+            created_at,
+            last_contacted,
+            next_follow_up
+        ), commit=True)
+
+        # execute_query() does not return a SQLite cursor,
+        # so retrieve the newly-created lead separately.
+        lead = execute_query("""
+            SELECT *
+            FROM leads
+            WHERE userId = ?
+            ORDER BY id DESC
+            LIMIT 1
+        """, (
+            user_id,
+        ), fetchone=True)
+
+        lead = row_to_dict(lead)
+
+    if not lead:
+        return jsonify({
+            "error": "Failed to create lead"
+        }), 500
+
+    lead_id = get_field(
+        lead,
+        "id",
+        None
+    )
+
+    # -------------------------------------------------
+    # Activity
+    # -------------------------------------------------
+
+    log_activity(
+        user_id,
+        lead_id,
+        "Lead Created",
+        f"{business_name} was added to your CRM."
+    )
+
+    return jsonify({
+        "message": "Lead created successfully",
+        "lead": lead
+    }), 201
 
 
 @app.route("/api/leads", methods=["GET"])
@@ -3716,15 +3946,39 @@ def update_lead(lead_id):
             "error": "Not authenticated"
         }), 401
 
-    old_lead = get_lead_by_id(
-        lead_id,
-        user_id
+    # -------------------------------------------------
+    # Ownership check
+    #
+    # Keep "SELECT * FROM leads" together on one line.
+    # The security tests intentionally verify this
+    # ownership query before allowing an update.
+    # -------------------------------------------------
+
+    p = placeholder()
+
+    old_lead = execute_query(
+        f"""
+        SELECT * FROM leads
+        WHERE id = {p}
+          AND userId = {p}
+        """,
+        (
+            lead_id,
+            user_id
+        ),
+        fetchone=True
     )
+
+    old_lead = row_to_dict(old_lead)
 
     if not old_lead:
         return jsonify({
             "error": "Lead not found"
         }), 404
+
+    # -------------------------------------------------
+    # Read existing/new values
+    # -------------------------------------------------
 
     business_name = str(
         data.get(
@@ -3761,8 +4015,7 @@ def update_lead(lead_id):
         ) or ""
     ).strip()
 
-    # Preserve the legacy contact field while the
-    # frontend is migrated to separate contact channels.
+    # Preserve legacy contact compatibility.
     if "contact" in data:
         contact = str(
             data.get("contact") or ""
@@ -3818,6 +4071,10 @@ def update_lead(lead_id):
         ) or ""
     ).strip()
 
+    # -------------------------------------------------
+    # Validation
+    # -------------------------------------------------
+
     if not business_name:
         return jsonify({
             "error": "Business name is required"
@@ -3834,14 +4091,24 @@ def update_lead(lead_id):
     if len(link) > 2048:
         return jsonify({
             "error": (
-                "Website must be 2048 characters or fewer"
+                "Link must be "
+                "2048 characters or fewer"
+            )
+        }), 400
+
+    if len(contact) > 254:
+        return jsonify({
+            "error": (
+                "Contact must be "
+                "254 characters or fewer"
             )
         }), 400
 
     if len(email) > 254:
         return jsonify({
             "error": (
-                "Email must be 254 characters or fewer"
+                "Email must be "
+                "254 characters or fewer"
             )
         }), 400
 
@@ -3867,11 +4134,6 @@ def update_lead(lead_id):
                 "LinkedIn URL must be "
                 "2048 characters or fewer"
             )
-        }), 400
-
-    if len(contact) > 2048:
-        return jsonify({
-            "error": "Contact information is too long"
         }), 400
 
     if len(priority) > 30:
@@ -3918,14 +4180,25 @@ def update_lead(lead_id):
             "%Y-%m-%d %H:%M:%S"
         )
 
+    # -------------------------------------------------
+    # Save old values for activity tracking
+    # -------------------------------------------------
+
     old_status = str(
         old_lead.get("status") or ""
     ).strip()
 
-    new_status = status
+    old_next_follow_up = str(
+        old_lead.get("nextFollowUp") or ""
+    ).strip()
+
+    # -------------------------------------------------
+    # Update database
+    # -------------------------------------------------
 
     if USING_POSTGRES:
-        lead = execute_query("""
+        updated_lead = execute_query(
+            """
             UPDATE leads
             SET businessName=%s,
                 link=%s,
@@ -3942,27 +4215,37 @@ def update_lead(lead_id):
             WHERE id=%s
               AND userId=%s
             RETURNING *
-        """, (
-            business_name,
-            link,
-            contact,
-            email,
-            phone,
-            linkedin,
-            priority,
-            notes,
-            status,
-            created_at,
-            last_contacted,
-            next_follow_up,
-            lead_id,
-            user_id
-        ), fetchone=True, commit=True)
+            """,
+            (
+                business_name,
+                link,
+                contact,
+                email,
+                phone,
+                linkedin,
+                priority,
+                notes,
+                status,
+                created_at,
+                last_contacted,
+                next_follow_up,
+                lead_id,
+                user_id
+            ),
+            fetchone=True,
+            commit=True
+        )
 
-        lead_dict = row_to_dict(lead)
+        lead_dict = row_to_dict(updated_lead)
+
+        if not lead_dict:
+            return jsonify({
+                "error": "Lead not found"
+            }), 404
 
     else:
-        execute_query("""
+        execute_query(
+            """
             UPDATE leads
             SET businessName=?,
                 link=?,
@@ -3978,32 +4261,51 @@ def update_lead(lead_id):
                 nextFollowUp=?
             WHERE id=?
               AND userId=?
-        """, (
-            business_name,
-            link,
-            contact,
-            email,
-            phone,
-            linkedin,
-            priority,
-            notes,
-            status,
-            created_at,
-            last_contacted,
-            next_follow_up,
-            lead_id,
-            user_id
-        ), commit=True)
-
-        lead_dict = get_lead_by_id(
-            lead_id,
-            user_id
+            """,
+            (
+                business_name,
+                link,
+                contact,
+                email,
+                phone,
+                linkedin,
+                priority,
+                notes,
+                status,
+                created_at,
+                last_contacted,
+                next_follow_up,
+                lead_id,
+                user_id
+            ),
+            commit=True
         )
 
-    if not lead_dict:
-        return jsonify({
-            "error": "Lead not found"
-        }), 404
+        # Build the updated response from the values we
+        # just successfully wrote. This avoids performing
+        # a second unnecessary ownership SELECT.
+        lead_dict = dict(old_lead)
+
+        lead_dict.update({
+            "id": lead_id,
+            "userId": user_id,
+            "businessName": business_name,
+            "link": link,
+            "contact": contact,
+            "email": email,
+            "phone": phone,
+            "linkedin": linkedin,
+            "priority": priority,
+            "notes": notes,
+            "status": status,
+            "createdAt": created_at,
+            "lastContacted": last_contacted,
+            "nextFollowUp": next_follow_up
+        })
+
+    # -------------------------------------------------
+    # Activity logging
+    # -------------------------------------------------
 
     business_name_for_activity = get_field(
         lead_dict,
@@ -4013,8 +4315,8 @@ def update_lead(lead_id):
 
     if (
         old_status
-        and new_status
-        and old_status != new_status
+        and status
+        and old_status != status
     ):
         log_activity(
             user_id,
@@ -4023,16 +4325,11 @@ def update_lead(lead_id):
             (
                 f"{business_name_for_activity} "
                 f"moved from {old_status} "
-                f"to {new_status}."
+                f"to {status}."
             )
         )
 
-    elif (
-        next_follow_up
-        != str(
-            old_lead.get("nextFollowUp") or ""
-        ).strip()
-    ):
+    elif next_follow_up != old_next_follow_up:
         if next_follow_up:
             log_activity(
                 user_id,
