@@ -354,6 +354,27 @@ function normalizeLead(lead) {
       lead.link ??
       "",
 
+    /*
+     * Contact Channels
+     */
+
+    email:
+      lead.email ??
+      "",
+
+    phone:
+      lead.phone ??
+      "",
+
+    linkedin:
+      lead.linkedin ??
+      "",
+
+    /*
+     * Legacy contact field.
+     * Kept for backwards compatibility with older leads.
+     */
+
     contact:
       lead.contact ??
       "",
@@ -489,27 +510,61 @@ async function loadUserPlan() {
 }
 
 function renderPlanUI() {
-  const planBadge = document.getElementById("planBadge");
-  const settingsUserPlan = document.getElementById("settingsUserPlan");
-  const subscriptionStatus = document.getElementById("subscriptionStatus");
-  const planLimits = document.getElementById("planLimits");
-  const topPlanStatus = document.getElementById("topPlanStatus");
+  const planBadge =
+    document.getElementById("planBadge");
+
+  const settingsUserPlan =
+    document.getElementById("settingsUserPlan");
+
+  const subscriptionStatus =
+    document.getElementById("subscriptionStatus");
+
+  const planLimits =
+    document.getElementById("planLimits");
+
+  const topPlanStatus =
+    document.getElementById("topPlanStatus");
 
   const status =
-    (currentPlan.subscriptionStatus || "inactive").toLowerCase();
+    (
+      currentPlan.subscriptionStatus ||
+      "inactive"
+    ).toLowerCase();
+
+  const plan =
+    (
+      currentPlan.plan ||
+      "free"
+    ).toLowerCase();
+
+  const planName =
+    currentPlan.planName ||
+    plan.toUpperCase();
+
+  // -----------------------------------------
+  // PLAN BADGE
+  // -----------------------------------------
 
   if (planBadge) {
     planBadge.textContent =
-      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+      `${planName} PLAN`;
 
     planBadge.className =
-      `plan-badge ${currentPlan.plan}`;
+      `plan-badge ${plan}`;
   }
+
+  // -----------------------------------------
+  // SETTINGS PLAN NAME
+  // -----------------------------------------
 
   if (settingsUserPlan) {
     settingsUserPlan.textContent =
-      `${currentPlan.planName || currentPlan.plan.toUpperCase()} PLAN`;
+      `${planName} PLAN`;
   }
+
+  // -----------------------------------------
+  // TOP ACCOUNT STATUS
+  // -----------------------------------------
 
   if (topPlanStatus) {
     if (status === "beta") {
@@ -520,6 +575,10 @@ function renderPlanUI() {
       topPlanStatus.textContent = "LIVE";
     }
 
+    else if (status === "non_renewing") {
+      topPlanStatus.textContent = "NON-RENEWING";
+    }
+
     else if (status === "cancelled") {
       topPlanStatus.textContent = "CANCELLED";
     }
@@ -528,39 +587,86 @@ function renderPlanUI() {
       topPlanStatus.textContent = "PAST DUE";
     }
 
+    else if (plan === "pro") {
+      // Never incorrectly label an effective Pro
+      // account as FREE just because its provider
+      // returned an unfamiliar subscription status.
+      topPlanStatus.textContent = "PRO";
+    }
+
     else {
       topPlanStatus.textContent = "FREE";
     }
   }
 
+  // -----------------------------------------
+  // SETTINGS SUBSCRIPTION STATUS
+  // -----------------------------------------
+
   if (subscriptionStatus) {
-    subscriptionStatus.className = "subscription-status";
+    subscriptionStatus.className =
+      "subscription-status";
 
     if (status === "active") {
-      subscriptionStatus.textContent = "ACTIVE";
-      subscriptionStatus.style.color = "#22c55e";
+      subscriptionStatus.textContent =
+        "ACTIVE";
+
+      subscriptionStatus.style.color =
+        "#22c55e";
+    }
+
+    else if (status === "non_renewing") {
+      subscriptionStatus.textContent =
+        "NON-RENEWING";
+
+      subscriptionStatus.style.color =
+        "#f59e0b";
     }
 
     else if (status === "cancelled") {
-      subscriptionStatus.textContent = "CANCELLED";
-      subscriptionStatus.style.color = "#ef4444";
+      subscriptionStatus.textContent =
+        "CANCELLED";
+
+      subscriptionStatus.style.color =
+        "#ef4444";
     }
 
     else if (status === "past_due") {
-      subscriptionStatus.textContent = "PAST DUE";
-      subscriptionStatus.style.color = "#f59e0b";
+      subscriptionStatus.textContent =
+        "PAST DUE";
+
+      subscriptionStatus.style.color =
+        "#f59e0b";
     }
 
     else if (status === "beta") {
-      subscriptionStatus.textContent = "BETA";
-      subscriptionStatus.style.color = "#38bdf8";
+      subscriptionStatus.textContent =
+        "BETA";
+
+      subscriptionStatus.style.color =
+        "#38bdf8";
+    }
+
+    else if (plan === "pro") {
+      subscriptionStatus.textContent =
+        "PRO";
+
+      subscriptionStatus.style.color =
+        "#22c55e";
     }
 
     else {
-      subscriptionStatus.textContent = "FREE PLAN";
-      subscriptionStatus.style.color = "#94a3b8";
+      subscriptionStatus.textContent =
+        "FREE PLAN";
+
+      subscriptionStatus.style.color =
+        "#94a3b8";
     }
   }
+
+  // -----------------------------------------
+  // PLAN LIMIT
+  // -----------------------------------------
 
   if (planLimits) {
     planLimits.textContent =
@@ -1109,6 +1215,12 @@ function showPage(pageId) {
   if (sidebar) {
     sidebar.classList.remove("open");
   }
+
+  window.scrollTo({
+  top: 0,
+  left: 0,
+  behavior: "instant"
+  });
 }
 
 navLinks.forEach(link => {
@@ -1443,17 +1555,27 @@ function renderAnalytics() {
           and sales performance reporting.
         </p>
 
-        <button class="primary-btn upgrade-pro-btn">
+        <button
+          type="button"
+          class="primary-btn upgrade-pro-btn"
+        >
           Upgrade to Pro
         </button>
       </div>
     `;
-    const upgradeButton = leadList.querySelector(".upgrade-pro-btn");
+
+    const upgradeButton =
+      analyticsGrid.querySelector(
+        ".upgrade-pro-btn"
+      );
 
     if (upgradeButton) {
-      upgradeButton.addEventListener("click", () => {
-        showPage("settingsPage");
-      });
+      upgradeButton.addEventListener(
+        "click",
+        () => {
+          showPage("settingsPage");
+        }
+      );
     }
 
     return;
@@ -1462,28 +1584,51 @@ function renderAnalytics() {
   const total = leads.length;
 
   const contacted =
-    leads.filter(lead => lead.status === "Contacted").length;
+    leads.filter(
+      (lead) => lead.status === "Contacted"
+    ).length;
 
   const interested =
-    leads.filter(lead => lead.status === "Interested").length;
+    leads.filter(
+      (lead) => lead.status === "Interested"
+    ).length;
 
   const closed =
-    leads.filter(lead => lead.status === "Closed").length;
+    leads.filter(
+      (lead) => lead.status === "Closed"
+    ).length;
 
   const overdue =
-    leads.filter(lead => isOverdue(lead.nextFollowUp)).length;
+    leads.filter(
+      (lead) => isOverdue(lead.nextFollowUp)
+    ).length;
 
   const hot =
-    leads.filter(lead => getLeadScore(lead).level === "hot").length;
+    leads.filter(
+      (lead) =>
+        getLeadScore(lead).level === "hot"
+    ).length;
 
   const contactedRate =
-    total ? Math.round((contacted / total) * 100) : 0;
+    total
+      ? Math.round(
+          (contacted / total) * 100
+        )
+      : 0;
 
   const interestedRate =
-    total ? Math.round((interested / total) * 100) : 0;
+    total
+      ? Math.round(
+          (interested / total) * 100
+        )
+      : 0;
 
   const closeRate =
-    total ? Math.round((closed / total) * 100) : 0;
+    total
+      ? Math.round(
+          (closed / total) * 100
+        )
+      : 0;
 
   analyticsGrid.innerHTML = `
     <div class="analytics-item">
@@ -1565,54 +1710,136 @@ function getFilteredLeads() {
     });
 }
 
-const openLeadDrawerBtn = document.getElementById("openLeadDrawerBtn");
-const closeLeadDrawerBtn = document.getElementById("closeLeadDrawer");
-const cancelLeadDrawerBtn = document.getElementById("cancelLeadDrawerBtn");
-const leadDrawer = document.getElementById("leadDrawer");
-const leadDrawerOverlay = document.getElementById("leadDrawerOverlay");
-const leadDrawerTitle = document.getElementById("leadDrawerTitle");
-const leadDrawerSubtitle = document.getElementById("leadDrawerSubtitle");
+const openLeadDrawerBtn =
+  document.getElementById("openLeadDrawerBtn");
+
+const closeLeadDrawerBtn =
+  document.getElementById("closeLeadDrawer");
+
+const cancelLeadDrawerBtn =
+  document.getElementById("cancelLeadDrawerBtn");
+
+const leadDrawer =
+  document.getElementById("leadDrawer");
+
+const leadDrawerOverlay =
+  document.getElementById("leadDrawerOverlay");
+
+const leadDrawerTitle =
+  document.getElementById("leadDrawerTitle");
+
+const leadDrawerSubtitle =
+  document.getElementById("leadDrawerSubtitle");
+
 
 function openLeadDrawer(mode = "add") {
-  if (!leadDrawer || !leadDrawerOverlay) return;
+  if (!leadDrawer || !leadDrawerOverlay) {
+    return;
+  }
 
   if (mode === "add") {
     editIndex = null;
-    leadForm.reset();
 
-    leadDrawerTitle.textContent = "Add Lead";
-    leadDrawerSubtitle.textContent = "Create a new prospect in your CRM.";
-    leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
+    if (leadForm) {
+      leadForm.reset();
+    }
+
+    if (leadDrawerTitle) {
+      leadDrawerTitle.textContent =
+        "Add Lead";
+    }
+
+    if (leadDrawerSubtitle) {
+      leadDrawerSubtitle.textContent =
+        "Create a new prospect in your CRM.";
+    }
+
+    const submitButton =
+      leadForm?.querySelector(
+        "button[type='submit']"
+      );
+
+    if (submitButton) {
+      submitButton.textContent =
+        "Add Lead";
+    }
   }
 
-  leadDrawer.classList.add("open");
   leadDrawerOverlay.classList.add("open");
 
-  leadDrawer.setAttribute("aria-hidden", "false");
-  leadDrawerOverlay.setAttribute("aria-hidden", "false");
+  leadDrawerOverlay.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+  document.body.style.overflow = "hidden";
 
   setTimeout(() => {
-    document.getElementById("businessName")?.focus();
-  }, 150);
+    document
+      .getElementById("businessName")
+      ?.focus();
+  }, 100);
 }
+
 
 function closeLeadDrawer() {
-  if (!leadDrawer || !leadDrawerOverlay) return;
+  if (!leadDrawerOverlay) {
+    return;
+  }
 
-  leadDrawer.classList.remove("open");
   leadDrawerOverlay.classList.remove("open");
 
-  leadDrawer.setAttribute("aria-hidden", "true");
-  leadDrawerOverlay.setAttribute("aria-hidden", "true");
+  leadDrawerOverlay.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+  document.body.style.overflow = "";
 }
 
-openLeadDrawerBtn?.addEventListener("click", () => {
-  openLeadDrawer("add");
-});
 
-closeLeadDrawerBtn?.addEventListener("click", closeLeadDrawer);
-cancelLeadDrawerBtn?.addEventListener("click", closeLeadDrawer);
-leadDrawerOverlay?.addEventListener("click", closeLeadDrawer);
+openLeadDrawerBtn?.addEventListener(
+  "click",
+  () => {
+    openLeadDrawer("add");
+  }
+);
+
+
+closeLeadDrawerBtn?.addEventListener(
+  "click",
+  closeLeadDrawer
+);
+
+
+cancelLeadDrawerBtn?.addEventListener(
+  "click",
+  closeLeadDrawer
+);
+
+
+leadDrawerOverlay?.addEventListener(
+  "click",
+  (event) => {
+    if (event.target === leadDrawerOverlay) {
+      closeLeadDrawer();
+    }
+  }
+);
+
+
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (
+      event.key === "Escape" &&
+      leadDrawerOverlay?.classList.contains("open")
+    ) {
+      closeLeadDrawer();
+    }
+  }
+);
+
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
@@ -1660,9 +1887,8 @@ function renderLeads() {
   leadList.innerHTML = "";
 
   const filteredLeads = getFilteredLeads();
-  const leadCountSummary = document.getElementById(
-    "leadCountSummary"
-  );
+  const leadCountSummary =
+    document.getElementById("leadCountSummary");
 
   if (leadCountSummary) {
     const total = leads.length;
@@ -1676,10 +1902,10 @@ function renderLeads() {
         : `• Showing ${visible} of ${total} leads`;
   }
 
+  // Empty CRM state
   if (leads.length === 0) {
     leadList.innerHTML = `
       <div class="locked-feature-card">
-
         <div class="locked-feature-icon">🚀</div>
 
         <h3>Start Building Your CRM</h3>
@@ -1698,7 +1924,6 @@ function renderLeads() {
             justify-content:center;
           "
         >
-
           <button class="primary-btn add-first-lead-btn">
             Add First Lead
           </button>
@@ -1706,9 +1931,7 @@ function renderLeads() {
           <button class="secondary-btn open-lead-finder-btn">
             Open Lead Finder
           </button>
-
         </div>
-
       </div>
     `;
 
@@ -1718,672 +1941,820 @@ function renderLeads() {
     const openLeadFinderButton =
       leadList.querySelector(".open-lead-finder-btn");
 
-    if (addFirstLeadButton) {
-      addFirstLeadButton.addEventListener(
-        "click",
-        () => {
-          openLeadDrawer("add");
-        }
-      );
-    }
+    addFirstLeadButton?.addEventListener(
+      "click",
+      () => openLeadDrawer("add")
+    );
 
-    if (openLeadFinderButton) {
-      openLeadFinderButton.addEventListener(
-        "click",
-        () => {
-          showPage("dashboardPage");
-        }
-      );
-    }
+    openLeadFinderButton?.addEventListener(
+      "click",
+      () => showPage("dashboardPage")
+    );
 
     return;
   }
 
+  // No search/filter matches
   if (filteredLeads.length === 0) {
-    leadList.innerHTML =
-      `<p>No leads match your search or filter.</p>`;
-
-    return;
-  }
-
-  filteredLeads.forEach(({ lead, index }) => {
-    const div = document.createElement("div");
-
-    const score = getLeadScore(lead);
-
-    const safeBusinessName = escapeHTML(
-      lead.businessName || "Unnamed Lead"
-    );
-
-    const safeStatus = escapeHTML(
-      lead.status || "New"
-    );
-
-    const safePriority = escapeHTML(
-      lead.priority || "Cold"
-    );
-
-    const safeContact = escapeHTML(
-      lead.contact || "No contact added"
-    );
-
-    const safeNextFollowUp = escapeHTML(
-      lead.nextFollowUp || "Not scheduled"
-    );
-
-    const safeLastContacted = escapeHTML(
-      lead.lastContacted || "Not yet"
-    );
-
-    const safeNotes = escapeHTML(
-      lead.notes || ""
-    );
-
-    const safeScoreLabel = escapeHTML(
-      score.label || ""
-    );
-
-    const safeScoreReason = escapeHTML(
-      score.reason || ""
-    );
-
-    const safeScoreLevel =
-      ["hot", "warm", "cold"].includes(score.level)
-        ? score.level
-        : "cold";
-
-    const safeScore =
-      Number.isFinite(Number(score.score))
-        ? Number(score.score)
-        : 0;
-
-    const safeLink =
-      sanitizeExternalUrl(lead.link);
-
-    const safeLinkAttribute =
-      escapeHTML(safeLink);
-
-    const safeAiSummary = escapeHTML(
-      lead.aiSummary || ""
-    );
-
-    const safeAiOpportunity = escapeHTML(
-      lead.aiOpportunity || ""
-    );
-
-    const safeAiRecommendedApproach = escapeHTML(
-      lead.aiRecommendedApproach || ""
-    );
-
-    const safeAiBestChannel = escapeHTML(
-      lead.aiBestChannel || ""
-    );
-
-    const safeAiNextAction = escapeHTML(
-      lead.aiNextAction || ""
-    );
-
-    const safeAiConfidence = escapeHTML(
-      lead.aiConfidence || ""
-    );
-
-    const safeAiLastAnalyzed = escapeHTML(
-      lead.aiLastAnalyzed || ""
-    );
-
-    const safeAiScore =
-      Number.isFinite(Number(lead.aiScore))
-        ? Math.max(
-            0,
-            Math.min(100, Number(lead.aiScore))
-          )
-        : 0;
-
-    const hasLeadIntelligence = Boolean(
-      lead.aiSummary ||
-      lead.aiOpportunity ||
-      lead.aiRecommendedApproach ||
-      lead.aiNextAction
-    );
-
-    /*
-     * Follow-Up Intelligence
-     */
-
-    const followUpIntelligence =
-      lead.followUpIntelligence || {};
-
-    const followUpState =
-      String(
-        followUpIntelligence.state ||
-        "no_follow_up"
-      );
-
-    const allowedFollowUpStates = [
-      "overdue",
-      "due_today",
-      "upcoming",
-      "scheduled",
-      "needs_follow_up",
-      "not_contacted",
-      "closed_or_rejected",
-      "unknown_date",
-      "no_follow_up"
-    ];
-
-    const safeFollowUpState =
-      allowedFollowUpStates.includes(followUpState)
-        ? followUpState
-        : "no_follow_up";
-
-    const safeFollowUpLabel = escapeHTML(
-      followUpIntelligence.label ||
-      "No follow-up information"
-    );
-
-    const safeFollowUpAction = escapeHTML(
-      followUpIntelligence.action ||
-      "Review this lead"
-    );
-
-    let followUpIcon = "○";
-
-    if (safeFollowUpState === "overdue") {
-      followUpIcon = "⚠";
-    } else if (safeFollowUpState === "due_today") {
-      followUpIcon = "●";
-    } else if (safeFollowUpState === "upcoming") {
-      followUpIcon = "◷";
-    } else if (safeFollowUpState === "scheduled") {
-      followUpIcon = "◷";
-    } else if (safeFollowUpState === "needs_follow_up") {
-      followUpIcon = "↻";
-    } else if (safeFollowUpState === "not_contacted") {
-      followUpIcon = "○";
-    } else if (
-      safeFollowUpState === "closed_or_rejected"
-    ) {
-      followUpIcon = "✓";
-    } else if (
-      safeFollowUpState === "unknown_date"
-    ) {
-      followUpIcon = "?";
-    }
-
-    div.className = isOverdue(
-      lead.nextFollowUp
-    )
-      ? "lead-card overdue-lead"
-      : "lead-card";
-
-    div.innerHTML = `
-      <div class="lead-card-header">
-
-        <div class="lead-card-identity">
-
-          <div class="lead-card-title-row">
-
-            <h3>
-              ${safeBusinessName}
-            </h3>
-
-            <span class="status-badge">
-              ${safeStatus}
-            </span>
-
-          </div>
-
-          <div class="lead-badge-row">
-
-            <span class="priority-badge">
-              ${safePriority} Lead
-            </span>
-
-            <span
-              class="
-                lead-score-badge
-                score-${safeScoreLevel}
-              "
-              title="${safeScoreReason}"
-            >
-              ${safeScoreLabel} • ${safeScore}
-            </span>
-
-            ${
-              isOverdue(lead.nextFollowUp)
-                ? `
-                  <span class="overdue-badge">
-                    Follow-up overdue
-                  </span>
-                `
-                : ""
-            }
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="lead-card-summary">
-
-        <div class="lead-summary-item">
-          <span>Contact</span>
-          <strong>
-            ${safeContact}
-          </strong>
-        </div>
-
-        <div class="lead-summary-item">
-          <span>Follow-up</span>
-          <strong>
-            ${safeNextFollowUp}
-          </strong>
-        </div>
-
-        <div class="lead-summary-item">
-          <span>Last contacted</span>
-          <strong>
-            ${safeLastContacted}
-          </strong>
-        </div>
-
-      </div>
-
-      ${
-        lead.notes
-          ? `
-            <div class="lead-card-notes">
-              <span>Notes</span>
-              <p>${safeNotes}</p>
-            </div>
-          `
-          : ""
-      }
-
-      <div
-        class="
-          follow-up-intelligence
-          follow-up-${safeFollowUpState}
-        "
-      >
-
-        <div class="follow-up-intelligence-icon">
-          ${followUpIcon}
-        </div>
-
-        <div class="follow-up-intelligence-content">
-
-          <span class="follow-up-intelligence-title">
-            Follow-Up Intelligence
-          </span>
-
-          <strong>
-            ${safeFollowUpLabel}
-          </strong>
-
-          <p>
-            ${safeFollowUpAction}
-          </p>
-
-        </div>
-
-      </div>
-
-      ${
-        hasLeadIntelligence
-          ? `
-            <div class="lead-intelligence-card">
-
-              <div class="lead-intelligence-header">
-
-                <div>
-                  <span class="lead-intelligence-label">
-                    ✨ Lead Intelligence
-                  </span>
-
-                  <strong>
-                    Lead Quality ${safeAiScore}/100
-                  </strong>
-                </div>
-
-                ${
-                  safeAiConfidence
-                    ? `
-                      <span class="lead-intelligence-confidence">
-                        ${safeAiConfidence} confidence
-                      </span>
-                    `
-                    : ""
-                }
-
-              </div>
-
-              ${
-                safeAiSummary
-                  ? `
-                    <div class="lead-intelligence-section">
-                      <span>Summary</span>
-                      <p>${safeAiSummary}</p>
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                safeAiOpportunity
-                  ? `
-                    <div class="lead-intelligence-section">
-                      <span>Opportunity</span>
-                      <p>${safeAiOpportunity}</p>
-                    </div>
-                  `
-                  : ""
-              }
-
-              ${
-                safeAiRecommendedApproach
-                  ? `
-                    <div class="lead-intelligence-section">
-                      <span>Recommended Approach</span>
-                      <p>
-                        ${safeAiRecommendedApproach}
-                      </p>
-                    </div>
-                  `
-                  : ""
-              }
-
-              <div class="lead-intelligence-grid">
-
-                ${
-                  safeAiBestChannel
-                    ? `
-                      <div>
-                        <span>Best Channel</span>
-                        <strong>
-                          ${safeAiBestChannel}
-                        </strong>
-                      </div>
-                    `
-                    : ""
-                }
-
-                ${
-                  safeAiNextAction
-                    ? `
-                      <div>
-                        <span>Next Action</span>
-                        <strong>
-                          ${safeAiNextAction}
-                        </strong>
-                      </div>
-                    `
-                    : ""
-                }
-
-              </div>
-
-              ${
-                safeAiLastAnalyzed
-                  ? `
-                    <small class="lead-intelligence-date">
-                      Last analyzed:
-                      ${safeAiLastAnalyzed}
-                    </small>
-                  `
-                  : ""
-              }
-
-            </div>
-          `
-          : ""
-      }
-
-      <div class="lead-card-controls">
-
-        <select
-          class="lead-status-select"
-          data-index="${index}"
-          aria-label="Lead status"
-        >
-
-          <option
-            ${lead.status === "New" ? "selected" : ""}
-          >
-            New
-          </option>
-
-          <option
-            ${lead.status === "Contacted" ? "selected" : ""}
-          >
-            Contacted
-          </option>
-
-          <option
-            ${lead.status === "Replied" ? "selected" : ""}
-          >
-            Replied
-          </option>
-
-          <option
-            ${lead.status === "Interested" ? "selected" : ""}
-          >
-            Interested
-          </option>
-
-          <option
-            ${lead.status === "Closed" ? "selected" : ""}
-          >
-            Closed
-          </option>
-
-          <option
-            ${lead.status === "Rejected" ? "selected" : ""}
-          >
-            Rejected
-          </option>
-
-        </select>
-
-        ${
-          safeLink
-            ? `
-              <a
-                class="lead-open-link"
-                href="${safeLinkAttribute}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open Website
-              </a>
-            `
-            : ""
-        }
-
-      </div>
-
-      <div class="lead-card-actions">
-
-        <button
-          class="primary-btn lead-action-btn"
-          data-action="analyze"
-          data-index="${index}"
-        >
-          ✨ Analyze Lead
-        </button>
-
-        <button
-          class="primary-btn lead-action-btn"
-          data-action="generate"
-          data-index="${index}"
-        >
-          AI Outreach
-        </button>
-
-        <button
-          class="email-btn lead-action-btn"
-          data-action="email"
-          data-index="${index}"
-        >
-          Email
-        </button>
-
-        <button
-          class="secondary-btn lead-action-btn"
-          data-action="edit"
-          data-index="${index}"
-        >
-          Edit
-        </button>
-
-        <details class="lead-more-menu">
-
-          <summary>
-            More
-          </summary>
-
-          <div class="lead-more-actions">
-
-            <button
-              class="lead-action-btn"
-              data-action="whatsapp"
-              data-index="${index}"
-            >
-              WhatsApp
-            </button>
-
-            <button
-              class="lead-action-btn"
-              data-action="linkedin"
-              data-index="${index}"
-            >
-              LinkedIn
-            </button>
-
-            <button
-              class="lead-action-btn"
-              data-action="followup"
-              data-index="${index}"
-            >
-              Schedule Follow-up
-            </button>
-
-            <button
-              class="lead-action-btn"
-              data-action="contacted"
-              data-index="${index}"
-            >
-              Mark Contacted
-            </button>
-
-            <button
-              class="delete-btn lead-action-btn"
-              data-action="delete"
-              data-index="${index}"
-            >
-              Delete Lead
-            </button>
-
-          </div>
-
-        </details>
-
+    leadList.innerHTML = `
+      <div class="leads-empty-filter">
+        <h3>No leads found</h3>
+        <p>
+          No leads match your current search or status filter.
+        </p>
       </div>
     `;
 
-    leadList.appendChild(div);
+    return;
+  }
 
-    const statusSelect =
-      div.querySelector(".lead-status-select");
+  // Compact CRM workspace
+  const workspace = document.createElement("div");
+  workspace.className = "leads-workspace";
 
-    if (statusSelect) {
-      statusSelect.addEventListener(
-        "change",
-        function () {
-          updateStatus(
-            index,
-            this.value
-          );
-        }
+  workspace.innerHTML = `
+    <div class="leads-table-header">
+      <div>Lead</div>
+      <div>Contact</div>
+      <div>Status</div>
+      <div>Score</div>
+      <div>Follow-up</div>
+      <div></div>
+    </div>
+
+    <div class="leads-table-body"></div>
+  `;
+
+  const tableBody =
+    workspace.querySelector(".leads-table-body");
+
+  filteredLeads.forEach(({ lead, index }) => {
+    const businessName =
+      escapeHTML(
+        lead.businessName || "Unnamed Lead"
       );
+
+    // Prefer the new dedicated contact fields.
+    // Fall back to legacy contact for older leads.
+    const rawContact =
+      String(lead.email || "").trim() ||
+      String(lead.phone || "").trim() ||
+      String(lead.linkedin || "").trim() ||
+      String(lead.contact || "").trim();
+
+    const contact =
+      escapeHTML(
+        rawContact || "No contact added"
+      );
+
+    const status =
+      escapeHTML(lead.status || "New");
+
+    const priority =
+      escapeHTML(lead.priority || "Not set");
+
+    // Avoid treating null / blank AI scores as zero.
+    const rawScore = lead.aiScore;
+
+    const hasScore =
+      rawScore !== null &&
+      rawScore !== undefined &&
+      String(rawScore).trim() !== "" &&
+      Number.isFinite(Number(rawScore));
+
+    const numericScore =
+      hasScore
+        ? Number(rawScore)
+        : null;
+
+    let scoreLabel = "Not analyzed";
+    let scoreClass = "lead-score-neutral";
+
+    if (numericScore !== null) {
+      if (numericScore >= 70) {
+        scoreLabel = `🔥 ${numericScore}`;
+        scoreClass = "lead-score-hot";
+      } else if (numericScore >= 40) {
+        scoreLabel = `● ${numericScore}`;
+        scoreClass = "lead-score-warm";
+      } else {
+        scoreLabel = `❄ ${numericScore}`;
+        scoreClass = "lead-score-cold";
+      }
     }
 
-    div
-      .querySelectorAll(".lead-action-btn")
-      .forEach((button) => {
+    const followUp =
+      lead.followUpIntelligence || {};
 
-        button.addEventListener(
-          "click",
-          () => {
-            const action =
-              button.dataset.action;
+    let followUpLabel =
+      lead.nextFollowUp
+        ? escapeHTML(lead.nextFollowUp)
+        : "Not scheduled";
 
-            if (action === "analyze") {
-              handleAnalyzeLead(index);
-            }
+    let followUpClass = "";
 
-            if (action === "generate") {
-              handleGenerate(index);
-            }
-
-            if (action === "email") {
-              sendEmail(index);
-            }
-
-            if (action === "whatsapp") {
-              sendWhatsApp(index);
-            }
-
-            if (action === "linkedin") {
-              sendLinkedIn(index);
-            }
-
-            if (action === "followup") {
-              setFollowUp(index);
-            }
-
-            if (action === "edit") {
-              editLead(index);
-            }
-
-            if (action === "contacted") {
-              markContacted(index);
-            }
-
-            if (action === "delete") {
-              deleteLead(index);
-            }
-          }
-        );
-      });
-
-    const moreMenu =
-      div.querySelector(".lead-more-menu");
-
-    if (moreMenu) {
-      moreMenu.addEventListener(
-        "toggle",
-        () => {
-          if (!moreMenu.open) return;
-
-          document
-            .querySelectorAll(
-              ".lead-more-menu[open]"
-            )
-            .forEach((menu) => {
-
-              if (menu !== moreMenu) {
-                menu.removeAttribute(
-                  "open"
-                );
-              }
-
-            });
-        }
-      );
+    if (followUp.state === "overdue") {
+      followUpLabel = "Overdue";
+      followUpClass =
+        "lead-followup-overdue";
     }
+
+    if (
+      followUp.state ===
+      "closed_or_rejected"
+    ) {
+      followUpLabel =
+        "No active follow-up";
+    }
+
+    const row =
+      document.createElement("div");
+
+    row.className =
+      "lead-workspace-row";
+
+    row.dataset.index =
+      String(index);
+
+    row.tabIndex = 0;
+
+    row.setAttribute(
+      "role",
+      "button"
+    );
+
+    row.setAttribute(
+      "aria-label",
+      `Open ${
+        lead.businessName || "lead"
+      } details`
+    );
+
+    row.innerHTML = `
+      <div class="lead-workspace-business">
+        <div class="lead-avatar">
+          ${businessName
+            .charAt(0)
+            .toUpperCase()}
+        </div>
+
+        <div class="lead-workspace-business-text">
+          <strong>${businessName}</strong>
+          <span>${priority} priority</span>
+        </div>
+      </div>
+
+      <div class="lead-workspace-contact">
+        ${contact}
+      </div>
+
+      <div>
+        <span class="lead-status-pill">
+          ${status}
+        </span>
+      </div>
+
+      <div>
+        <span class="lead-score-pill ${scoreClass}">
+          ${scoreLabel}
+        </span>
+      </div>
+
+      <div>
+        <span class="${followUpClass}">
+          ${followUpLabel}
+        </span>
+      </div>
+
+      <div class="lead-workspace-open">
+        <button
+          type="button"
+          class="lead-view-btn"
+          data-index="${index}"
+          aria-label="View ${businessName}"
+        >
+          View
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    `;
+
+    tableBody.appendChild(row);
   });
+
+  leadList.appendChild(workspace);
+
+  leadList
+    .querySelectorAll(
+      ".lead-workspace-row"
+    )
+    .forEach((row) => {
+      const openSelectedLead = () => {
+        const index =
+          Number(row.dataset.index);
+
+        const lead =
+          leads[index];
+
+        if (!lead) {
+          showToast(
+            "Lead could not be opened.",
+            "error"
+          );
+          return;
+        }
+
+        openLeadDetails(index);
+      };
+
+      row.addEventListener(
+        "click",
+        openSelectedLead
+      );
+
+      row.addEventListener(
+        "keydown",
+        (event) => {
+          if (
+            event.key === "Enter" ||
+            event.key === " "
+          ) {
+            event.preventDefault();
+            openSelectedLead();
+          }
+        }
+      );
+    });
+}
+
+function openLeadDetails(index) {
+  const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead could not be opened.", "error");
+    return;
+  }
+
+  document.getElementById("leadDetailsOverlay")?.remove();
+
+  const businessName = escapeHTML(
+    lead.businessName || "Unnamed Lead"
+  );
+
+  const notes = escapeHTML(
+    lead.notes || "No notes added yet."
+  );
+
+  const status = escapeHTML(
+    lead.status || "New"
+  );
+
+  const priority = escapeHTML(
+    lead.priority || "Not set"
+  );
+
+  /*
+   * Contact channels
+   */
+
+  const legacyContact = String(
+    lead.contact || ""
+  ).trim();
+
+  const legacyEmail =
+    legacyContact.includes("@") &&
+    !legacyContact.toLowerCase().includes("linkedin.com")
+      ? legacyContact
+      : "";
+
+  const legacyLinkedIn =
+    legacyContact.toLowerCase().includes("linkedin.com")
+      ? legacyContact
+      : "";
+
+  const legacyPhone =
+    !legacyEmail &&
+    !legacyLinkedIn &&
+    /[0-9]/.test(legacyContact)
+      ? legacyContact
+      : "";
+
+  const rawEmail =
+    String(
+      lead.email ||
+      legacyEmail ||
+      ""
+    ).trim();
+
+  const rawPhone =
+    String(
+      lead.phone ||
+      legacyPhone ||
+      ""
+    ).trim();
+
+  const rawWebsite =
+    String(
+      lead.link ||
+      ""
+    ).trim();
+
+  const rawLinkedIn =
+    String(
+      lead.linkedin ||
+      legacyLinkedIn ||
+      ""
+    ).trim();
+
+  const emailDisplay = escapeHTML(
+    rawEmail || "No email added"
+  );
+
+  const phoneDisplay = escapeHTML(
+    rawPhone || "No phone added"
+  );
+
+  const websiteDisplay = escapeHTML(
+    rawWebsite || "No website added"
+  );
+
+  const linkedInDisplay = escapeHTML(
+    rawLinkedIn || "No LinkedIn added"
+  );
+
+  const websiteUrl = sanitizeExternalUrl(
+    rawWebsite
+  );
+
+  const linkedInUrl = sanitizeExternalUrl(
+    rawLinkedIn
+  );
+
+  /*
+   * Header contact summary
+   */
+
+  const contactSummary = escapeHTML(
+    rawEmail ||
+    rawPhone ||
+    rawLinkedIn ||
+    "No contact information added"
+  );
+
+  /*
+   * AI score
+   */
+
+  const hasScore =
+    lead.aiScore !== null &&
+    lead.aiScore !== undefined &&
+    String(lead.aiScore).trim() !== "";
+
+  const numericScore =
+    hasScore &&
+    Number.isFinite(Number(lead.aiScore))
+      ? Number(lead.aiScore)
+      : null;
+
+  let scoreLabel = "Not analyzed";
+  let scoreClass = "lead-score-neutral";
+
+  if (numericScore !== null) {
+    if (numericScore >= 70) {
+      scoreLabel = `🔥 ${numericScore} / 100`;
+      scoreClass = "lead-score-hot";
+    } else if (numericScore >= 40) {
+      scoreLabel = `● ${numericScore} / 100`;
+      scoreClass = "lead-score-warm";
+    } else {
+      scoreLabel = `❄ ${numericScore} / 100`;
+      scoreClass = "lead-score-cold";
+    }
+  }
+
+  /*
+   * Follow-up intelligence
+   */
+
+  const followUp =
+    lead.followUpIntelligence || {};
+
+  let followUpText = lead.nextFollowUp
+    ? escapeHTML(lead.nextFollowUp)
+    : "Not scheduled";
+
+  if (followUp.state === "overdue") {
+    followUpText = "Overdue";
+  }
+
+  if (followUp.state === "closed_or_rejected") {
+    followUpText = "No active follow-up";
+  }
+
+  /*
+   * AI intelligence
+   */
+
+  const aiSummary = escapeHTML(
+    lead.aiSummary ||
+    lead.aiAnalysis ||
+    lead.analysis ||
+    "This lead has not been analyzed yet."
+  );
+
+  /*
+   * Build modal
+   */
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "leadDetailsOverlay";
+  overlay.className = "lead-details-overlay";
+
+  overlay.innerHTML = `
+    <div
+      class="lead-details-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leadDetailsTitle"
+    >
+      <div class="lead-details-header">
+
+        <div class="lead-details-heading">
+
+          <div class="lead-details-avatar">
+            ${businessName.charAt(0).toUpperCase()}
+          </div>
+
+          <div>
+            <span class="lead-details-eyebrow">
+              LEAD PROFILE
+            </span>
+
+            <h2 id="leadDetailsTitle">
+              ${businessName}
+            </h2>
+
+            <p>
+              ${contactSummary}
+            </p>
+          </div>
+
+        </div>
+
+        <button
+          type="button"
+          class="lead-details-close"
+          aria-label="Close lead details"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div class="lead-details-content">
+
+        <section class="lead-details-section">
+
+          <div class="lead-details-section-title">
+
+            <div>
+              <span class="lead-details-label">
+                OVERVIEW
+              </span>
+
+              <h3>
+                Lead information
+              </h3>
+            </div>
+
+            <span class="lead-status-pill">
+              ${status}
+            </span>
+
+          </div>
+
+          <div class="lead-details-grid">
+
+            <div class="lead-detail-field">
+              <span>Business</span>
+              <strong>${businessName}</strong>
+            </div>
+
+            <div class="lead-detail-field">
+              <span>Email</span>
+
+              ${
+                rawEmail
+                  ? `
+                    <a href="mailto:${escapeHTML(rawEmail)}">
+                      ${emailDisplay}
+                    </a>
+                  `
+                  : `
+                    <strong>
+                      No email added
+                    </strong>
+                  `
+              }
+            </div>
+
+            <div class="lead-detail-field">
+              <span>Phone / WhatsApp</span>
+
+              ${
+                rawPhone
+                  ? `
+                    <a href="tel:${escapeHTML(rawPhone)}">
+                      ${phoneDisplay}
+                    </a>
+                  `
+                  : `
+                    <strong>
+                      No phone added
+                    </strong>
+                  `
+              }
+            </div>
+
+            <div class="lead-detail-field">
+              <span>Priority</span>
+              <strong>${priority}</strong>
+            </div>
+
+            <div class="lead-detail-field">
+              <span>Follow-up</span>
+              <strong>${followUpText}</strong>
+            </div>
+
+            <div class="lead-detail-field lead-detail-field-wide">
+              <span>Website</span>
+
+              ${
+                websiteUrl
+                  ? `
+                    <a
+                      href="${websiteUrl}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${websiteDisplay}
+                    </a>
+                  `
+                  : `
+                    <strong>
+                      No website added
+                    </strong>
+                  `
+              }
+            </div>
+
+            <div class="lead-detail-field lead-detail-field-wide">
+              <span>LinkedIn</span>
+
+              ${
+                linkedInUrl
+                  ? `
+                    <a
+                      href="${linkedInUrl}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${linkedInDisplay}
+                    </a>
+                  `
+                  : `
+                    <strong>
+                      No LinkedIn added
+                    </strong>
+                  `
+              }
+            </div>
+
+          </div>
+
+        </section>
+
+        <section class="lead-details-section">
+
+          <div class="lead-details-section-title">
+            <div>
+              <span class="lead-details-label">
+                NOTES
+              </span>
+
+              <h3>
+                Lead notes
+              </h3>
+            </div>
+          </div>
+
+          <div class="lead-details-notes">
+            ${notes}
+          </div>
+
+        </section>
+
+        <section class="lead-details-section">
+
+          <div class="lead-details-section-title">
+
+            <div>
+              <span class="lead-details-label">
+                AI INTELLIGENCE
+              </span>
+
+              <h3>
+                Lead analysis
+              </h3>
+            </div>
+
+            <span class="lead-score-pill ${scoreClass}">
+              ${scoreLabel}
+            </span>
+
+          </div>
+
+          <div class="lead-details-ai">
+            ${aiSummary}
+          </div>
+
+          <button
+            type="button"
+            class="lead-modal-analyze-btn"
+          >
+            Analyze Lead
+          </button>
+
+        </section>
+
+      </div>
+
+      <div class="lead-details-actions">
+
+        <button
+          type="button"
+          class="secondary-btn lead-modal-more-btn"
+        >
+          More
+        </button>
+
+        <div class="lead-details-primary-actions">
+
+          <button
+            type="button"
+            class="secondary-btn lead-modal-edit-btn"
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            class="secondary-btn lead-modal-email-btn"
+          >
+            Email
+          </button>
+
+          <button
+            type="button"
+            class="secondary-btn lead-modal-outreach-btn"
+          >
+            AI Outreach
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const modal = overlay.querySelector(
+    ".lead-details-modal"
+  );
+
+  const closeButton = overlay.querySelector(
+    ".lead-details-close"
+  );
+
+  const analyzeButton = overlay.querySelector(
+    ".lead-modal-analyze-btn"
+  );
+
+  const outreachButton = overlay.querySelector(
+    ".lead-modal-outreach-btn"
+  );
+
+  const emailButton = overlay.querySelector(
+    ".lead-modal-email-btn"
+  );
+
+  const editButton = overlay.querySelector(
+    ".lead-modal-edit-btn"
+  );
+
+  const moreButton = overlay.querySelector(
+    ".lead-modal-more-btn"
+  );
+
+  function closeLeadDetails() {
+    overlay.remove();
+
+    document.removeEventListener(
+      "keydown",
+      handleLeadDetailsEscape
+    );
+  }
+
+  function handleLeadDetailsEscape(event) {
+    if (event.key === "Escape") {
+      closeLeadDetails();
+    }
+  }
+
+  closeButton?.addEventListener(
+    "click",
+    closeLeadDetails
+  );
+
+  overlay.addEventListener(
+    "click",
+    (event) => {
+      if (event.target === overlay) {
+        closeLeadDetails();
+      }
+    }
+  );
+
+  modal?.addEventListener(
+    "click",
+    (event) => {
+      event.stopPropagation();
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    handleLeadDetailsEscape
+  );
+
+  analyzeButton?.addEventListener(
+    "click",
+    async () => {
+      closeLeadDetails();
+      await handleAnalyzeLead(index);
+    }
+  );
+
+  outreachButton?.addEventListener(
+    "click",
+    () => {
+      closeLeadDetails();
+      handleGenerate(index);
+    }
+  );
+
+  emailButton?.addEventListener(
+    "click",
+    () => {
+      closeLeadDetails();
+      sendEmail(index);
+    }
+  );
+
+  editButton?.addEventListener(
+    "click",
+    () => {
+      closeLeadDetails();
+      editLead(index);
+    }
+  );
+
+  moreButton?.addEventListener(
+    "click",
+    () => {
+      closeLeadDetails();
+      openLeadMoreActions(index);
+    }
+  );
+
+  closeButton?.focus();
+}
+
+function normalizeUrl(value) {
+  const url = String(value || "").trim();
+
+  if (!url) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `https://${url}`;
 }
 
 leadForm.addEventListener("submit", async function (e) {
@@ -2398,133 +2769,1178 @@ leadForm.addEventListener("submit", async function (e) {
     return;
   }
 
-  const businessName = document.getElementById("businessName").value.trim();
-  const leadLink = document.getElementById("leadLink").value.trim();
-  const contactInfo = document.getElementById("contactInfo").value.trim();
-  const priority = document.getElementById("priority").value;
-  const notes = document.getElementById("notes").value.trim();
+  const businessName =
+    document
+      .getElementById("businessName")
+      .value
+      .trim();
 
-  const wasEditing = editIndex !== null;
+  const leadEmail =
+    document
+      .getElementById("leadEmail")
+      .value
+      .trim();
+
+  const leadPhone =
+    document
+      .getElementById("leadPhone")
+      .value
+      .trim();
+
+  const leadLink = normalizeUrl(
+    document.getElementById("leadLink").value
+  );
+
+  const leadLinkedIn = normalizeUrl(
+    document.getElementById("leadLinkedIn").value
+  );
+
+  const priority =
+    document.getElementById("priority").value;
+
+  const notes =
+    document
+      .getElementById("notes")
+      .value
+      .trim();
+
+  const wasEditing =
+    editIndex !== null;
+
+  // Keep the legacy contact field populated
+  // for backwards compatibility.
+  const legacyContact =
+    leadEmail ||
+    leadPhone ||
+    leadLinkedIn ||
+    "";
 
   const leadData = {
     userId: currentUser.id,
-    businessName: businessName || "Untitled Lead",
-    link: leadLink || "",
-    contact: contactInfo || "",
-    priority: priority || "Cold",
-    notes: notes || "",
-    status: "New",
-    createdAt: new Date().toLocaleString(),
-    lastContacted: "",
-    nextFollowUp: ""
+
+    businessName:
+      businessName || "Untitled Lead",
+
+    email:
+      leadEmail,
+
+    phone:
+      leadPhone,
+
+    link:
+      leadLink,
+
+    linkedin:
+      leadLinkedIn,
+
+    contact:
+      legacyContact,
+
+    priority:
+      priority || "Cold",
+
+    notes:
+      notes || "",
+
+    status:
+      "New",
+
+    createdAt:
+      new Date().toLocaleString(),
+
+    lastContacted:
+      "",
+
+    nextFollowUp:
+      ""
   };
 
   try {
     let response;
 
     if (wasEditing) {
-      const leadId = leads[editIndex].id;
+      const existingLead =
+        leads[editIndex];
 
-      response = await fetch(`${API_URL}/${leadId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ...leadData,
-          status: leads[editIndex].status,
-          createdAt: leads[editIndex].createdAt,
-          lastContacted: leads[editIndex].lastContacted || "",
-          nextFollowUp: leads[editIndex].nextFollowUp || ""
-        })
-      });
+      const leadId =
+        existingLead.id;
 
-      editIndex = null;
-      leadForm.querySelector("button[type='submit']").textContent = "Add Lead";
+      response = await fetch(
+        `${API_URL}/${leadId}`,
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            ...leadData,
+
+            status:
+              existingLead.status ||
+              "New",
+
+            createdAt:
+              existingLead.createdAt ||
+              leadData.createdAt,
+
+            lastContacted:
+              existingLead.lastContacted ||
+              "",
+
+            nextFollowUp:
+              existingLead.nextFollowUp ||
+              ""
+          })
+        }
+      );
     } else {
-      response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(leadData)
-      });
+      response = await fetch(
+        API_URL,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(leadData)
+        }
+      );
     }
 
-    const data = await readJsonResponse(response);
+    const data =
+      await readJsonResponse(response);
 
     if (!response.ok) {
-      console.error("Save lead server error:", data);
-      alert(data.error || "Could not save lead. Check Render logs.");
-      showToast(data.error || "Could not save lead.", "error");
+      console.error(
+        "Save lead server error:",
+        data
+      );
+
+      alert(
+        data.error ||
+        "Could not save lead. Check backend logs."
+      );
+
+      showToast(
+        data.error ||
+        "Could not save lead.",
+        "error"
+      );
+
       return;
+    }
+
+    // Only reset editing state after
+    // the backend confirms success.
+    editIndex = null;
+
+    const submitButton =
+      leadForm.querySelector(
+        "button[type='submit']"
+      );
+
+    if (submitButton) {
+      submitButton.textContent =
+        "Add Lead";
     }
 
     leadForm.reset();
 
     await fetchLeads();
 
+    // Close the Add Lead modal automatically
+    // after a successful save.
+    closeLeadDrawer();
+
     showPage("leadsPage");
-    showToast(wasEditing ? "Lead updated successfully." : "Lead saved successfully.", "success");
+
+    showToast(
+      wasEditing
+        ? "Lead updated successfully."
+        : "Lead saved successfully.",
+      "success"
+    );
+
   } catch (error) {
-    console.error("Save lead connection error:", error);
-    alert("Could not connect to backend. Check Console and Render logs.");
-    showToast("Could not connect to backend.", "error");
+    console.error(
+      "Save lead connection error:",
+      error
+    );
+
+    alert(
+      "Could not connect to backend. Check Console and backend logs."
+    );
+
+    showToast(
+      "Could not connect to backend.",
+      "error"
+    );
   }
 });
 
 function editLead(index) {
   const lead = leads[index];
-  if (!lead) return;
 
-  document.getElementById("businessName").value = lead.businessName || "";
-  document.getElementById("leadLink").value = lead.link || "";
-  document.getElementById("contactInfo").value = lead.contact || "";
-  document.getElementById("priority").value = lead.priority || "Cold";
-  document.getElementById("notes").value = lead.notes || "";
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
 
-  editIndex = index;
+  document.querySelectorAll(".lead-edit-modal").forEach((modal) => {
+    modal.remove();
+  });
 
-  leadDrawerTitle.textContent = "Edit Lead";
-  leadDrawerSubtitle.textContent = `Update ${lead.businessName || "this lead"}.`;
-  leadForm.querySelector("button[type='submit']").textContent = "Save Changes";
+  const legacyContact = String(lead.contact || "").trim();
 
-  leadDrawer.classList.add("open");
-  leadDrawerOverlay.classList.add("open");
+  const legacyEmail =
+    legacyContact.includes("@") &&
+    !legacyContact.toLowerCase().includes("linkedin.com")
+      ? legacyContact
+      : "";
 
-  leadDrawer.setAttribute("aria-hidden", "false");
-  leadDrawerOverlay.setAttribute("aria-hidden", "false");
+  const legacyLinkedIn =
+    legacyContact.toLowerCase().includes("linkedin.com")
+      ? legacyContact
+      : "";
 
-  setTimeout(() => {
-    document.getElementById("businessName")?.focus();
-  }, 150);
+  const legacyPhone =
+    !legacyEmail &&
+    !legacyLinkedIn &&
+    /[0-9]/.test(legacyContact)
+      ? legacyContact
+      : "";
 
-  showToast("Lead ready to edit.", "info");
-}
+  const currentEmail = lead.email || legacyEmail || "";
+  const currentPhone = lead.phone || legacyPhone || "";
+  const currentWebsite = lead.link || "";
+  const currentLinkedIn = lead.linkedin || legacyLinkedIn || "";
 
-async function deleteLead(index) {
-  const confirmDelete = confirm("Delete this lead?");
-  if (!confirmDelete) return;
+  const overlay = document.createElement("div");
+  overlay.className = "lead-edit-modal";
 
-  try {
-    const response = await fetch(`${API_URL}/${leads[index].id}`, {
-      method: "DELETE"
-    });
+  overlay.innerHTML = `
+    <div class="lead-edit-backdrop"></div>
 
-    const data = await readJsonResponse(response);
+    <section
+      class="lead-edit-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editLeadTitle"
+    >
+      <div class="lead-edit-header">
+        <div>
+          <span class="lead-edit-eyebrow">LEAD WORKSPACE</span>
+          <h2 id="editLeadTitle">Edit Lead</h2>
+          <p>Update this prospect's information.</p>
+        </div>
 
-    if (!response.ok) {
-      console.error("Delete lead server error:", data);
-      showToast(data.error || "Could not delete lead.", "error");
+        <button
+          type="button"
+          class="lead-edit-close"
+          aria-label="Close edit lead"
+        >
+          ×
+        </button>
+      </div>
+
+      <form class="lead-edit-form">
+        <div class="lead-edit-body">
+          <label>
+            Business name
+            <input
+              type="text"
+              name="businessName"
+              value="${escapeHTML(lead.businessName || "")}"
+              maxlength="150"
+              required
+            />
+          </label>
+
+          <label>
+            Email address
+            <input
+              type="email"
+              name="email"
+              value="${escapeHTML(currentEmail)}"
+              maxlength="254"
+              placeholder="name@example.com"
+              autocomplete="email"
+            />
+          </label>
+
+          <label>
+            Phone / WhatsApp number
+            <input
+              type="tel"
+              name="phone"
+              value="${escapeHTML(currentPhone)}"
+              maxlength="50"
+              placeholder="+27 82 123 4567"
+              autocomplete="tel"
+            />
+          </label>
+
+          <label>
+            Website
+            <input
+              type="text"
+              name="link"
+              value="${escapeHTML(currentWebsite)}"
+              placeholder="www.example.com"
+              autocomplete="url"
+            />
+          </label>
+
+          <label>
+            LinkedIn profile
+            <input
+              type="text"
+              name="linkedin"
+              value="${escapeHTML(currentLinkedIn)}"
+              placeholder="www.linkedin.com/in/username"
+              autocomplete="url"
+            />
+          </label>
+
+          <label>
+            Priority
+            <select name="priority">
+              <option value="Cold" ${
+                lead.priority === "Cold" ? "selected" : ""
+              }>Cold Lead</option>
+
+              <option value="Warm" ${
+                lead.priority === "Warm" ? "selected" : ""
+              }>Warm Lead</option>
+
+              <option value="Hot" ${
+                lead.priority === "Hot" ? "selected" : ""
+              }>Hot Lead</option>
+            </select>
+          </label>
+
+          <label>
+            Status
+            <select name="status">
+              <option value="New" ${
+                lead.status === "New" ? "selected" : ""
+              }>New</option>
+
+              <option value="Contacted" ${
+                lead.status === "Contacted" ? "selected" : ""
+              }>Contacted</option>
+
+              <option value="Follow-up" ${
+                lead.status === "Follow-up" ? "selected" : ""
+              }>Follow-up</option>
+
+              <option value="Qualified" ${
+                lead.status === "Qualified" ? "selected" : ""
+              }>Qualified</option>
+
+              <option value="Closed" ${
+                lead.status === "Closed" ? "selected" : ""
+              }>Closed</option>
+            </select>
+          </label>
+
+          <label>
+            Next follow-up
+            <input
+              type="date"
+              name="nextFollowUp"
+              value="${escapeHTML(lead.nextFollowUp || "")}"
+            />
+          </label>
+
+          <label>
+            Notes
+            <textarea
+              name="notes"
+              maxlength="5000"
+              placeholder="Notes about this lead"
+            >${escapeHTML(lead.notes || "")}</textarea>
+          </label>
+        </div>
+
+        <div class="lead-edit-footer">
+          <button
+            type="button"
+            class="lead-edit-cancel"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="lead-edit-save"
+          >
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </section>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const form = overlay.querySelector(".lead-edit-form");
+  const closeButton = overlay.querySelector(".lead-edit-close");
+  const cancelButton = overlay.querySelector(".lead-edit-cancel");
+  const backdrop = overlay.querySelector(".lead-edit-backdrop");
+  const firstInput = form.querySelector('input[name="businessName"]');
+
+  const closeModal = () => {
+    document.removeEventListener("keydown", handleEscape);
+
+    if (overlay.parentNode) {
+      overlay.remove();
+    }
+  };
+
+  const handleEscape = (event) => {
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  };
+
+  closeButton.addEventListener("click", closeModal);
+  cancelButton.addEventListener("click", closeModal);
+  backdrop.addEventListener("click", closeModal);
+  document.addEventListener("keydown", handleEscape);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+
+    const email = String(formData.get("email") || "").trim();
+    const phone = String(formData.get("phone") || "").trim();
+
+    const website = normalizeUrl(
+      formData.get("link")
+    );
+
+    const linkedin = normalizeUrl(
+      formData.get("linkedin")
+    );
+
+    const legacyContact =
+      email ||
+      phone ||
+      linkedin ||
+      "";
+
+    const updatedLead = {
+      businessName: String(
+        formData.get("businessName") || ""
+      ).trim(),
+
+      email: email,
+      phone: phone,
+      link: website,
+      linkedin: linkedin,
+      contact: legacyContact,
+
+      priority: String(
+        formData.get("priority") || "Cold"
+      ),
+
+      status: String(
+        formData.get("status") || "New"
+      ),
+
+      nextFollowUp: String(
+        formData.get("nextFollowUp") || ""
+      ),
+
+      notes: String(
+        formData.get("notes") || ""
+      ).trim(),
+
+      createdAt: lead.createdAt || "",
+      lastContacted: lead.lastContacted || ""
+    };
+
+    if (!updatedLead.businessName) {
+      showToast(
+        "Business name is required.",
+        "warning"
+      );
       return;
     }
 
-    await fetchLeads();
-    showToast("Lead deleted successfully.", "success");
-  } catch (error) {
-    console.error("Delete lead connection error:", error);
-    showToast("Could not connect to backend.", "error");
+    const saveButton = form.querySelector(".lead-edit-save");
+    const originalButtonText = saveButton.textContent;
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving...";
+
+    try {
+      const response = await fetch(
+        `${API_URL}/${lead.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(updatedLead)
+        }
+      );
+
+      const data = await readJsonResponse(response);
+
+      if (!response.ok) {
+        console.error("Update lead server error:", data);
+
+        showToast(
+          data.error || "Could not update lead.",
+          "error"
+        );
+
+        return;
+      }
+
+      await fetchLeads();
+
+      closeModal();
+
+      showToast(
+        "Lead updated successfully.",
+        "success"
+      );
+    } catch (error) {
+      console.error(
+        "Update lead connection error:",
+        error
+      );
+
+      showToast(
+        "Could not connect to backend.",
+        "error"
+      );
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = originalButtonText;
+    }
+  });
+
+  requestAnimationFrame(() => {
+    firstInput?.focus();
+  });
+}
+
+function openLeadMoreActions(index) {
+  const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
   }
+
+  document.getElementById("leadMoreActionsOverlay")?.remove();
+
+  const businessName =
+    lead.businessName || "Lead";
+
+  const contact =
+    lead.contact || "No contact information";
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "leadMoreActionsOverlay";
+  overlay.className = "lead-more-actions-overlay";
+
+  overlay.innerHTML = `
+    <div
+      class="lead-more-actions-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leadMoreActionsTitle"
+    >
+      <div class="lead-more-actions-header">
+
+        <div>
+          <p class="lead-more-actions-eyebrow">
+            LEAD ACTIONS
+          </p>
+
+          <h2 id="leadMoreActionsTitle">
+            More Actions
+          </h2>
+
+          <p class="lead-more-actions-subtitle">
+            ${escapeHTML(businessName)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="lead-more-actions-close"
+          aria-label="Close more actions"
+        >
+          &times;
+        </button>
+
+      </div>
+
+      <div class="lead-more-actions-body">
+
+        <div class="lead-more-actions-contact">
+          <div class="lead-more-actions-avatar">
+            ${escapeHTML(
+              businessName.charAt(0).toUpperCase()
+            )}
+          </div>
+
+          <div>
+            <strong>
+              ${escapeHTML(businessName)}
+            </strong>
+
+            <span>
+              ${escapeHTML(contact)}
+            </span>
+          </div>
+        </div>
+
+        <div class="lead-more-actions-grid">
+
+          <button
+            type="button"
+            class="lead-more-action-card"
+            data-action="whatsapp"
+          >
+            <span class="lead-more-action-icon">
+              💬
+            </span>
+
+            <span class="lead-more-action-content">
+              <strong>WhatsApp</strong>
+              <small>
+                Start a WhatsApp conversation
+              </small>
+            </span>
+
+            <span class="lead-more-action-arrow">
+              ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="lead-more-action-card"
+            data-action="linkedin"
+          >
+            <span class="lead-more-action-icon">
+              in
+            </span>
+
+            <span class="lead-more-action-content">
+              <strong>LinkedIn</strong>
+              <small>
+                Open LinkedIn for this lead
+              </small>
+            </span>
+
+            <span class="lead-more-action-arrow">
+              ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="lead-more-action-card"
+            data-action="followup"
+          >
+            <span class="lead-more-action-icon">
+              ◷
+            </span>
+
+            <span class="lead-more-action-content">
+              <strong>Schedule Follow-up</strong>
+              <small>
+                Set the next follow-up date
+              </small>
+            </span>
+
+            <span class="lead-more-action-arrow">
+              ›
+            </span>
+          </button>
+
+          <button
+            type="button"
+            class="lead-more-action-card"
+            data-action="edit"
+          >
+            <span class="lead-more-action-icon">
+              ✎
+            </span>
+
+            <span class="lead-more-action-content">
+              <strong>Edit Lead</strong>
+              <small>
+                Update lead information
+              </small>
+            </span>
+
+            <span class="lead-more-action-arrow">
+              ›
+            </span>
+          </button>
+
+        </div>
+
+        <div class="lead-more-actions-danger">
+
+          <p>
+            Lead management
+          </p>
+
+          <button
+            type="button"
+            class="lead-more-delete-button"
+            data-action="delete"
+          >
+            <span>Delete Lead</span>
+            <span>Remove this lead from your CRM</span>
+          </button>
+
+        </div>
+
+      </div>
+
+      <div class="lead-more-actions-footer">
+
+        <button
+          type="button"
+          class="lead-more-actions-back"
+        >
+          Back to Lead
+        </button>
+
+        <button
+          type="button"
+          class="lead-more-actions-done"
+        >
+          Done
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const modal =
+    overlay.querySelector(
+      ".lead-more-actions-modal"
+    );
+
+  const closeButton =
+    overlay.querySelector(
+      ".lead-more-actions-close"
+    );
+
+  const backButton =
+    overlay.querySelector(
+      ".lead-more-actions-back"
+    );
+
+  const doneButton =
+    overlay.querySelector(
+      ".lead-more-actions-done"
+    );
+
+  const whatsappButton =
+    overlay.querySelector(
+      '[data-action="whatsapp"]'
+    );
+
+  const linkedinButton =
+    overlay.querySelector(
+      '[data-action="linkedin"]'
+    );
+
+  const followUpButton =
+    overlay.querySelector(
+      '[data-action="followup"]'
+    );
+
+  const editButton =
+    overlay.querySelector(
+      '[data-action="edit"]'
+    );
+
+  const deleteButton =
+    overlay.querySelector(
+      '[data-action="delete"]'
+    );
+
+  let isClosing = false;
+
+  const removeModal = () => {
+    document.removeEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    overlay.remove();
+  };
+
+  const closeActions = () => {
+    if (isClosing) return;
+
+    isClosing = true;
+    removeModal();
+  };
+
+  const returnToLead = () => {
+    if (isClosing) return;
+
+    isClosing = true;
+
+    removeModal();
+    openLeadDetails(index);
+  };
+
+  const handleEscape = event => {
+    if (event.key === "Escape") {
+      returnToLead();
+    }
+  };
+
+  closeButton?.addEventListener(
+    "click",
+    returnToLead
+  );
+
+  backButton?.addEventListener(
+    "click",
+    returnToLead
+  );
+
+  doneButton?.addEventListener(
+    "click",
+    closeActions
+  );
+
+  overlay.addEventListener(
+    "click",
+    event => {
+      if (event.target === overlay) {
+        returnToLead();
+      }
+    }
+  );
+
+  modal?.addEventListener(
+    "click",
+    event => {
+      event.stopPropagation();
+    }
+  );
+
+  whatsappButton?.addEventListener(
+    "click",
+    () => {
+      closeActions();
+
+      if (typeof sendWhatsApp === "function") {
+        sendWhatsApp(index);
+        return;
+      }
+
+      showToast(
+        "WhatsApp action is unavailable.",
+        "warning"
+      );
+    }
+  );
+
+  linkedinButton?.addEventListener(
+  "click",
+  () => {
+    closeActions();
+
+    if (typeof sendLinkedIn === "function") {
+      sendLinkedIn(index);
+      return;
+    }
+
+    showToast(
+      "LinkedIn action is unavailable.",
+      "warning"
+    );
+  }
+);
+
+  followUpButton?.addEventListener(
+    "click",
+    () => {
+      closeActions();
+
+      if (typeof setFollowUp === "function") {
+        setFollowUp(index);
+        return;
+      }
+
+      showToast(
+        "Follow-up action is unavailable.",
+        "warning"
+      );
+    }
+  );
+
+  editButton?.addEventListener(
+    "click",
+    () => {
+      closeActions();
+      editLead(index);
+    }
+  );
+
+  deleteButton?.addEventListener(
+    "click",
+    () => {
+      closeActions();
+      deleteLead(index);
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    handleEscape
+  );
+
+  closeButton?.focus();
+}
+
+async function deleteLead(index) {
+  const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
+
+  document.getElementById("deleteLeadOverlay")?.remove();
+
+  const businessName =
+    lead.businessName || "this lead";
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "deleteLeadOverlay";
+  overlay.className = "delete-lead-overlay";
+
+  overlay.innerHTML = `
+    <div
+      class="delete-lead-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteLeadTitle"
+    >
+      <div class="delete-lead-icon">
+        !
+      </div>
+
+      <div class="delete-lead-content">
+
+        <p class="delete-lead-eyebrow">
+          DELETE LEAD
+        </p>
+
+        <h2 id="deleteLeadTitle">
+          Delete ${escapeHTML(businessName)}?
+        </h2>
+
+        <p class="delete-lead-message">
+          This will permanently remove this lead from
+          your CRM. This action cannot be undone.
+        </p>
+
+        <div class="delete-lead-warning">
+          <strong>
+            ${escapeHTML(businessName)}
+          </strong>
+
+          <span>
+            ${
+              lead.contact
+                ? escapeHTML(lead.contact)
+                : "No contact information"
+            }
+          </span>
+        </div>
+
+      </div>
+
+      <div class="delete-lead-footer">
+
+        <button
+          type="button"
+          class="delete-lead-cancel"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="delete-lead-confirm"
+        >
+          Delete Lead
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const modal =
+    overlay.querySelector(".delete-lead-modal");
+
+  const cancelButton =
+    overlay.querySelector(".delete-lead-cancel");
+
+  const deleteButton =
+    overlay.querySelector(".delete-lead-confirm");
+
+  let isDeleting = false;
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+
+    document.removeEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    overlay.remove();
+  };
+
+  const handleEscape = event => {
+    if (
+      event.key === "Escape" &&
+      !isDeleting
+    ) {
+      closeDeleteModal();
+    }
+  };
+
+  cancelButton?.addEventListener(
+    "click",
+    closeDeleteModal
+  );
+
+  overlay.addEventListener(
+    "click",
+    event => {
+      if (event.target === overlay) {
+        closeDeleteModal();
+      }
+    }
+  );
+
+  modal?.addEventListener(
+    "click",
+    event => {
+      event.stopPropagation();
+    }
+  );
+
+  deleteButton?.addEventListener(
+    "click",
+    async () => {
+      if (isDeleting) return;
+
+      isDeleting = true;
+
+      deleteButton.disabled = true;
+      deleteButton.textContent =
+        "Deleting...";
+
+      cancelButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API_URL}/${lead.id}`,
+          {
+            method: "DELETE"
+          }
+        );
+
+        const data =
+          await readJsonResponse(response);
+
+        if (!response.ok) {
+          console.error(
+            "Delete lead server error:",
+            data
+          );
+
+          showToast(
+            data.error ||
+            "Could not delete lead.",
+            "error"
+          );
+
+          return;
+        }
+
+        await fetchLeads();
+
+        document.removeEventListener(
+          "keydown",
+          handleEscape
+        );
+
+        overlay.remove();
+
+        showToast(
+          "Lead deleted successfully.",
+          "success"
+        );
+
+      } catch (error) {
+        console.error(
+          "Delete lead connection error:",
+          error
+        );
+
+        showToast(
+          "Could not connect to backend.",
+          "error"
+        );
+
+      } finally {
+        isDeleting = false;
+
+        if (document.body.contains(deleteButton)) {
+          deleteButton.disabled = false;
+          deleteButton.textContent =
+            "Delete Lead";
+
+          cancelButton.disabled = false;
+        }
+      }
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    handleEscape
+  );
+
+  cancelButton?.focus();
 }
 
 async function updateStatus(index, newStatus) {
@@ -2564,17 +3980,301 @@ function markContacted(index) {
 }
 
 function setFollowUp(index) {
-  const date = prompt("Enter next follow-up date (YYYY-MM-DD)");
-  if (!date) return;
-
   const lead = leads[index];
 
-  updateLead(lead.id, {
-    ...lead,
-    userId: currentUser.id,
-    nextFollowUp: date,
-    lastContacted: new Date().toISOString().split("T")[0]
-  });
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return;
+  }
+
+  document.getElementById("followUpOverlay")?.remove();
+
+  const businessName =
+    lead.businessName || "Lead";
+
+  const currentFollowUp =
+    lead.nextFollowUp || "";
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "followUpOverlay";
+  overlay.className = "follow-up-overlay";
+
+  overlay.innerHTML = `
+    <div
+      class="follow-up-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="followUpModalTitle"
+    >
+      <div class="follow-up-header">
+
+        <div>
+          <p class="follow-up-eyebrow">
+            FOLLOW-UP
+          </p>
+
+          <h2 id="followUpModalTitle">
+            Schedule Follow-up
+          </h2>
+
+          <p class="follow-up-subtitle">
+            ${escapeHTML(businessName)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="follow-up-close"
+          aria-label="Close follow-up scheduler"
+        >
+          &times;
+        </button>
+
+      </div>
+
+      <div class="follow-up-body">
+
+        <div class="follow-up-lead-card">
+
+          <div class="follow-up-lead-avatar">
+            ${escapeHTML(
+              businessName.charAt(0).toUpperCase()
+            )}
+          </div>
+
+          <div>
+            <strong>
+              ${escapeHTML(businessName)}
+            </strong>
+
+            <span>
+              ${
+                currentFollowUp
+                  ? `Currently scheduled for ${escapeHTML(currentFollowUp)}`
+                  : "No follow-up currently scheduled"
+              }
+            </span>
+          </div>
+
+        </div>
+
+        <div class="follow-up-field">
+
+          <label for="followUpDate">
+            Follow-up Date
+          </label>
+
+          <input
+            id="followUpDate"
+            type="date"
+            value="${escapeHTML(currentFollowUp)}"
+          >
+
+          <small>
+            Choose when you want to follow up with this lead.
+          </small>
+
+        </div>
+
+      </div>
+
+      <div class="follow-up-footer">
+
+        <button
+          type="button"
+          class="follow-up-cancel"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="follow-up-save"
+        >
+          Schedule Follow-up
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const modal =
+    overlay.querySelector(".follow-up-modal");
+
+  const closeButton =
+    overlay.querySelector(".follow-up-close");
+
+  const cancelButton =
+    overlay.querySelector(".follow-up-cancel");
+
+  const saveButton =
+    overlay.querySelector(".follow-up-save");
+
+  const dateInput =
+    overlay.querySelector("#followUpDate");
+
+  let isSaving = false;
+
+  const closeFollowUp = () => {
+    if (isSaving) return;
+
+    document.removeEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    overlay.remove();
+  };
+
+  const handleEscape = event => {
+    if (
+      event.key === "Escape" &&
+      !isSaving
+    ) {
+      closeFollowUp();
+    }
+  };
+
+  closeButton?.addEventListener(
+    "click",
+    closeFollowUp
+  );
+
+  cancelButton?.addEventListener(
+    "click",
+    closeFollowUp
+  );
+
+  overlay.addEventListener(
+    "click",
+    event => {
+      if (event.target === overlay) {
+        closeFollowUp();
+      }
+    }
+  );
+
+  modal?.addEventListener(
+    "click",
+    event => {
+      event.stopPropagation();
+    }
+  );
+
+  saveButton?.addEventListener(
+    "click",
+    async () => {
+      if (isSaving) return;
+
+      const date =
+        dateInput.value.trim();
+
+      if (!date) {
+        showToast(
+          "Please choose a follow-up date.",
+          "warning"
+        );
+
+        dateInput.focus();
+        return;
+      }
+
+      isSaving = true;
+
+      saveButton.disabled = true;
+      saveButton.textContent =
+        "Scheduling...";
+
+      closeButton.disabled = true;
+      cancelButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API_URL}/${lead.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              ...lead,
+              userId: currentUser.id,
+              nextFollowUp: date,
+              lastContacted:
+                new Date()
+                  .toISOString()
+                  .split("T")[0]
+            })
+          }
+        );
+
+        const data =
+          await readJsonResponse(response);
+
+        if (!response.ok) {
+          console.error(
+            "Follow-up server error:",
+            data
+          );
+
+          showToast(
+            data.error ||
+            "Could not schedule follow-up.",
+            "error"
+          );
+
+          return;
+        }
+
+        await fetchLeads();
+
+        document.removeEventListener(
+          "keydown",
+          handleEscape
+        );
+
+        overlay.remove();
+
+        showToast(
+          "Follow-up scheduled successfully.",
+          "success"
+        );
+
+      } catch (error) {
+        console.error(
+          "Follow-up connection error:",
+          error
+        );
+
+        showToast(
+          "Could not connect to backend.",
+          "error"
+        );
+
+      } finally {
+        isSaving = false;
+
+        if (document.body.contains(saveButton)) {
+          saveButton.disabled = false;
+          saveButton.textContent =
+            "Schedule Follow-up";
+
+          closeButton.disabled = false;
+          cancelButton.disabled = false;
+        }
+      }
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    handleEscape
+  );
+
+  dateInput?.focus();
 }
 
 async function updateLead(leadId, payload) {
@@ -2805,163 +4505,448 @@ async function handleGenerate(index) {
 
   const lead = leads[index];
 
-  if (!lead) {
+  if (!lead || !lead.id) {
     showToast("Lead not found.", "error");
     return;
   }
 
-  showPage("outreachPage");
+  const leadId = lead.id;
+  const businessName =
+    lead.businessName || "Lead";
 
-  messageOutput.value =
-    "Generating personalized outreach message...";
+  const followUp =
+    lead.followUpIntelligence || {};
 
-  if (copyBtn) {
-    copyBtn.disabled = true;
-    copyBtn.textContent = "Generating...";
+  // Remove an existing outreach modal if one somehow remains.
+  const existingModal =
+    document.querySelector(".lead-outreach-modal");
+
+  if (existingModal) {
+    existingModal.remove();
   }
 
-  showToast(
-    "Generating personalized outreach...",
-    "info"
+  const modal =
+    document.createElement("div");
+
+  modal.className = "lead-outreach-modal";
+
+  modal.innerHTML = `
+    <div class="lead-outreach-backdrop"></div>
+
+    <div
+      class="lead-outreach-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="leadOutreachTitle"
+    >
+      <div class="lead-outreach-header">
+
+        <div>
+          <span class="lead-outreach-eyebrow">
+            AI OUTREACH
+          </span>
+
+          <h2 id="leadOutreachTitle">
+            ${escapeHTML(businessName)}
+          </h2>
+
+          <p>
+            Generate a personalized outreach message
+            using this lead's CRM intelligence.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="lead-outreach-close"
+          aria-label="Close AI Outreach"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div class="lead-outreach-body">
+
+        <div class="lead-outreach-field">
+          <label for="leadOutreachService">
+            Service
+          </label>
+
+          <input
+            type="text"
+            id="leadOutreachService"
+            value="${escapeHTML(
+              serviceInput?.value?.trim() ||
+              "my services"
+            )}"
+            placeholder="What are you offering?"
+          />
+        </div>
+
+        <div class="lead-outreach-field">
+          <label for="leadOutreachStyle">
+            Message style
+          </label>
+
+          <select id="leadOutreachStyle">
+            <option value="professional">
+              Professional
+            </option>
+
+            <option value="friendly">
+              Friendly
+            </option>
+
+            <option value="short">
+              Short & Direct
+            </option>
+
+            <option value="confident">
+              Confident
+            </option>
+          </select>
+        </div>
+
+        <div class="lead-outreach-field">
+          <label for="leadOutreachMessage">
+            Generated message
+          </label>
+
+          <textarea
+            id="leadOutreachMessage"
+            rows="10"
+            placeholder="Your personalized outreach message will appear here..."
+          ></textarea>
+        </div>
+
+      </div>
+
+      <div class="lead-outreach-footer">
+
+        <button
+          type="button"
+          class="lead-outreach-secondary lead-outreach-regenerate"
+        >
+          Generate Message
+        </button>
+
+        <button
+          type="button"
+          class="lead-outreach-primary lead-outreach-copy"
+          disabled
+        >
+          Copy Message
+        </button>
+
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const backdrop =
+    modal.querySelector(".lead-outreach-backdrop");
+
+  const dialog =
+    modal.querySelector(".lead-outreach-dialog");
+
+  const closeButton =
+    modal.querySelector(".lead-outreach-close");
+
+  const generateButton =
+    modal.querySelector(".lead-outreach-regenerate");
+
+  const copyButton =
+    modal.querySelector(".lead-outreach-copy");
+
+  const serviceField =
+    modal.querySelector("#leadOutreachService");
+
+  const styleField =
+    modal.querySelector("#leadOutreachStyle");
+
+  const messageField =
+    modal.querySelector("#leadOutreachMessage");
+
+  // Carry over the currently selected outreach style.
+  if (
+    messageStyle &&
+    Array.from(styleField.options).some(
+      (option) =>
+        option.value === messageStyle.value
+    )
+  ) {
+    styleField.value = messageStyle.value;
+  }
+
+  function closeOutreachModal() {
+    document.removeEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    modal.remove();
+  }
+
+  function handleEscape(event) {
+    if (event.key === "Escape") {
+      closeOutreachModal();
+    }
+  }
+
+  closeButton.addEventListener(
+    "click",
+    closeOutreachModal
   );
 
-  try {
-    const followUp =
-      lead.followUpIntelligence || {};
+  backdrop.addEventListener(
+    "click",
+    closeOutreachModal
+  );
 
-    const response = await fetch(
-      `${BASE_URL}/api/generate-message`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          businessName:
-            lead.businessName,
+  document.addEventListener(
+    "keydown",
+    handleEscape
+  );
 
-          service:
-            serviceInput.value.trim() ||
-            "my services",
-
-          style:
-            messageStyle.value,
-
-          userName:
-            currentUser
-              ? currentUser.name
-              : "AutoClient User",
-
-          userId:
-            currentUser
-              ? currentUser.id
-              : null,
-
-          leadId:
-            lead.id,
-
-          status:
-            lead.status || "",
-
-          followUpState:
-            followUp.state || "",
-
-          daysUntilFollowUp:
-            Number.isFinite(
-              Number(followUp.daysUntilFollowUp)
-            )
-              ? Number(followUp.daysUntilFollowUp)
-              : null,
-
-          aiSummary:
-            lead.aiSummary || "",
-
-          aiOpportunity:
-            lead.aiOpportunity || "",
-
-          aiRecommendedApproach:
-            lead.aiRecommendedApproach || "",
-
-          aiBestChannel:
-            lead.aiBestChannel || "",
-
-          aiNextAction:
-            lead.aiNextAction || "",
-
-          aiConfidence:
-            lead.aiConfidence || "",
-
-          aiScore:
-            Number.isFinite(Number(lead.aiScore))
-              ? Number(lead.aiScore)
-              : null
-        })
-      }
-    );
-
-    const data =
-      await readJsonResponse(response);
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        "Message generation failed"
-      );
+  // Prevent clicks inside the dialog from behaving
+  // like backdrop clicks.
+  dialog.addEventListener(
+    "click",
+    (event) => {
+      event.stopPropagation();
     }
+  );
 
-    typeText(
-      messageOutput,
-      data.message
-    );
+  async function generateOutreachMessage() {
+    generateButton.disabled = true;
+    copyButton.disabled = true;
 
-    await fetchActivities();
+    generateButton.textContent =
+      "Generating...";
 
-    showToast(
-      "Smart outreach generated.",
-      "success"
-    );
-
-  } catch (error) {
-    console.error(
-      "Message error:",
-      error
-    );
-
-    typeText(
-      messageOutput,
-      generateMessage(lead)
-    );
+    messageField.value =
+      "Generating personalized outreach message...";
 
     showToast(
-      error.message ||
-      "Used fallback outreach generator.",
-      "warning"
+      `Generating outreach for ${businessName}...`,
+      "info"
     );
 
-  } finally {
-    if (copyBtn) {
-      copyBtn.disabled = false;
-      copyBtn.textContent = "Copy Message";
+    try {
+      const response = await fetch(
+        `${BASE_URL}/api/generate-message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            businessName:
+              businessName,
+
+            service:
+              serviceField.value.trim() ||
+              "my services",
+
+            style:
+              styleField.value,
+
+            userName:
+              currentUser
+                ? currentUser.name
+                : "AutoClient User",
+
+            userId:
+              currentUser
+                ? currentUser.id
+                : null,
+
+            leadId:
+              leadId,
+
+            status:
+              lead.status || "",
+
+            followUpState:
+              followUp.state || "",
+
+            daysUntilFollowUp:
+              Number.isFinite(
+                Number(
+                  followUp.daysUntilFollowUp
+                )
+              )
+                ? Number(
+                    followUp.daysUntilFollowUp
+                  )
+                : null,
+
+            aiSummary:
+              lead.aiSummary || "",
+
+            aiOpportunity:
+              lead.aiOpportunity || "",
+
+            aiRecommendedApproach:
+              lead.aiRecommendedApproach || "",
+
+            aiBestChannel:
+              lead.aiBestChannel || "",
+
+            aiNextAction:
+              lead.aiNextAction || "",
+
+            aiConfidence:
+              lead.aiConfidence || "",
+
+            aiScore:
+              lead.aiScore !== null &&
+              lead.aiScore !== undefined &&
+              String(lead.aiScore).trim() !== "" &&
+              Number.isFinite(
+                Number(lead.aiScore)
+              )
+                ? Number(lead.aiScore)
+                : null
+          })
+        }
+      );
+
+      const data =
+        await readJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+          "Message generation failed"
+        );
+      }
+
+      messageField.value =
+        data.message || "";
+
+      copyButton.disabled =
+        !messageField.value.trim();
+
+      await fetchActivities();
+
+      showToast(
+        "Smart outreach generated.",
+        "success"
+      );
+
+    } catch (error) {
+      console.error(
+        "Message error:",
+        error
+      );
+
+      messageField.value =
+        generateMessage(lead);
+
+      copyButton.disabled =
+        !messageField.value.trim();
+
+      showToast(
+        error.message ||
+        "Used fallback outreach generator.",
+        "warning"
+      );
+
+    } finally {
+      generateButton.disabled = false;
+      generateButton.textContent =
+        "Regenerate";
     }
   }
+
+  generateButton.addEventListener(
+    "click",
+    generateOutreachMessage
+  );
+
+  copyButton.addEventListener(
+    "click",
+    async () => {
+      const message =
+        messageField.value.trim();
+
+      if (!message) {
+        showToast(
+          "Generate a message first.",
+          "warning"
+        );
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(
+          message
+        );
+
+        copyButton.textContent =
+          "Copied ✓";
+
+        showToast(
+          "Outreach message copied.",
+          "success"
+        );
+
+        setTimeout(() => {
+          if (document.body.contains(copyButton)) {
+            copyButton.textContent =
+              "Copy Message";
+          }
+        }, 1800);
+
+      } catch (error) {
+        console.error(
+          "Copy outreach error:",
+          error
+        );
+
+        messageField.focus();
+        messageField.select();
+
+        showToast(
+          "Could not copy automatically. The message has been selected.",
+          "warning"
+        );
+      }
+    }
+  );
+
+  // Generate immediately when the modal opens.
+  await generateOutreachMessage();
 }
 
 async function handleAnalyzeLead(index) {
   const lead = leads[index];
 
   if (!lead || !lead.id) {
-    showToast("Lead could not be analyzed.", "error");
+    showToast(
+      "Lead could not be analyzed.",
+      "error"
+    );
     return;
   }
 
+  // Store the ID because fetchLeads() may rebuild/reorder
+  // the leads array after the analysis is saved.
+  const leadId = lead.id;
+  const businessName =
+    lead.businessName || "lead";
+
   try {
     showToast(
-      `Analyzing ${lead.businessName || "lead"}...`,
+      `Analyzing ${businessName}...`,
       "info"
     );
 
     const response = await fetch(
-      `${BASE_URL}/api/analyze-lead/${lead.id}`,
+      `${BASE_URL}/api/analyze-lead/${leadId}`,
       {
         method: "POST",
         headers: {
@@ -2970,29 +4955,44 @@ async function handleAnalyzeLead(index) {
       }
     );
 
-    const data = await readJsonResponse(response);
+    const data =
+      await readJsonResponse(response);
 
     if (!response.ok) {
       showToast(
-        data.error || "Could not analyze this lead.",
+        data.error ||
+          "Could not analyze this lead.",
         "error"
       );
       return;
     }
 
-    // Reload leads from the backend after analysis.
-    // This keeps Lead Intelligence and Follow-Up Intelligence
-    // synchronized instead of replacing the enriched lead
-    // with the raw analyze response.
+    // Reload the lead from the backend so the UI uses
+    // the newly saved AI intelligence.
     await fetchLeads();
+
+    // Find the same lead again instead of relying on its
+    // old array position.
+    const updatedIndex = leads.findIndex(
+      (item) =>
+        String(item.id) === String(leadId)
+    );
 
     showToast(
       "Lead Intelligence generated successfully.",
       "success"
     );
 
+    // Reopen the details modal with the refreshed analysis.
+    if (updatedIndex !== -1) {
+      openLeadDetails(updatedIndex);
+    }
+
   } catch (error) {
-    console.error("Lead Intelligence error:", error);
+    console.error(
+      "Lead Intelligence error:",
+      error
+    );
 
     showToast(
       "Could not generate Lead Intelligence.",
@@ -3044,19 +5044,407 @@ async function sendEmail(index) {
     return;
   }
 
-  const defaultEmail =
-    lead.contact && lead.contact.includes("@")
-      ? lead.contact
-      : "";
+  const existingOverlay =
+    document.getElementById("emailComposerOverlay");
 
-  const email = prompt(
-    "Enter recipient email address:",
-    defaultEmail
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+
+  // Prefer the dedicated email field.
+  // Fall back to legacy contact data for older leads.
+  const dedicatedEmail =
+    String(lead.email || "").trim();
+
+  const legacyEmail =
+    String(lead.contact || "").trim();
+
+  const defaultEmail =
+    dedicatedEmail ||
+    (legacyEmail.includes("@")
+      ? legacyEmail
+      : "");
+
+  const defaultSubject =
+    `Quick message for ${
+      lead.businessName || "your business"
+    }`;
+
+  const generatedMessage =
+    generateMessage(lead) || "";
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "emailComposerOverlay";
+  overlay.className = "email-composer-overlay";
+
+  overlay.innerHTML = `
+    <div
+      class="email-composer-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="emailComposerTitle"
+    >
+      <div class="email-composer-header">
+        <div>
+          <p class="email-composer-eyebrow">
+            OUTREACH
+          </p>
+
+          <h2 id="emailComposerTitle">
+            New Email
+          </h2>
+
+          <p class="email-composer-lead">
+            To ${escapeHTML(
+              lead.businessName || "Lead"
+            )}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="email-composer-close"
+          aria-label="Close email composer"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="email-composer-body">
+        <div class="email-composer-field">
+          <label for="emailComposerTo">
+            Recipient
+          </label>
+
+          <input
+            id="emailComposerTo"
+            type="email"
+            autocomplete="email"
+            placeholder="name@example.com"
+            value="${escapeHTML(defaultEmail)}"
+          >
+        </div>
+
+        <div class="email-composer-field">
+          <label for="emailComposerSubject">
+            Subject
+          </label>
+
+          <input
+            id="emailComposerSubject"
+            type="text"
+            placeholder="Email subject"
+            value="${escapeHTML(defaultSubject)}"
+          >
+        </div>
+
+        <div class="email-composer-field email-message-field">
+          <div class="email-message-label-row">
+            <label for="emailComposerMessage">
+              Message
+            </label>
+
+            <button
+              type="button"
+              class="email-regenerate-button"
+            >
+              Regenerate
+            </button>
+          </div>
+
+          <textarea
+            id="emailComposerMessage"
+            placeholder="Write your message..."
+          >${escapeHTML(generatedMessage)}</textarea>
+        </div>
+      </div>
+
+      <div class="email-composer-footer">
+        <button
+          type="button"
+          class="email-cancel-button"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="email-send-button"
+        >
+          Send Email
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const modal =
+    overlay.querySelector(".email-composer-modal");
+
+  const closeButton =
+    overlay.querySelector(".email-composer-close");
+
+  const cancelButton =
+    overlay.querySelector(".email-cancel-button");
+
+  const regenerateButton =
+    overlay.querySelector(".email-regenerate-button");
+
+  const sendButton =
+    overlay.querySelector(".email-send-button");
+
+  const emailInput =
+    overlay.querySelector("#emailComposerTo");
+
+  const subjectInput =
+    overlay.querySelector("#emailComposerSubject");
+
+  const messageInput =
+    overlay.querySelector("#emailComposerMessage");
+
+  let isSending = false;
+
+  const closeComposer = () => {
+    document.removeEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    overlay.remove();
+  };
+
+  const handleEscape = event => {
+    if (
+      event.key === "Escape" &&
+      !isSending
+    ) {
+      closeComposer();
+    }
+  };
+
+  closeButton?.addEventListener(
+    "click",
+    () => {
+      if (!isSending) {
+        closeComposer();
+      }
+    }
   );
 
-  if (!email) return;
+  cancelButton?.addEventListener(
+    "click",
+    () => {
+      if (!isSending) {
+        closeComposer();
+      }
+    }
+  );
 
-  const cleanEmail = email.trim();
+  overlay.addEventListener(
+    "click",
+    event => {
+      if (
+        event.target === overlay &&
+        !isSending
+      ) {
+        closeComposer();
+      }
+    }
+  );
+
+  modal?.addEventListener(
+    "click",
+    event => {
+      event.stopPropagation();
+    }
+  );
+
+  regenerateButton?.addEventListener(
+    "click",
+    () => {
+      const refreshedMessage =
+        generateMessage(lead);
+
+      if (!refreshedMessage) {
+        showToast(
+          "No outreach message could be generated for this lead.",
+          "warning"
+        );
+        return;
+      }
+
+      messageInput.value =
+        refreshedMessage;
+
+      showToast(
+        "Email message regenerated.",
+        "success"
+      );
+    }
+  );
+
+  sendButton?.addEventListener(
+    "click",
+    async () => {
+      if (isSending) return;
+
+      const email =
+        emailInput.value.trim();
+
+      const subject =
+        subjectInput.value.trim();
+
+      const message =
+        messageInput.value.trim();
+
+      if (
+        !email ||
+        !email.includes("@")
+      ) {
+        showToast(
+          "Please enter a valid email address.",
+          "warning"
+        );
+
+        emailInput.focus();
+        return;
+      }
+
+      if (!subject) {
+        showToast(
+          "Please enter an email subject.",
+          "warning"
+        );
+
+        subjectInput.focus();
+        return;
+      }
+
+      if (!message) {
+        showToast(
+          "Please enter an email message.",
+          "warning"
+        );
+
+        messageInput.focus();
+        return;
+      }
+
+      isSending = true;
+
+      sendButton.disabled = true;
+      sendButton.textContent =
+        "Sending...";
+
+      closeButton.disabled = true;
+      cancelButton.disabled = true;
+      regenerateButton.disabled = true;
+
+      try {
+        const sent =
+          await sendEmailDirect(
+            index,
+            email,
+            subject,
+            message
+          );
+
+        if (sent) {
+          closeComposer();
+          return;
+        }
+
+      } finally {
+        isSending = false;
+
+        if (
+          document.body.contains(sendButton)
+        ) {
+          sendButton.disabled = false;
+          sendButton.textContent =
+            "Send Email";
+
+          closeButton.disabled = false;
+          cancelButton.disabled = false;
+          regenerateButton.disabled = false;
+        }
+      }
+    }
+  );
+
+  document.addEventListener(
+    "keydown",
+    handleEscape
+  );
+
+  if (!defaultEmail) {
+    emailInput?.focus();
+  } else {
+    subjectInput?.focus();
+  }
+}
+
+async function sendEmailDirect(index, email, subject, message) {
+  if (!requireFeature("email_integration")) {
+    return false;
+  }
+
+  const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead not found.", "error");
+    return false;
+  }
+
+  if (!currentUser) {
+    showToast("Please login first.", "warning");
+    return false;
+  }
+
+  const status =
+    lead.status
+      ? lead.status.trim().toLowerCase()
+      : "";
+
+  const followUpState =
+    lead.followUpIntelligence &&
+    lead.followUpIntelligence.state
+      ? lead.followUpIntelligence.state
+      : "";
+
+  const closedStatuses = [
+    "closed",
+    "lost",
+    "rejected"
+  ];
+
+  if (
+    closedStatuses.includes(status) ||
+    followUpState === "closed_or_rejected"
+  ) {
+    showToast(
+      "This lead is closed/rejected. Reopen it before sending outreach.",
+      "warning"
+    );
+    return false;
+  }
+
+  const cleanEmail =
+    typeof email === "string"
+      ? email.trim()
+      : "";
+
+  const cleanSubject =
+    typeof subject === "string"
+      ? subject.trim()
+      : "";
+
+  const cleanMessage =
+    typeof message === "string"
+      ? message.trim()
+      : "";
 
   if (
     !cleanEmail ||
@@ -3066,34 +5454,23 @@ async function sendEmail(index) {
       "Please enter a valid email address.",
       "warning"
     );
-    return;
+    return false;
   }
-
-  const subject = prompt(
-    "Email subject:",
-    `Quick message for ${lead.businessName || "your business"}`
-  );
-
-  if (!subject) return;
-
-  const cleanSubject = subject.trim();
 
   if (!cleanSubject) {
     showToast(
       "Please enter an email subject.",
       "warning"
     );
-    return;
+    return false;
   }
 
-  const message = generateMessage(lead);
-
-  if (!message || !message.trim()) {
+  if (!cleanMessage) {
     showToast(
-      "No outreach message could be generated for this lead.",
+      "Please enter an email message.",
       "warning"
     );
-    return;
+    return false;
   }
 
   try {
@@ -3110,7 +5487,7 @@ async function sendEmail(index) {
         businessName: lead.businessName,
         to: cleanEmail,
         subject: cleanSubject,
-        message: message.trim()
+        message: cleanMessage
       })
     });
 
@@ -3121,7 +5498,7 @@ async function sendEmail(index) {
 
       alert(
         data.error ||
-        "Email failed. Check Render logs."
+        "Email failed. Check server logs."
       );
 
       showToast(
@@ -3130,7 +5507,7 @@ async function sendEmail(index) {
         "error"
       );
 
-      return;
+      return false;
     }
 
     await fetchActivities();
@@ -3140,6 +5517,8 @@ async function sendEmail(index) {
       "success"
     );
 
+    return true;
+
   } catch (error) {
     console.error(
       "Send email connection error:",
@@ -3147,27 +5526,59 @@ async function sendEmail(index) {
     );
 
     alert(
-      "Could not connect to email backend. Check Render logs."
+      "Could not connect to email backend."
     );
 
     showToast(
       "Could not connect to email backend.",
       "error"
     );
+
+    return false;
   }
 }
 
 function sendWhatsApp(index) {
   const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead could not be found.", "error");
+    return;
+  }
+
+  const rawPhone = String(
+    lead.phone || ""
+  ).trim();
+
+  if (!rawPhone) {
+    showToast(
+      "Add a phone / WhatsApp number to this lead first.",
+      "warning"
+    );
+    return;
+  }
+
+  const phone = rawPhone.replace(/\D/g, "");
+
+  if (!phone) {
+    showToast(
+      "This lead does not have a valid phone number.",
+      "warning"
+    );
+    return;
+  }
+
   const message = generateMessage(lead);
   const encodedMessage = encodeURIComponent(message);
 
-  const phone = (lead.contact || "").replace(/\D/g, "");
-  const whatsappURL = phone
-    ? `https://wa.me/${phone}?text=${encodedMessage}`
-    : `https://wa.me/?text=${encodedMessage}`;
+  const whatsappURL =
+    `https://wa.me/${phone}?text=${encodedMessage}`;
 
-  window.open(whatsappURL, "_blank");
+  window.open(
+    whatsappURL,
+    "_blank",
+    "noopener,noreferrer"
+  );
 
   logActivity(
     lead.id,
@@ -3175,25 +5586,69 @@ function sendWhatsApp(index) {
     `WhatsApp outreach opened for ${lead.businessName}.`
   );
 
-  showToast("WhatsApp outreach opened.", "success");
+  showToast(
+    "WhatsApp outreach opened.",
+    "success"
+  );
 }
 
-function sendLinkedIn(index) {
+async function sendLinkedIn(index) {
   const lead = leads[index];
+
+  if (!lead) {
+    showToast("Lead could not be found.", "error");
+    return;
+  }
+
+  const linkedInUrl = normalizeUrl(
+    String(lead.linkedin || "").trim()
+  );
+
+  if (!linkedInUrl) {
+    showToast(
+      "Add a LinkedIn profile to this lead first.",
+      "warning"
+    );
+    return;
+  }
+
+  if (!linkedInUrl.toLowerCase().includes("linkedin.com/")) {
+    showToast(
+      "This lead does not have a valid LinkedIn URL.",
+      "warning"
+    );
+    return;
+  }
+
   const message = generateMessage(lead);
 
-  navigator.clipboard.writeText(message);
+  try {
+    await navigator.clipboard.writeText(message);
 
-  const searchUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(lead.businessName)}`;
-  window.open(searchUrl, "_blank");
+    showToast(
+      "Message copied. Paste it into LinkedIn chat.",
+      "success"
+    );
+  } catch (error) {
+    console.error("Could not copy LinkedIn message:", error);
+
+    showToast(
+      "LinkedIn opened, but the message could not be copied.",
+      "warning"
+    );
+  }
+
+  window.open(
+    linkedInUrl,
+    "_blank",
+    "noopener,noreferrer"
+  );
 
   logActivity(
     lead.id,
     "LinkedIn Outreach Opened",
-    `LinkedIn search opened and message copied for ${lead.businessName}.`
+    `LinkedIn profile opened for ${lead.businessName}.`
   );
-
-  showToast("Message copied. Paste it into LinkedIn chat.", "success");
 }
 
 copyBtn.addEventListener("click", async function () {

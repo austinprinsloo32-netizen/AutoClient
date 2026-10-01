@@ -537,6 +537,24 @@ def init_db():
         "TEXT"
     )
 
+    add_column_if_missing(
+        "leads",
+        "email",
+        "TEXT"
+)
+
+    add_column_if_missing(
+        "leads",
+        "phone",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "linkedin",
+        "TEXT"
+    )
+
 
 init_db()
 
@@ -2835,6 +2853,189 @@ def create_activity():
     }), 201
 
 
+
+
+    if USING_POSTGRES:
+        updated_lead = execute_query("""
+            UPDATE leads
+            SET aiSummary = %s,
+                aiOpportunity = %s,
+                aiRecommendedApproach = %s,
+                aiBestChannel = %s,
+                aiNextAction = %s,
+                aiConfidence = %s,
+                aiScore = %s,
+                aiLastAnalyzed = %s
+            WHERE id = %s
+              AND userId = %s
+            RETURNING *
+        """, (
+            ai_summary,
+            ai_opportunity,
+            ai_recommended_approach,
+            ai_best_channel,
+            ai_next_action,
+            ai_confidence,
+            ai_score,
+            ai_last_analyzed,
+            lead_id,
+            user_id
+        ), fetchone=True, commit=True)
+
+        updated_lead = row_to_dict(updated_lead)
+
+    else:
+        execute_query("""
+            UPDATE leads
+            SET aiSummary = ?,
+                aiOpportunity = ?,
+                aiRecommendedApproach = ?,
+                aiBestChannel = ?,
+                aiNextAction = ?,
+                aiConfidence = ?,
+                aiScore = ?,
+                aiLastAnalyzed = ?
+            WHERE id = ?
+              AND userId = ?
+        """, (
+            ai_summary,
+            ai_opportunity,
+            ai_recommended_approach,
+            ai_best_channel,
+            ai_next_action,
+            ai_confidence,
+            ai_score,
+            ai_last_analyzed,
+            lead_id,
+            user_id
+        ), commit=True)
+
+        updated_lead = get_lead_by_id(
+            lead_id,
+            user_id
+        )
+
+    log_activity(
+        user_id,
+        lead_id,
+        "Lead Intelligence Generated",
+        f"Lead intelligence generated for {business_name}."
+    )
+
+    return jsonify({
+        "leadId": lead_id,
+        "businessName": business_name,
+        "analysis": {
+            "summary": ai_summary,
+            "opportunity": ai_opportunity,
+            "recommendedApproach": ai_recommended_approach,
+            "bestChannel": ai_best_channel,
+            "nextAction": ai_next_action,
+            "confidence": ai_confidence,
+            "score": ai_score,
+            "scoreLabel": "Lead Quality",
+            "lastAnalyzed": ai_last_analyzed
+        },
+        "lead": updated_lead
+    }), 200
+
+@app.route("/api/leads", methods=["POST"])
+def add_lead():
+    if not is_trusted_origin():
+        return jsonify({
+            "error": "Invalid request origin"
+        }), 403
+
+    data = request.get_json() or {}
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({
+            "error": "Not authenticated"
+        }), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+
+        return jsonify({
+            "error": "User not found"
+        }), 404
+
+    plan_data = get_user_plan_data(user)
+    current_count = get_user_lead_count(user_id)
+    max_leads = plan_data["features"]["max_leads"]
+
+    if current_count >= max_leads:
+        return jsonify({
+            "error": (
+                f"{plan_data['planName']} plan limit reached. "
+                "Upgrade to add more leads."
+            )
+        }), 403
+
+    business_name = str(
+        data.get("businessName") or ""
+    ).strip()
+
+    link = str(
+        data.get("link") or ""
+    ).strip()
+
+    email = str(
+        data.get("email") or ""
+    ).strip().lower()
+
+    phone = str(
+        data.get("phone") or ""
+    ).strip()
+
+    linkedin = str(
+        data.get("linkedin") or ""
+    ).strip()
+
+    # Keep the old contact field populated for
+    # backwards compatibility with existing code.
+    contact = str(
+        data.get("contact")
+        or email
+        or phone
+        or linkedin
+        or ""
+    ).strip()
+
+    priority = str(
+        data.get("priority") or "Cold"
+    ).strip()
+
+    notes = str(
+        data.get("notes") or ""
+    ).strip()
+
+    status = str(
+        data.get("status") or "New"
+    ).strip()
+
+    created_at = str(
+        data.get("createdAt") or ""
+    ).strip()
+
+    last_contacted = str(
+        data.get("lastContacted") or ""
+    ).strip()
+
+    next_follow_up = str(
+        data.get("nextFollowUp") or ""
+    ).strip()
+
+    if not business_name:
+        return jsonify({
+            "error": "Business name is required"
+        }), 400
+
+
 @app.route("/api/leads", methods=["GET"])
 def get_leads():
     user_id = session.get("user_id")
@@ -3003,56 +3204,96 @@ def analyze_lead(lead_id):
     if not lead:
         return jsonify({"error": "Lead not found"}), 404
 
-    business_name = get_field(
-        lead,
-        "businessName",
-        "Unknown business"
-    )
+    business_name = str(
+        get_field(lead, "businessName", "Unknown business") or ""
+    ).strip()
 
-    link = get_field(
-        lead,
-        "link",
-        ""
-    )
+    link = str(
+        get_field(lead, "link", "") or ""
+    ).strip()
 
-    contact = get_field(
-        lead,
-        "contact",
-        ""
-    )
+    email = str(
+        get_field(lead, "email", "") or ""
+    ).strip()
 
-    notes = get_field(
-        lead,
-        "notes",
-        ""
-    )
+    phone = str(
+        get_field(lead, "phone", "") or ""
+    ).strip()
 
-    priority = get_field(
-        lead,
-        "priority",
-        "Cold"
-    )
+    linkedin = str(
+        get_field(lead, "linkedin", "") or ""
+    ).strip()
 
-    status = get_field(
-        lead,
-        "status",
-        "New"
-    )
+    # Legacy compatibility for older leads that only have "contact".
+    contact = str(
+        get_field(lead, "contact", "") or ""
+    ).strip()
 
-    last_contacted = get_field(
-        lead,
-        "lastContacted",
-        ""
-    )
+    notes = str(
+        get_field(lead, "notes", "") or ""
+    ).strip()
 
-    next_follow_up = get_field(
-        lead,
-        "nextFollowUp",
-        ""
-    )
+    priority = str(
+        get_field(lead, "priority", "Cold") or "Cold"
+    ).strip()
+
+    status = str(
+        get_field(lead, "status", "New") or "New"
+    ).strip()
+
+    last_contacted = str(
+        get_field(lead, "lastContacted", "") or ""
+    ).strip()
+
+    next_follow_up = str(
+        get_field(lead, "nextFollowUp", "") or ""
+    ).strip()
+
+    # --------------------------------------------------
+    # Legacy contact fallback
+    # --------------------------------------------------
+
+    legacy_email = ""
+    legacy_phone = ""
+    legacy_linkedin = ""
+
+    if contact:
+        contact_lower = contact.lower()
+
+        if "@" in contact:
+            legacy_email = contact
+
+        elif "linkedin.com/" in contact_lower:
+            legacy_linkedin = contact
+
+        else:
+            contact_digits = "".join(
+                character
+                for character in contact
+                if character.isdigit()
+            )
+
+            if contact_digits:
+                legacy_phone = contact
+
+    effective_email = email or legacy_email
+    effective_phone = phone or legacy_phone
+    effective_linkedin = linkedin or legacy_linkedin
+
+    has_email = bool(effective_email)
+    has_phone = bool(effective_phone)
+    has_linkedin = bool(effective_linkedin)
+    has_website = bool(link)
+
+    has_contact_channel = any([
+        has_email,
+        has_phone,
+        has_linkedin
+    ])
 
     # --------------------------------------------------
     # Analysis Confidence
+    #
     # Measures how much useful information AutoClient has.
     # --------------------------------------------------
 
@@ -3061,14 +3302,20 @@ def analyze_lead(lead_id):
     if business_name and business_name != "Unknown business":
         confidence_points += 15
 
-    if link:
-        confidence_points += 20
+    if has_website:
+        confidence_points += 15
 
-    if contact:
-        confidence_points += 20
+    if has_email:
+        confidence_points += 10
+
+    if has_phone:
+        confidence_points += 10
+
+    if has_linkedin:
+        confidence_points += 10
 
     if notes:
-        confidence_points += 30
+        confidence_points += 25
 
     if last_contacted:
         confidence_points += 10
@@ -3076,29 +3323,51 @@ def analyze_lead(lead_id):
     if next_follow_up:
         confidence_points += 5
 
-    confidence_points = min(confidence_points, 100)
+    confidence_points = min(
+        confidence_points,
+        100
+    )
 
     if confidence_points >= 75:
         ai_confidence = "High"
+
     elif confidence_points >= 45:
         ai_confidence = "Medium"
+
     else:
         ai_confidence = "Low"
 
     # --------------------------------------------------
     # Lead Quality Score
-    # Measures how actionable/promising the CRM lead appears.
-    # This is NOT a prediction that the customer will buy.
+    #
+    # Measures how actionable/promising the CRM lead
+    # appears. This is NOT a prediction that the
+    # customer will buy.
     # --------------------------------------------------
 
     lead_quality_score = 0
 
-    # Reachability
-    if contact:
-        lead_quality_score += 20
+    # Reachability.
+    # Multiple usable channels improve actionability,
+    # but contact availability is capped at 25 points.
+    contact_score = 0
+
+    if has_email:
+        contact_score += 15
+
+    if has_phone:
+        contact_score += 15
+
+    if has_linkedin:
+        contact_score += 10
+
+    lead_quality_score += min(
+        contact_score,
+        25
+    )
 
     # Researchability
-    if link:
+    if has_website:
         lead_quality_score += 10
 
     # Useful context
@@ -3106,17 +3375,28 @@ def analyze_lead(lead_id):
         lead_quality_score += 15
 
     # User-defined priority
-    priority_lower = str(priority).strip().lower()
+    priority_lower = priority.lower()
 
-    if priority_lower in ["hot", "high"]:
+    if priority_lower in [
+        "hot",
+        "high"
+    ]:
         lead_quality_score += 25
-    elif priority_lower in ["warm", "medium"]:
+
+    elif priority_lower in [
+        "warm",
+        "medium"
+    ]:
         lead_quality_score += 15
-    elif priority_lower in ["cold", "low"]:
+
+    elif priority_lower in [
+        "cold",
+        "low"
+    ]:
         lead_quality_score += 5
 
     # Pipeline progress
-    status_lower = str(status).strip().lower()
+    status_lower = status.lower()
 
     if status_lower in [
         "qualified",
@@ -3133,9 +3413,7 @@ def analyze_lead(lead_id):
     ]:
         lead_quality_score += 15
 
-    elif status_lower in [
-        "new"
-    ]:
+    elif status_lower == "new":
         lead_quality_score += 5
 
     elif status_lower in [
@@ -3161,16 +3439,17 @@ def analyze_lead(lead_id):
     # Best communication channel
     # --------------------------------------------------
 
-    contact_text = str(contact).strip()
-
-    if contact_text and "@" in contact_text:
+    if has_email:
         ai_best_channel = "Email"
 
-    elif contact_text:
+    elif has_phone:
         ai_best_channel = "WhatsApp or Call"
 
-    elif link:
-        ai_best_channel = "Website or LinkedIn"
+    elif has_linkedin:
+        ai_best_channel = "LinkedIn"
+
+    elif has_website:
+        ai_best_channel = "Website Research"
 
     else:
         ai_best_channel = "Research Required"
@@ -3179,66 +3458,100 @@ def analyze_lead(lead_id):
     # Internal intelligence summary
     # --------------------------------------------------
 
-    if notes:
+    available_channels = []
+
+    if has_email:
+        available_channels.append("email")
+
+    if has_phone:
+        available_channels.append("phone/WhatsApp")
+
+    if has_linkedin:
+        available_channels.append("LinkedIn")
+
+    if available_channels:
+        channel_description = ", ".join(
+            available_channels
+        )
+    else:
+        channel_description = ""
+
+    if notes and has_contact_channel:
         ai_summary = (
-            f"{business_name} has useful CRM context available. "
-            "The lead should be approached using the stored business "
-            "information while keeping internal notes private."
+            f"{business_name} has useful CRM context and "
+            f"can currently be reached through "
+            f"{channel_description}. The lead is ready "
+            "for further qualification and personalized "
+            "outreach."
         )
 
-    elif link and contact:
+    elif notes:
         ai_summary = (
-            f"{business_name} has both a business/profile link and "
-            "contact information available, making the lead ready "
-            "for further qualification and outreach."
+            f"{business_name} has useful CRM context "
+            "available, but a direct contact channel still "
+            "needs to be added before outreach."
         )
 
-    elif link:
+    elif has_website and has_contact_channel:
         ai_summary = (
-            f"{business_name} has a business/profile link available "
-            "but still needs additional context or contact information "
-            "before highly personalized outreach."
+            f"{business_name} has a website/profile and "
+            f"can be reached through {channel_description}. "
+            "Additional CRM context would improve "
+            "personalization."
         )
 
-    elif contact:
+    elif has_contact_channel:
         ai_summary = (
-            f"{business_name} has contact information available but "
-            "limited business context. Additional research would improve "
-            "personalization before outreach."
+            f"{business_name} can currently be reached "
+            f"through {channel_description}, but limited "
+            "business context is available. Additional "
+            "research would improve personalization."
+        )
+
+    elif has_website:
+        ai_summary = (
+            f"{business_name} has a business website or "
+            "profile available but no direct contact channel. "
+            "Research the business and add contact information "
+            "before outreach."
         )
 
     else:
         ai_summary = (
-            f"{business_name} currently has limited information available. "
-            "More research is recommended before personalized outreach."
+            f"{business_name} currently has limited "
+            "information available. More research and valid "
+            "contact information are recommended before "
+            "personalized outreach."
         )
 
     # --------------------------------------------------
     # Opportunity assessment
     # --------------------------------------------------
 
-    if notes and link:
+    if notes and has_website:
         ai_opportunity = (
-            "There is enough context to investigate a specific business "
-            "need, service fit, or improvement opportunity before outreach."
+            "There is enough context to investigate a "
+            "specific business need, service fit, or "
+            "improvement opportunity before outreach."
         )
 
     elif notes:
         ai_opportunity = (
-            "The stored CRM context can be used to identify a relevant "
-            "business need or service opportunity."
+            "The stored CRM context can be used to identify "
+            "a relevant business need or service opportunity."
         )
 
-    elif link:
+    elif has_website:
         ai_opportunity = (
-            "Review the available business website or profile to identify "
-            "a specific need or improvement opportunity."
+            "Review the available business website or profile "
+            "to identify a specific need or improvement "
+            "opportunity."
         )
 
     else:
         ai_opportunity = (
-            "Additional research is required before a strong business "
-            "opportunity can be identified."
+            "Additional research is required before a strong "
+            "business opportunity can be identified."
         )
 
     # --------------------------------------------------
@@ -3247,84 +3560,101 @@ def analyze_lead(lead_id):
 
     if ai_score >= 70:
         ai_recommended_approach = (
-            "Use a direct, personalized approach focused on one clear "
-            "business outcome and move toward a conversation."
+            "Use a direct, personalized approach focused on "
+            "one clear business outcome and move toward a "
+            "conversation."
         )
 
     elif ai_score >= 45:
         ai_recommended_approach = (
-            "Use a consultative approach that highlights one relevant "
-            "opportunity and invites the prospect to discuss it."
+            "Use a consultative approach that highlights one "
+            "relevant opportunity and invites the prospect "
+            "to discuss it."
         )
 
     else:
         ai_recommended_approach = (
-            "Use low-pressure outreach focused on relevance and research "
-            "before making a stronger offer."
+            "Use low-pressure outreach focused on relevance "
+            "and research before making a stronger offer."
         )
 
     # --------------------------------------------------
     # Recommended next action
     # --------------------------------------------------
 
-    if ai_best_channel == "Research Required":
-        ai_next_action = (
-            "Research the business and add valid contact information "
-            "before starting outreach."
-        )
-
-    elif not notes and link:
-        ai_next_action = (
-            "Review the business website or profile and add useful CRM "
-            "context before generating highly personalized outreach."
-        )
-
-    elif not notes:
-        ai_next_action = (
-            "Add useful business context before generating personalized outreach."
-        )
-
-    elif status_lower in [
+    if status_lower in [
         "closed",
         "lost",
         "rejected"
     ]:
         ai_next_action = (
-            "Review whether this lead should be reopened before starting "
-            "new outreach."
+            "Review whether this lead should be reopened "
+            "before starting new outreach."
+        )
+
+    elif not has_contact_channel:
+        if has_website:
+            ai_next_action = (
+                "Research the business website and add an "
+                "email address, phone number, or LinkedIn "
+                "profile before starting outreach."
+            )
+        else:
+            ai_next_action = (
+                "Research the business and add valid contact "
+                "information before starting outreach."
+            )
+
+    elif not notes and has_website:
+        ai_next_action = (
+            "Review the business website or profile and add "
+            "useful CRM context before generating highly "
+            "personalized outreach."
+        )
+
+    elif not notes:
+        ai_next_action = (
+            "Add useful business context before generating "
+            "personalized outreach."
         )
 
     elif next_follow_up:
         ai_next_action = (
-            f"Follow up with {business_name} using {ai_best_channel} "
-            "and the existing CRM context."
+            f"Follow up with {business_name} using "
+            f"{ai_best_channel} and the existing CRM context."
         )
 
     else:
         ai_next_action = (
-            f"Prepare personalized outreach for {business_name} "
-            f"using {ai_best_channel}."
+            f"Prepare personalized outreach for "
+            f"{business_name} using {ai_best_channel}."
         )
 
     ai_last_analyzed = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
     )
 
-    if USING_POSTGRES:
-        updated_lead = execute_query("""
-            UPDATE leads
-            SET aiSummary = %s,
-                aiOpportunity = %s,
-                aiRecommendedApproach = %s,
-                aiBestChannel = %s,
-                aiNextAction = %s,
-                aiConfidence = %s,
-                aiScore = %s,
-                aiLastAnalyzed = %s
-            WHERE id = %s
-              AND userId = %s
-            RETURNING *
-        """, (
+    # --------------------------------------------------
+    # Save analysis
+    # --------------------------------------------------
+
+    p = placeholder()
+
+    execute_query(
+        f"""
+        UPDATE leads
+        SET
+            aiSummary = {p},
+            aiOpportunity = {p},
+            aiRecommendedApproach = {p},
+            aiBestChannel = {p},
+            aiNextAction = {p},
+            aiConfidence = {p},
+            aiScore = {p},
+            aiLastAnalyzed = {p}
+        WHERE id = {p} AND userId = {p}
+        """,
+        (
             ai_summary,
             ai_opportunity,
             ai_recommended_approach,
@@ -3335,51 +3665,23 @@ def analyze_lead(lead_id):
             ai_last_analyzed,
             lead_id,
             user_id
-        ), fetchone=True, commit=True)
-
-        updated_lead = row_to_dict(updated_lead)
-
-    else:
-        execute_query("""
-            UPDATE leads
-            SET aiSummary = ?,
-                aiOpportunity = ?,
-                aiRecommendedApproach = ?,
-                aiBestChannel = ?,
-                aiNextAction = ?,
-                aiConfidence = ?,
-                aiScore = ?,
-                aiLastAnalyzed = ?
-            WHERE id = ?
-              AND userId = ?
-        """, (
-            ai_summary,
-            ai_opportunity,
-            ai_recommended_approach,
-            ai_best_channel,
-            ai_next_action,
-            ai_confidence,
-            ai_score,
-            ai_last_analyzed,
-            lead_id,
-            user_id
-        ), commit=True)
-
-        updated_lead = get_lead_by_id(
-            lead_id,
-            user_id
-        )
+        ),
+        commit=True
+    )
 
     log_activity(
         user_id,
         lead_id,
-        "Lead Intelligence Generated",
-        f"Lead intelligence generated for {business_name}."
+        "Lead Analyzed",
+        (
+            f"AI Lead Intelligence analyzed "
+            f"{business_name}."
+        )
     )
 
     return jsonify({
+        "success": True,
         "leadId": lead_id,
-        "businessName": business_name,
         "analysis": {
             "summary": ai_summary,
             "opportunity": ai_opportunity,
@@ -3388,14 +3690,18 @@ def analyze_lead(lead_id):
             "nextAction": ai_next_action,
             "confidence": ai_confidence,
             "score": ai_score,
-            "scoreLabel": "Lead Quality",
-            "lastAnalyzed": ai_last_analyzed
-        },
-        "lead": updated_lead
+            "lastAnalyzed": ai_last_analyzed,
+            "availableChannels": {
+                "email": has_email,
+                "phone": has_phone,
+                "linkedin": has_linkedin,
+                "website": has_website
+            }
+        }
     }), 200
 
-@app.route("/api/leads", methods=["POST"])
-def add_lead():
+@app.route("/api/leads/<int:lead_id>", methods=["PUT"])
+def update_lead(lead_id):
     if not is_trusted_origin():
         return jsonify({
             "error": "Invalid request origin"
@@ -3410,61 +3716,106 @@ def add_lead():
             "error": "Not authenticated"
         }), 401
 
-    user = get_user_by_id(user_id)
+    old_lead = get_lead_by_id(
+        lead_id,
+        user_id
+    )
 
-    if not user:
-        session.clear()
-
+    if not old_lead:
         return jsonify({
-            "error": "User not found"
+            "error": "Lead not found"
         }), 404
 
-    plan_data = get_user_plan_data(user)
-    current_count = get_user_lead_count(user_id)
-    max_leads = plan_data["features"]["max_leads"]
-
-    if current_count >= max_leads:
-        return jsonify({
-            "error": (
-                f"{plan_data['planName']} plan limit reached. "
-                "Upgrade to add more leads."
-            )
-        }), 403
-
     business_name = str(
-        data.get("businessName") or ""
+        data.get(
+            "businessName",
+            old_lead.get("businessName") or ""
+        ) or ""
     ).strip()
 
     link = str(
-        data.get("link") or ""
+        data.get(
+            "link",
+            old_lead.get("link") or ""
+        ) or ""
     ).strip()
 
-    contact = str(
-        data.get("contact") or ""
+    email = str(
+        data.get(
+            "email",
+            old_lead.get("email") or ""
+        ) or ""
+    ).strip().lower()
+
+    phone = str(
+        data.get(
+            "phone",
+            old_lead.get("phone") or ""
+        ) or ""
     ).strip()
+
+    linkedin = str(
+        data.get(
+            "linkedin",
+            old_lead.get("linkedin") or ""
+        ) or ""
+    ).strip()
+
+    # Preserve the legacy contact field while the
+    # frontend is migrated to separate contact channels.
+    if "contact" in data:
+        contact = str(
+            data.get("contact") or ""
+        ).strip()
+    else:
+        contact = str(
+            old_lead.get("contact")
+            or email
+            or phone
+            or linkedin
+            or ""
+        ).strip()
 
     priority = str(
-        data.get("priority") or "Cold"
+        data.get(
+            "priority",
+            old_lead.get("priority") or "Cold"
+        ) or "Cold"
     ).strip()
 
     notes = str(
-        data.get("notes") or ""
+        data.get(
+            "notes",
+            old_lead.get("notes") or ""
+        ) or ""
     ).strip()
 
     status = str(
-        data.get("status") or "New"
+        data.get(
+            "status",
+            old_lead.get("status") or "New"
+        ) or "New"
     ).strip()
 
     created_at = str(
-        data.get("createdAt") or ""
+        data.get(
+            "createdAt",
+            old_lead.get("createdAt") or ""
+        ) or ""
     ).strip()
 
     last_contacted = str(
-        data.get("lastContacted") or ""
+        data.get(
+            "lastContacted",
+            old_lead.get("lastContacted") or ""
+        ) or ""
     ).strip()
 
     next_follow_up = str(
-        data.get("nextFollowUp") or ""
+        data.get(
+            "nextFollowUp",
+            old_lead.get("nextFollowUp") or ""
+        ) or ""
     ).strip()
 
     if not business_name:
@@ -3483,35 +3834,67 @@ def add_lead():
     if len(link) > 2048:
         return jsonify({
             "error": (
-                "Link must be 2048 characters or fewer"
+                "Website must be 2048 characters or fewer"
             )
         }), 400
 
-    if len(contact) > 254:
+    if len(email) > 254:
         return jsonify({
             "error": (
-                "Contact must be 254 characters or fewer"
+                "Email must be 254 characters or fewer"
             )
+        }), 400
+
+    if email and not re.fullmatch(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        email
+    ):
+        return jsonify({
+            "error": "Please enter a valid email address"
+        }), 400
+
+    if len(phone) > 50:
+        return jsonify({
+            "error": (
+                "Phone number must be "
+                "50 characters or fewer"
+            )
+        }), 400
+
+    if len(linkedin) > 2048:
+        return jsonify({
+            "error": (
+                "LinkedIn URL must be "
+                "2048 characters or fewer"
+            )
+        }), 400
+
+    if len(contact) > 2048:
+        return jsonify({
+            "error": "Contact information is too long"
         }), 400
 
     if len(priority) > 30:
         return jsonify({
             "error": (
-                "Priority must be 30 characters or fewer"
+                "Priority must be "
+                "30 characters or fewer"
             )
         }), 400
 
     if len(notes) > 5000:
         return jsonify({
             "error": (
-                "Notes must be 5000 characters or fewer"
+                "Notes must be "
+                "5000 characters or fewer"
             )
         }), 400
 
     if len(status) > 50:
         return jsonify({
             "error": (
-                "Status must be 50 characters or fewer"
+                "Status must be "
+                "50 characters or fewer"
             )
         }), 400
 
@@ -3535,248 +3918,6 @@ def add_lead():
             "%Y-%m-%d %H:%M:%S"
         )
 
-    if USING_POSTGRES:
-        lead = execute_query("""
-            INSERT INTO leads (
-                userId,
-                businessName,
-                link,
-                contact,
-                priority,
-                notes,
-                status,
-                createdAt,
-                lastContacted,
-                nextFollowUp
-            )
-            VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s
-            )
-            RETURNING *
-        """, (
-            user_id,
-            business_name,
-            link,
-            contact,
-            priority,
-            notes,
-            status,
-            created_at,
-            last_contacted,
-            next_follow_up
-        ), fetchone=True, commit=True)
-
-        lead_dict = row_to_dict(lead)
-
-        business_name_for_activity = get_field(
-            lead_dict,
-            "businessName",
-            business_name
-        )
-
-        log_activity(
-            user_id,
-            lead_dict["id"],
-            "Lead Created",
-            (
-                f"{business_name_for_activity} "
-                "was added to your CRM."
-            )
-        )
-
-        return jsonify(lead_dict), 201
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("""
-            INSERT INTO leads (
-                userId,
-                businessName,
-                link,
-                contact,
-                priority,
-                notes,
-                status,
-                createdAt,
-                lastContacted,
-                nextFollowUp
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user_id,
-            business_name,
-            link,
-            contact,
-            priority,
-            notes,
-            status,
-            created_at,
-            last_contacted,
-            next_follow_up
-        ))
-
-        conn.commit()
-        lead_id = cursor.lastrowid
-
-    finally:
-        cursor.close()
-        conn.close()
-
-    log_activity(
-        user_id,
-        lead_id,
-        "Lead Created",
-        f"{business_name} was added to your CRM."
-    )
-
-    return jsonify({
-        "id": lead_id,
-        "userId": user_id,
-        "businessName": business_name,
-        "link": link,
-        "contact": contact,
-        "priority": priority,
-        "notes": notes,
-        "status": status,
-        "createdAt": created_at,
-        "lastContacted": last_contacted,
-        "nextFollowUp": next_follow_up
-    }), 201
-
-
-@app.route("/api/leads/<int:lead_id>", methods=["PUT"])
-def update_lead(lead_id):
-    if not is_trusted_origin():
-        return jsonify({
-            "error": "Invalid request origin"
-        }), 403
-
-    data = request.get_json() or {}
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({
-            "error": "Not authenticated"
-        }), 401
-
-    p = placeholder()
-
-    old_lead = execute_query(
-        f"SELECT * FROM leads WHERE id = {p} AND userId = {p}",
-        (lead_id, user_id),
-        fetchone=True
-    )
-
-    old_lead = row_to_dict(old_lead)
-
-    if not old_lead:
-        return jsonify({
-            "error": "Lead not found"
-        }), 404
-
-    business_name = str(
-        data.get("businessName") or ""
-    ).strip()
-
-    link = str(
-        data.get("link") or ""
-    ).strip()
-
-    contact = str(
-        data.get("contact") or ""
-    ).strip()
-
-    priority = str(
-        data.get("priority") or "Cold"
-    ).strip()
-
-    notes = str(
-        data.get("notes") or ""
-    ).strip()
-
-    status = str(
-        data.get("status") or "New"
-    ).strip()
-
-    created_at = str(
-        data.get("createdAt") or ""
-    ).strip()
-
-    last_contacted = str(
-        data.get("lastContacted") or ""
-    ).strip()
-
-    next_follow_up = str(
-        data.get("nextFollowUp") or ""
-    ).strip()
-
-    if not business_name:
-        return jsonify({
-            "error": "Business name is required"
-        }), 400
-
-    if len(business_name) > 150:
-        return jsonify({
-            "error": (
-                "Business name must be "
-                "150 characters or fewer"
-            )
-        }), 400
-
-    if len(link) > 2048:
-        return jsonify({
-            "error": (
-                "Link must be 2048 characters or fewer"
-            )
-        }), 400
-
-    if len(contact) > 254:
-        return jsonify({
-            "error": (
-                "Contact must be 254 characters or fewer"
-            )
-        }), 400
-
-    if len(priority) > 30:
-        return jsonify({
-            "error": (
-                "Priority must be 30 characters or fewer"
-            )
-        }), 400
-
-    if len(notes) > 5000:
-        return jsonify({
-            "error": (
-                "Notes must be 5000 characters or fewer"
-            )
-        }), 400
-
-    if len(status) > 50:
-        return jsonify({
-            "error": (
-                "Status must be 50 characters or fewer"
-            )
-        }), 400
-
-    if len(created_at) > 50:
-        return jsonify({
-            "error": "Invalid created date"
-        }), 400
-
-    if len(last_contacted) > 50:
-        return jsonify({
-            "error": "Invalid last contacted date"
-        }), 400
-
-    if len(next_follow_up) > 50:
-        return jsonify({
-            "error": "Invalid follow-up date"
-        }), 400
-
     old_status = str(
         old_lead.get("status") or ""
     ).strip()
@@ -3789,18 +3930,25 @@ def update_lead(lead_id):
             SET businessName=%s,
                 link=%s,
                 contact=%s,
+                email=%s,
+                phone=%s,
+                linkedin=%s,
                 priority=%s,
                 notes=%s,
                 status=%s,
                 createdAt=%s,
                 lastContacted=%s,
                 nextFollowUp=%s
-            WHERE id=%s AND userId=%s
+            WHERE id=%s
+              AND userId=%s
             RETURNING *
         """, (
             business_name,
             link,
             contact,
+            email,
+            phone,
+            linkedin,
             priority,
             notes,
             status,
@@ -3813,84 +3961,53 @@ def update_lead(lead_id):
 
         lead_dict = row_to_dict(lead)
 
-        if not lead_dict:
-            return jsonify({
-                "error": "Lead not found"
-            }), 404
+    else:
+        execute_query("""
+            UPDATE leads
+            SET businessName=?,
+                link=?,
+                contact=?,
+                email=?,
+                phone=?,
+                linkedin=?,
+                priority=?,
+                notes=?,
+                status=?,
+                createdAt=?,
+                lastContacted=?,
+                nextFollowUp=?
+            WHERE id=?
+              AND userId=?
+        """, (
+            business_name,
+            link,
+            contact,
+            email,
+            phone,
+            linkedin,
+            priority,
+            notes,
+            status,
+            created_at,
+            last_contacted,
+            next_follow_up,
+            lead_id,
+            user_id
+        ), commit=True)
 
-        business_name_for_activity = get_field(
-            lead_dict,
-            "businessName",
-            business_name or "Lead"
+        lead_dict = get_lead_by_id(
+            lead_id,
+            user_id
         )
 
-        if (
-            old_status
-            and new_status
-            and old_status != new_status
-        ):
-            log_activity(
-                user_id,
-                lead_id,
-                "Lead Status Changed",
-                (
-                    f"{business_name_for_activity} "
-                    f"moved from {old_status} "
-                    f"to {new_status}."
-                )
-            )
+    if not lead_dict:
+        return jsonify({
+            "error": "Lead not found"
+        }), 404
 
-        elif next_follow_up:
-            log_activity(
-                user_id,
-                lead_id,
-                "Follow-up Scheduled",
-                (
-                    "Next follow-up set for "
-                    f"{next_follow_up}."
-                )
-            )
-
-        else:
-            log_activity(
-                user_id,
-                lead_id,
-                "Lead Updated",
-                (
-                    f"{business_name_for_activity} "
-                    "was updated."
-                )
-            )
-
-        return jsonify(lead_dict)
-
-    execute_query("""
-        UPDATE leads
-        SET businessName=?,
-            link=?,
-            contact=?,
-            priority=?,
-            notes=?,
-            status=?,
-            createdAt=?,
-            lastContacted=?,
-            nextFollowUp=?
-        WHERE id=? AND userId=?
-    """, (
-        business_name,
-        link,
-        contact,
-        priority,
-        notes,
-        status,
-        created_at,
-        last_contacted,
-        next_follow_up,
-        lead_id,
-        user_id
-    ), commit=True)
-
-    business_name_for_activity = (
+    business_name_for_activity = get_field(
+        lead_dict,
+        "businessName",
         business_name or "Lead"
     )
 
@@ -3910,16 +4027,32 @@ def update_lead(lead_id):
             )
         )
 
-    elif next_follow_up:
-        log_activity(
-            user_id,
-            lead_id,
-            "Follow-up Scheduled",
-            (
-                "Next follow-up set for "
-                f"{next_follow_up}."
+    elif (
+        next_follow_up
+        != str(
+            old_lead.get("nextFollowUp") or ""
+        ).strip()
+    ):
+        if next_follow_up:
+            log_activity(
+                user_id,
+                lead_id,
+                "Follow-up Scheduled",
+                (
+                    "Next follow-up set for "
+                    f"{next_follow_up}."
+                )
             )
-        )
+        else:
+            log_activity(
+                user_id,
+                lead_id,
+                "Follow-up Removed",
+                (
+                    f"Follow-up removed for "
+                    f"{business_name_for_activity}."
+                )
+            )
 
     else:
         log_activity(
@@ -3932,9 +4065,7 @@ def update_lead(lead_id):
             )
         )
 
-    return jsonify({
-        "message": "Lead updated"
-    })
+    return jsonify(lead_dict), 200
 
 
 @app.route("/api/leads/<int:lead_id>", methods=["DELETE"])

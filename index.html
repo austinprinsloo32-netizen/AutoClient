@@ -286,82 +286,162 @@
             </div>
           </div>
 
-          <div id="leadDrawerOverlay" class="lead-drawer-overlay" aria-hidden="true"></div>
+          <div
+  id="leadDrawerOverlay"
+  class="lead-add-overlay"
+  aria-hidden="true"
+>
+  <div
+    id="leadDrawer"
+    class="lead-add-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="leadDrawerTitle"
+  >
+    <div class="lead-add-header">
+      <div>
+        <p class="eyebrow">Lead Workspace</p>
 
-          <aside id="leadDrawer" class="lead-drawer" aria-hidden="true">
-            <div class="lead-drawer-header">
-              <div>
-                <p class="eyebrow">Lead Workspace</p>
-                <h2 id="leadDrawerTitle">Add Lead</h2>
-                <p id="leadDrawerSubtitle">Create or update a CRM lead.</p>
-              </div>
+        <h2 id="leadDrawerTitle">
+          Add Lead
+        </h2>
 
-              <button
-                id="closeLeadDrawer"
-                class="drawer-close-btn"
-                type="button"
-                aria-label="Close lead drawer"
-              >
-                ×
-              </button>
-            </div>
+        <p id="leadDrawerSubtitle">
+          Create a new prospect in your CRM.
+        </p>
+      </div>
 
-            <div class="lead-drawer-body">
-              <form id="leadForm">
-                <label for="businessName">Business name</label>
-                <input
-                  type="text"
-                  id="businessName"
-                  placeholder="Business name"
-                  required
-                />
+      <button
+        id="closeLeadDrawer"
+        class="lead-add-close"
+        type="button"
+        aria-label="Close Add Lead"
+      >
+        ×
+      </button>
+    </div>
 
-                <label for="leadLink">Website or social link</label>
-                <input
-                  type="text"
-                  id="leadLink"
-                  placeholder="https://example.com"
-                />
+    <div class="lead-add-body">
+      <form id="leadForm">
 
-                <label for="contactInfo">Contact</label>
-                <input
-                  type="text"
-                  id="contactInfo"
-                  placeholder="Email, phone, or LinkedIn"
-                />
+        <div class="lead-add-field">
+          <label for="businessName">
+            Business name
+          </label>
 
-                <label for="priority">Priority</label>
-                <select id="priority">
-                  <option value="Cold">Cold Lead</option>
-                  <option value="Warm">Warm Lead</option>
-                  <option value="Hot">Hot Lead</option>
-                </select>
+          <input
+            type="text"
+            id="businessName"
+            placeholder="Business name"
+            required
+          />
+        </div>
 
-                <label for="notes">Notes</label>
-                <textarea
-                  id="notes"
-                  placeholder="Notes about this lead"
-                ></textarea>
+        <div class="lead-add-field">
+          <label for="leadEmail">
+            Email address
+          </label>
 
-                <div class="lead-drawer-actions">
-                  <button
-                    id="cancelLeadDrawerBtn"
-                    type="button"
-                    class="secondary-btn"
-                  >
-                    Cancel
-                  </button>
+          <input
+            type="email"
+            id="leadEmail"
+            placeholder="name@example.com"
+            autocomplete="email"
+          />
+        </div>
 
-                  <button
-                    type="submit"
-                    class="primary-btn"
-                  >
-                    Add Lead
-                  </button>
-                </div>
-              </form>
-            </div>
-          </aside>
+        <div class="lead-add-field">
+          <label for="leadPhone">
+            Phone / WhatsApp number
+          </label>
+
+          <input
+            type="tel"
+            id="leadPhone"
+            placeholder="+27 82 123 4567"
+            autocomplete="tel"
+          />
+        </div>
+
+        <div class="lead-add-field">
+          <label for="leadLink">
+            Website
+          </label>
+
+          <input
+            type="text"
+            id="leadLink"
+            placeholder="www.example.com"
+            autocomplete="url"
+          />
+        </div>
+
+        <div class="lead-add-field">
+          <label for="leadLinkedIn">
+            LinkedIn profile
+          </label>
+
+          <input
+            type="text"
+            id="leadLinkedIn"
+            placeholder="www.linkedin.com/in/username"
+            autocomplete="url"
+          />
+        </div>
+
+        <div class="lead-add-field">
+          <label for="priority">
+            Priority
+          </label>
+
+          <select id="priority">
+            <option value="Cold">
+              Cold Lead
+            </option>
+
+            <option value="Warm">
+              Warm Lead
+            </option>
+
+            <option value="Hot">
+              Hot Lead
+            </option>
+          </select>
+        </div>
+
+        <div class="lead-add-field">
+          <label for="notes">
+            Notes
+          </label>
+
+          <textarea
+            id="notes"
+            rows="4"
+            placeholder="Notes about this lead"
+          ></textarea>
+        </div>
+
+        <div class="lead-add-footer">
+          <button
+            id="cancelLeadDrawerBtn"
+            type="button"
+            class="lead-add-secondary"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="lead-add-primary"
+          >
+            Add Lead
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
         </section>
 
         <section id="outreachPage" class="page-section">
