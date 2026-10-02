@@ -624,9 +624,112 @@
                 <p>Secure billing is handled by Paystack.</p>
               </div>
             </div>
-          </div>
+                      </div>
 
-          <div class="pricing-section-header">
+            <div class="card business-profile-card">
+              <div class="section-heading">
+                <span class="step">🏢</span>
+
+                <div>
+                  <h2>Business Profile</h2>
+                  <p>
+                    Tell AutoClient about your business so AI outreach
+                    can create more relevant messages.
+                  </p>
+                </div>
+              </div>
+
+              <form id="businessProfileForm">
+
+                <div class="business-profile-grid">
+
+                  <div class="business-profile-field">
+                    <label for="profileBusinessName">
+                      Business name
+                    </label>
+
+                    <input
+                      type="text"
+                      id="profileBusinessName"
+                      maxlength="150"
+                      placeholder="Example: AutoClient Studio"
+                    />
+                  </div>
+
+                  <div class="business-profile-field">
+                    <label for="profileBusinessWebsite">
+                      Website
+                    </label>
+
+                    <input
+                      type="text"
+                      id="profileBusinessWebsite"
+                      maxlength="2048"
+                      placeholder="https://example.com"
+                    />
+                  </div>
+
+                  <div class="business-profile-field business-profile-full">
+                    <label for="profileBusinessDescription">
+                      Business description
+                    </label>
+
+                    <textarea
+                      id="profileBusinessDescription"
+                      maxlength="2000"
+                      rows="4"
+                      placeholder="Describe what your business does..."
+                    ></textarea>
+                  </div>
+
+                  <div class="business-profile-field business-profile-full">
+                    <label for="profileBusinessServices">
+                      Services offered
+                    </label>
+
+                    <textarea
+                      id="profileBusinessServices"
+                      maxlength="2000"
+                      rows="4"
+                      placeholder="Example: Website development, automation, CRM setup..."
+                    ></textarea>
+                  </div>
+
+                  <div class="business-profile-field">
+                    <label for="profileBusinessTone">
+                      Preferred outreach tone
+                    </label>
+
+                    <select id="profileBusinessTone">
+                      <option value="professional">Professional</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="casual">Casual</option>
+                      <option value="confident">Confident</option>
+                      <option value="direct">Direct</option>
+                    </select>
+                  </div>
+
+                </div>
+
+                <div class="business-profile-actions">
+                  <button
+                    type="submit"
+                    id="saveBusinessProfileBtn"
+                    class="primary-btn"
+                  >
+                    Save Business Profile
+                  </button>
+
+                  <span
+                    id="businessProfileStatus"
+                    class="business-profile-status"
+                  ></span>
+                </div>
+
+              </form>
+            </div>
+
+            <div class="pricing-section-header">
             <div>
               <h2>Choose your plan</h2>
               <p>AutoClient is built to scale from solo freelancers to agency workflows.</p>

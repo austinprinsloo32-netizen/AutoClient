@@ -72,6 +72,30 @@ const adminLeadsList = document.getElementById("adminLeadsList");
 const settingsUserName = document.getElementById("settingsUserName");
 const settingsUserEmail = document.getElementById("settingsUserEmail");
 const settingsUserRole = document.getElementById("settingsUserRole");
+// Business Profile
+const businessProfileForm =
+  document.getElementById("businessProfileForm");
+
+const businessNameInput =
+  document.getElementById("profileBusinessName");
+
+const businessDescriptionInput =
+  document.getElementById("profileBusinessDescription");
+
+const businessServicesInput =
+  document.getElementById("profileBusinessServices");
+
+const businessWebsiteInput =
+  document.getElementById("profileBusinessWebsite");
+
+const businessToneInput =
+  document.getElementById("profileBusinessTone");
+
+const saveBusinessProfileBtn =
+  document.getElementById("saveBusinessProfileBtn");
+
+const businessProfileStatus =
+  document.getElementById("businessProfileStatus");
 
 const themeToggle = document.getElementById("themeToggle");
 
@@ -488,6 +512,69 @@ function isCurrentAdmin() {
     currentUser.email &&
     currentUser.email.toLowerCase() === ADMIN_EMAIL_FRONTEND
   );
+}
+
+async function loadBusinessProfile() {
+  if (!currentUser) return;
+
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/business-profile`
+    );
+
+    const data = await readJsonResponse(response);
+
+    if (!response.ok) {
+      console.error(
+        "Business profile fetch error:",
+        data
+      );
+
+      showToast(
+        data.error || "Could not load Business Profile.",
+        "error"
+      );
+
+      return;
+    }
+
+    const profile = data.businessProfile || {};
+
+    if (businessNameInput) {
+      businessNameInput.value =
+        profile.businessName || "";
+    }
+
+    if (businessDescriptionInput) {
+      businessDescriptionInput.value =
+        profile.description || "";
+    }
+
+    if (businessServicesInput) {
+      businessServicesInput.value =
+        profile.services || "";
+    }
+
+    if (businessWebsiteInput) {
+      businessWebsiteInput.value =
+        profile.website || "";
+    }
+
+    if (businessToneInput) {
+      businessToneInput.value =
+        profile.tone || "professional";
+    }
+  } catch (error) {
+    console.error(
+      "Could not load Business Profile:",
+      error
+    );
+
+    showToast(
+      "Could not load Business Profile.",
+      "error"
+    );
+  }
 }
 
 async function loadUserPlan() {
@@ -1254,26 +1341,35 @@ async function showApp() {
   logoutBtn.style.display = "inline-flex";
 
   currentUser.isAdmin = isCurrentAdmin();
-  localStorage.setItem("autoclient_user", JSON.stringify(currentUser));
+  localStorage.setItem(
+    "autoclient_user",
+    JSON.stringify(currentUser)
+  );
 
   userDisplay.textContent = currentUser
     ? `${currentUser.name} ${isCurrentAdmin() ? "• Admin" : ""}`
     : "Logged in";
 
   adminOnlyLinks.forEach(link => {
-    link.style.display = isCurrentAdmin() ? "flex" : "none";
+    link.style.display = isCurrentAdmin()
+      ? "flex"
+      : "none";
   });
 
   settingsUserName.textContent = currentUser.name;
   settingsUserEmail.textContent = currentUser.email;
-  settingsUserRole.textContent = isCurrentAdmin() ? "Admin" : "User";
+  settingsUserRole.textContent = isCurrentAdmin()
+    ? "Admin"
+    : "User";
 
   if (!isCurrentAdmin()) {
     showPage("dashboardPage");
   }
 
   await loadUserPlan();
+  await loadBusinessProfile();
   await fetchLeads();
+
   handleBillingRedirectNotice();
 }
 
@@ -1281,6 +1377,83 @@ function checkAuth() {
   currentUser ? showApp() : showAuth();
 }
 
+if (businessProfileForm) {
+  businessProfileForm.addEventListener(
+    "submit",
+    async function (e) {
+      e.preventDefault();
+
+      if (!currentUser) {
+        showToast(
+          "You must be logged in to update your Business Profile.",
+          "error"
+        );
+        return;
+      }
+
+      const profileData = {
+        businessName:
+          businessNameInput?.value.trim() || "",
+
+        description:
+          businessDescriptionInput?.value.trim() || "",
+
+        services:
+          businessServicesInput?.value.trim() || "",
+
+        website:
+          businessWebsiteInput?.value.trim() || "",
+
+        tone:
+          businessToneInput?.value || "professional"
+      };
+
+      try {
+        const response = await fetch(
+          `${BASE_URL}/api/business-profile`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(profileData)
+          }
+        );
+
+        const data = await readJsonResponse(response);
+
+        if (!response.ok) {
+          showToast(
+            data.error ||
+              "Could not save Business Profile.",
+            "error"
+          );
+          return;
+        }
+
+        showToast(
+          data.message ||
+            "Business Profile saved successfully.",
+          "success"
+        );
+
+        await loadBusinessProfile();
+      } catch (error) {
+        console.error(
+          "Business Profile save error:",
+          error
+        );
+
+        showToast(
+          "Could not save Business Profile.",
+          "error"
+        );
+      }
+    }
+  );
+}
 registerForm.addEventListener("submit", async function (e) {
   e.preventDefault();
 
@@ -4577,35 +4750,42 @@ async function handleGenerate(index) {
             type="text"
             id="leadOutreachService"
             value="${escapeHTML(
-              serviceInput?.value?.trim() ||
-              "my services"
+              serviceInput?.value?.trim() || ""
             )}"
-            placeholder="What are you offering?"
+            placeholder="Leave blank to use your Business Profile services"
           />
         </div>
 
-        <div class="lead-outreach-field">
-          <label for="leadOutreachStyle">
-            Message style
-          </label>
+       <div class="lead-outreach-field">
+        <label for="leadOutreachStyle">
+          Message style
+        </label>
 
-          <select id="leadOutreachStyle">
-            <option value="professional">
-              Professional
-            </option>
+        <select id="leadOutreachStyle">
+          <option value="">
+            Use Business Profile tone
+          </option>
 
-            <option value="friendly">
-              Friendly
-            </option>
+          <option value="professional">
+            Professional
+          </option>
 
-            <option value="short">
-              Short & Direct
-            </option>
+          <option value="friendly">
+            Friendly
+          </option>
 
-            <option value="confident">
-              Confident
-            </option>
-          </select>
+          <option value="casual">
+            Casual
+          </option>
+
+          <option value="confident">
+            Confident
+          </option>
+
+          <option value="direct">
+            Direct
+          </option>
+        </select>
         </div>
 
         <div class="lead-outreach-field">
@@ -4747,8 +4927,7 @@ async function handleGenerate(index) {
               businessName,
 
             service:
-              serviceField.value.trim() ||
-              "my services",
+              serviceField.value.trim(),
 
             style:
               styleField.value,

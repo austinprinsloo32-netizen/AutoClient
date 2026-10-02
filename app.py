@@ -423,6 +423,7 @@ def init_db():
             )
         """, commit=True)
 
+    # Lead fields
     add_column_if_missing(
         "leads",
         "lastContacted",
@@ -484,6 +485,25 @@ def init_db():
     )
 
     add_column_if_missing(
+        "leads",
+        "email",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "phone",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "leads",
+        "linkedin",
+        "TEXT"
+    )
+
+    # User / billing fields
+    add_column_if_missing(
         "users",
         "plan",
         "TEXT DEFAULT 'free'"
@@ -537,22 +557,35 @@ def init_db():
         "TEXT"
     )
 
+    # Business Profile fields
     add_column_if_missing(
-        "leads",
-        "email",
-        "TEXT"
-)
-
-    add_column_if_missing(
-        "leads",
-        "phone",
+        "users",
+        "business_name",
         "TEXT"
     )
 
     add_column_if_missing(
-        "leads",
-        "linkedin",
+        "users",
+        "business_description",
         "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "business_services",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "business_website",
+        "TEXT"
+    )
+
+    add_column_if_missing(
+        "users",
+        "business_tone",
+        "TEXT DEFAULT 'professional'"
     )
 
 
@@ -1249,6 +1282,156 @@ def current_user():
             )
         }
     })
+
+@app.route("/api/business-profile", methods=["GET"])
+def get_business_profile():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({
+        "businessProfile": {
+            "businessName": get_field(
+                user,
+                "business_name",
+                ""
+            ),
+            "description": get_field(
+                user,
+                "business_description",
+                ""
+            ),
+            "services": get_field(
+                user,
+                "business_services",
+                ""
+            ),
+            "website": get_field(
+                user,
+                "business_website",
+                ""
+            ),
+            "tone": get_field(
+                user,
+                "business_tone",
+                "professional"
+            )
+        }
+    }), 200
+
+@app.route("/api/business-profile", methods=["PUT"])
+def update_business_profile():
+    if not is_trusted_origin():
+        return jsonify({"error": "Invalid request origin"}), 403
+
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    user = get_user_by_id(user_id)
+
+    if not user:
+        session.clear()
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    business_name = str(
+        data.get("businessName") or ""
+    ).strip()
+
+    description = str(
+        data.get("description") or ""
+    ).strip()
+
+    services = str(
+        data.get("services") or ""
+    ).strip()
+
+    website = str(
+        data.get("website") or ""
+    ).strip()
+
+    tone = str(
+        data.get("tone") or "professional"
+    ).strip().lower()
+
+    # Validate lengths before saving.
+    if len(business_name) > 150:
+        return jsonify({
+            "error": "Business name must be 150 characters or fewer"
+        }), 400
+
+    if len(description) > 2000:
+        return jsonify({
+            "error": "Business description must be 2000 characters or fewer"
+        }), 400
+
+    if len(services) > 2000:
+        return jsonify({
+            "error": "Services must be 2000 characters or fewer"
+        }), 400
+
+    if len(website) > 2048:
+        return jsonify({
+            "error": "Website must be 2048 characters or fewer"
+        }), 400
+
+    allowed_tones = {
+        "professional",
+        "friendly",
+        "casual",
+        "confident",
+        "direct"
+    }
+
+    if tone not in allowed_tones:
+        return jsonify({
+            "error": "Invalid outreach tone"
+        }), 400
+
+    p = placeholder()
+
+    execute_query(
+        f"""
+        UPDATE users
+        SET
+            business_name = {p},
+            business_description = {p},
+            business_services = {p},
+            business_website = {p},
+            business_tone = {p}
+        WHERE id = {p}
+        """,
+        (
+            business_name,
+            description,
+            services,
+            website,
+            tone,
+            user_id
+        ),
+        commit=True
+    )
+
+    return jsonify({
+        "message": "Business profile updated successfully",
+        "businessProfile": {
+            "businessName": business_name,
+            "description": description,
+            "services": services,
+            "website": website,
+            "tone": tone
+        }
+    }), 200
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
@@ -4423,19 +4606,84 @@ def generate_message():
 
     data = request.get_json() or {}
 
+    # --------------------------------------------------
+    # Business Profile
+    # --------------------------------------------------
+    # Load the logged-in user's own business information
+    # directly from the database.
+    #
+    # This is kept separate from "business" below,
+    # because "business" represents the LEAD'S business.
+    # --------------------------------------------------
+
+    user = get_user_by_id(user_id)
+
+    profile_business_name = ""
+    profile_description = ""
+    profile_services = ""
+    profile_website = ""
+    profile_tone = "professional"
+
+    if user:
+        profile_business_name = str(
+            get_field(
+                user,
+                "business_name",
+                ""
+            ) or ""
+        ).strip()
+
+        profile_description = str(
+            get_field(
+                user,
+                "business_description",
+                ""
+            ) or ""
+        ).strip()
+
+        profile_services = str(
+            get_field(
+                user,
+                "business_services",
+                ""
+            ) or ""
+        ).strip()
+
+        profile_website = str(
+            get_field(
+                user,
+                "business_website",
+                ""
+            ) or ""
+        ).strip()
+
+        profile_tone = str(
+            get_field(
+                user,
+                "business_tone",
+                "professional"
+            ) or "professional"
+        ).strip().lower()
+
+    # The business being contacted — the LEAD.
     business = (
         data.get("businessName")
         or "your business"
     ).strip()
 
+    # A service entered specifically for this outreach
+    # still takes priority. If none is entered, use the
+    # services saved in the user's Business Profile.
     service = (
         data.get("service")
+        or profile_services
         or "my services"
     ).strip()
 
     style = (
         data.get("style")
-        or "formal"
+        or profile_tone
+        or "professional"
     ).strip().lower()
 
     name = (
@@ -4490,6 +4738,45 @@ def generate_message():
         ai_next_action
     ])
 
+    # --------------------------------------------------
+    # Sender Business Profile context
+    # --------------------------------------------------
+
+    sender_business = (
+        profile_business_name
+        or "my business"
+    )
+
+    sender_description = (
+        profile_description
+        or ""
+    )
+
+    sender_description_inline = sender_description
+
+    if sender_description_inline:
+        sender_description_inline = (
+            sender_description_inline[0].lower()
+            + sender_description_inline[1:]
+        )
+
+    sender_website = (
+        profile_website
+        or ""
+    )
+
+    # Build a clean sender signature from the
+    # information available in the Business Profile.
+    signature_parts = [name]
+
+    if profile_business_name:
+        signature_parts.append(sender_business)
+
+    if sender_website:
+        signature_parts.append(sender_website)
+
+    sender_signature = "\n".join(signature_parts)
+
     closed_statuses = {
         "closed",
         "lost",
@@ -4500,6 +4787,7 @@ def generate_message():
         lead_status in closed_statuses
         or follow_up_state == "closed_or_rejected"
     ):
+
         return jsonify({
             "error": (
                 "This lead is closed or rejected. "
@@ -4518,7 +4806,6 @@ def generate_message():
         personalization_line = (
             f"I came across {business} and wanted to reach out."
         )
-
     if ai_opportunity:
         opportunity_line = (
             "There may be an opportunity to strengthen an area "
@@ -4531,47 +4818,95 @@ def generate_message():
         )
 
     if ai_recommended_approach:
+
         approach_lower = ai_recommended_approach.lower()
+
+        # Build a sender introduction using the saved
+        # Business Profile where available.
+        if profile_business_name:
+            if sender_description:
+                sender_intro = (
+                    f"At {sender_business}, "
+                    f"{sender_description_inline.rstrip('.')}. "
+                    f"I help businesses with {service}"
+                )
+            else:
+                sender_intro = (
+                    f"At {sender_business}, "
+                    f"I help businesses with {service}"
+                )
+        else:
+            sender_intro = (
+                f"I help businesses with {service}"
+            )
 
         if "direct" in approach_lower:
             value_line = (
-                f"I help businesses with {service}, with a practical "
+                f"{sender_intro}, with a practical "
                 "focus on measurable results."
             )
 
         elif "consultative" in approach_lower:
             value_line = (
-                f"I help businesses with {service} by first understanding "
+                f"{sender_intro} by first understanding "
                 "where the strongest opportunity is and then focusing "
                 "on a solution that makes sense."
             )
 
         elif "low-pressure" in approach_lower:
+            if profile_business_name:
+                if sender_description:
+                    value_line = (
+                        f"At {sender_business}, "
+                        f"{sender_description_inline.rstrip('.')}. "
+                        f"I work with businesses on {service} and prefer "
+                        "a straightforward, no-pressure conversation to "
+                        "see whether there is a useful fit."
+                    )
+                else:
+                    value_line = (
+                        f"At {sender_business}, I work with businesses on "
+                        f"{service} and prefer a straightforward, no-pressure "
+                        "conversation to see whether there is a useful fit."
+                    )
+            else:
+                value_line = (
+                    f"I work with businesses on {service} and prefer a "
+                    "straightforward, no-pressure conversation to see "
+                    "whether there is a useful fit."
+                )
+
+        else:
             value_line = (
-                f"I work with businesses on {service} and prefer a "
-                "straightforward, no-pressure conversation to see "
-                "whether there is a useful fit."
+                f"{sender_intro} and would be happy "
+                "to explore whether there is a useful fit."
             )
 
+    else:
+        if profile_business_name:
+            if sender_description:
+                value_line = (
+                    f"At {sender_business}, "
+                    f"{sender_description_inline.rstrip('.')}. "
+                    f"I help businesses with {service} and would be happy "
+                    "to explore whether there is a useful fit."
+                )
+            else:
+                value_line = (
+                    f"At {sender_business}, I help businesses with {service} "
+                    "and would be happy to explore whether there is a useful fit."
+                )
         else:
             value_line = (
                 f"I help businesses with {service} and would be happy "
                 "to explore whether there is a useful fit."
             )
-
-    else:
-        value_line = (
-            f"I help businesses with {service} and would be happy "
-            "to explore whether there is a useful fit."
-        )
-
     interested_statuses = {
         "interested",
         "qualified",
         "proposal",
         "negotiation"
     }
-
     # --------------------------------------------------
     # Smart outreach priority
     #
@@ -4613,32 +4948,68 @@ def generate_message():
         smart_follow_up_type = "first_contact"
 
     # --------------------------------------------------
+    # Tone helpers
+    # --------------------------------------------------
+
+    def sign_off():
+        if style == "professional":
+            return f"Kind regards,\n{sender_signature}"
+
+        if style == "friendly":
+            return f"Best,\n{sender_signature}"
+
+        if style == "casual":
+            return f"Thanks,\n{sender_signature}"
+
+        if style == "confident":
+            return f"Best regards,\n{sender_signature}"
+
+        return sender_signature
+
+    # --------------------------------------------------
     # Overdue follow-up
     # --------------------------------------------------
 
     if smart_follow_up_type == "overdue":
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
-Just checking back in on my previous message.
+I hope you're doing well.
 
-I know things get busy, so I wanted to follow up and see whether {service} is still something worth discussing.
+I just wanted to check back in on my previous message about {service}. I know things can get busy, so I thought I would reach out again.
 
-If it is, I would be happy to have a quick chat and see whether there is a useful fit.
+If it is still something you'd like to explore, I'd be happy to have a quick chat.
 
-Thanks,
-{name}"""
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+Just checking back in on my previous message about {service}.
+
+I know things get busy, so I thought I'd follow up and see if it's still worth a chat.
+
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+I'm following up on my previous message regarding {service}.
+
+I believe there is a worthwhile opportunity here, and I'd like to discuss how we could move things forward.
+
+Would you be available for a short conversation?
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
 
-Following up on my previous message.
+Following up on my previous message about {service}.
 
-I wanted to check whether there is still interest in discussing {service}.
+Is this still something you'd like to discuss?
 
-If so, I would be happy to arrange a short conversation.
-
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4649,34 +5020,52 @@ I understand schedules can become busy, so I wanted to check whether this is sti
 
 If so, I would be happy to arrange a short conversation at a convenient time.
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # Follow-up due today
     # --------------------------------------------------
 
     elif smart_follow_up_type == "due_today":
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
-Just following up as planned.
+I hope you're doing well.
 
-I wanted to check whether you had a chance to consider my previous message about {service}.
+I'm following up as planned regarding {service}. I wanted to see whether you've had a chance to think about it and whether you'd like to continue the conversation.
+
+Happy to chat whenever it suits you.
+
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+Just following up as planned about {service}.
+
+Have you had a chance to think about it?
 
 Happy to chat if the timing is right.
 
-Thanks,
-{name}"""
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+I'm following up as planned regarding {service}.
+
+I believe there is a strong opportunity to move this forward. Would you be available for a short conversation about the next step?
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
 
 Following up as planned regarding {service}.
 
-Would you be open to a short conversation about the next step?
+Would you be open to discussing the next step?
 
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4685,8 +5074,7 @@ I am following up as planned regarding {service}.
 
 I wanted to check whether you would be open to continuing the conversation and discussing whether there is a suitable next step.
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # Upcoming / scheduled follow-up
@@ -4702,15 +5090,36 @@ Kind regards,
                 "I wanted to touch base ahead of the planned follow-up."
             )
 
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
 {timing_line}
 
-I thought I would check whether anything has changed regarding {service} and whether it would be useful to continue the conversation.
+I thought I'd check in and see how things are going and whether anything has changed regarding {service}.
 
-Thanks,
-{name}"""
+I'd be happy to continue the conversation whenever it suits you.
+
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+{timing_line}
+
+Just checking whether anything has changed regarding {service} and whether it's still worth continuing the conversation.
+
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+{timing_line}
+
+I believe there is still a good opportunity to create value through {service}, and I'd like to continue the conversation.
+
+Would you be available to discuss the next step?
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
@@ -4719,7 +5128,7 @@ Thanks,
 
 Is it still worth continuing the conversation about {service}?
 
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4728,25 +5137,43 @@ Is it still worth continuing the conversation about {service}?
 
 I wanted to check whether there have been any developments and whether it would still be useful to continue our conversation regarding {service}.
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # Contacted but no next follow-up scheduled
     # --------------------------------------------------
 
     elif smart_follow_up_type == "needs_follow_up":
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
-Just checking in after our previous contact.
+I hope you're doing well.
 
-I wanted to see whether {service} is still something you would be interested in discussing.
+I wanted to check in after our previous contact and see whether {service} is still something you'd be interested in discussing.
+
+I'd be happy to pick up the conversation whenever you're ready.
+
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+Just checking in after our previous chat.
+
+Is {service} still something you'd like to discuss?
 
 Happy to chat whenever it suits you.
 
-Thanks,
-{name}"""
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+I'm following up after our previous contact regarding {service}.
+
+I believe there is still a worthwhile opportunity here. Let's arrange a short conversation and see what the best next step would be.
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
@@ -4755,7 +5182,7 @@ Following up after our previous contact.
 
 Is there still interest in discussing {service}?
 
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4764,34 +5191,54 @@ I wanted to follow up after our previous contact regarding {service}.
 
 Please let me know whether this is still something you would be open to discussing.
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # Interested / qualified / proposal / negotiation
     # --------------------------------------------------
 
     elif smart_follow_up_type == "interested":
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
 Thanks for the interest so far.
 
-I would be happy to take the next step and discuss how {service} could work for your business.
+I'd love to continue the conversation and explore how {service} could help your business.
 
 Would you be available for a quick chat?
 
-Thanks,
-{name}"""
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+Thanks for the interest so far.
+
+I'd be happy to chat about how {service} could work for your business.
+
+Are you free for a quick conversation?
+
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+Thank you for the interest so far.
+
+I believe {service} could create real value for your business. The next step would be a short conversation so we can discuss what would work best for you.
+
+Would you be available?
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
 
 It looks like there may be a good fit for {service}.
 
-Would you be available for a short conversation so we can discuss the next step?
+Would you be available for a short conversation to discuss the next step?
 
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4802,25 +5249,45 @@ I would be happy to continue the conversation and discuss how {service} could su
 
 Would you be available for a short conversation to discuss the next step?
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # Normal follow-up
     # --------------------------------------------------
 
     elif smart_follow_up_type == "follow_up":
-        if style == "casual":
+        if style == "friendly":
             msg = f"""Hi {business},
 
-Just following up on my previous message.
+I hope you're doing well.
 
-I still think there may be a useful opportunity to help with {service}.
+I just wanted to follow up on my previous message regarding {service}.
+
+I think there may be a useful opportunity here, and I'd be happy to chat about it whenever it suits you.
+
+{sign_off()}"""
+
+        elif style == "casual":
+            msg = f"""Hi {business},
+
+Just following up on my previous message about {service}.
+
+I still think there could be a useful opportunity here.
 
 Would you be open to a quick chat?
 
-Thanks,
-{name}"""
+{sign_off()}"""
+
+        elif style == "confident":
+            msg = f"""Hi {business},
+
+I'm following up on my previous message regarding {service}.
+
+I believe there is a clear opportunity to create value for your business.
+
+Would you be available for a short conversation so we can discuss the next step?
+
+{sign_off()}"""
 
         elif style == "direct":
             msg = f"""Hi {business},
@@ -4829,7 +5296,7 @@ Following up on my previous message regarding {service}.
 
 Is this something worth discussing further?
 
-{name}"""
+{sign_off()}"""
 
         else:
             msg = f"""Good day {business},
@@ -4840,15 +5307,14 @@ I believe there may still be an opportunity to create value for your business.
 
 Would you be open to a short conversation?
 
-Kind regards,
-{name}"""
+{sign_off()}"""
 
     # --------------------------------------------------
     # First contact
     # --------------------------------------------------
 
     else:
-        if style == "casual":
+        if style == "friendly":
             if has_intelligence:
                 msg = f"""Hi {business},
 
@@ -4858,11 +5324,33 @@ Kind regards,
 
 {value_line}
 
-Would you be open to a quick chat?
+I'd love to hear your thoughts. Would you be open to a quick chat?
 
-Thanks,
-{name}"""
+{sign_off()}"""
+            else:
+                msg = f"""Hi {business},
 
+{personalization_line}
+
+{value_line}
+
+I thought it would be great to connect. Would you be open to a quick chat?
+
+{sign_off()}"""
+
+        elif style == "casual":
+            if has_intelligence:
+                msg = f"""Hi {business},
+
+{personalization_line}
+
+{opportunity_line}
+
+{value_line}
+
+Think it could be worth a quick chat?
+
+{sign_off()}"""
             else:
                 msg = f"""Hi {business},
 
@@ -4870,37 +5358,55 @@ Thanks,
 
 I help businesses with {service} and thought it might be worth connecting.
 
-Would you be open to a quick chat?
+Open to a quick chat?
 
-Thanks,
-{name}"""
+{sign_off()}"""
 
-        elif style == "direct":
+        elif style == "confident":
             if has_intelligence:
                 msg = f"""Hi {business},
-
-Quick one.
 
 {personalization_line}
 
 {opportunity_line}
 
-I help businesses with {service} and would be happy to discuss whether I can help.
+{value_line}
 
-Open to a short conversation?
+I believe there is a strong opportunity to create value here. Would you be available for a short conversation?
 
-{name}"""
-
+{sign_off()}"""
             else:
                 msg = f"""Hi {business},
 
-Quick one.
+{personalization_line}
 
-I help businesses with {service} and thought there may be an opportunity to help.
+{value_line}
+
+I believe there is a strong opportunity to help your business. Would you be available for a short conversation?
+
+{sign_off()}"""
+
+        elif style == "direct":
+            if has_intelligence:
+                msg = f"""Hi {business},
+
+{personalization_line}
+
+{opportunity_line}
+
+I help businesses with {service}.
 
 Open to a short conversation?
 
-{name}"""
+{sign_off()}"""
+            else:
+                msg = f"""Hi {business},
+
+I help businesses with {service}.
+
+Would you be open to a short conversation?
+
+{sign_off()}"""
 
         else:
             if has_intelligence:
@@ -4914,21 +5420,17 @@ Open to a short conversation?
 
 Would you be open to a short conversation to see whether this could be useful for your business?
 
-Kind regards,
-{name}"""
-
+{sign_off()}"""
             else:
                 msg = f"""Good day {business},
 
 {personalization_line}
 
-I help businesses with {service}, and I believe there may be an opportunity to create stronger results.
+{value_line}
 
 Would you be open to a short conversation?
 
-Kind regards,
-{name}"""
-
+{sign_off()}"""
     log_activity(
         user_id,
         lead_id,

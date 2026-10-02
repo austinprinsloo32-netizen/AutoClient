@@ -158,6 +158,16 @@ def test_user_cannot_update_another_users_lead(
 
     database_calls = []
 
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "name": "Test User",
+            "email": "test@example.com"
+        }
+    )
+
     def fake_execute_query(
         query,
         params=(),
@@ -3008,3 +3018,389 @@ def test_admin_can_revoke_beta_access(monkeypatch):
     assert len(database_calls) == 1
     assert database_calls[0]["commit"] is True
     assert database_calls[0]["params"][-1] == 123
+
+@pytest.fixture
+def business_profile_client(monkeypatch):
+    """
+    Create an authenticated test client for
+    Business Profile endpoints without touching
+    the real database.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        yield client
+
+
+def test_business_profile_requires_login(monkeypatch):
+    """
+    Unauthenticated users must not be able to
+    read a Business Profile.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    with autoclient.app.test_client() as client:
+        response = client.get(
+            "/api/business-profile"
+        )
+
+    assert response.status_code == 401
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Not authenticated"
+
+
+def test_business_profile_update_requires_login(monkeypatch):
+    """
+    Unauthenticated users must not be able to
+    update a Business Profile.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    with autoclient.app.test_client() as client:
+        response = client.put(
+            "/api/business-profile",
+            json={
+                "businessName": "Test Business",
+                "description": "Test description",
+                "services": "Web development",
+                "website": "https://example.com",
+                "tone": "professional"
+            }
+        )
+
+    assert response.status_code == 401
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Not authenticated"
+
+def test_user_can_get_business_profile(
+    business_profile_client,
+    monkeypatch
+):
+    """
+    An authenticated user should be able to
+    retrieve their own Business Profile.
+    """
+
+    test_user = {
+        "id": 999999,
+        "name": "Test User",
+        "email": "test@example.com",
+        "business_name": "AutoClient Studio",
+        "business_description": "CRM and automation services",
+        "business_services": "Web development and automation",
+        "business_website": "https://example.com",
+        "business_tone": "professional"
+    }
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: test_user
+    )
+
+    response = business_profile_client.get(
+        "/api/business-profile"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+
+    profile = data["businessProfile"]
+
+    assert profile["businessName"] == "AutoClient Studio"
+    assert profile["description"] == (
+        "CRM and automation services"
+    )
+    assert profile["services"] == (
+        "Web development and automation"
+    )
+    assert profile["website"] == "https://example.com"
+    assert profile["tone"] == "professional"
+
+def test_user_can_update_business_profile(
+    business_profile_client,
+    monkeypatch
+):
+    """
+    An authenticated user should be able to
+    update their own Business Profile.
+    """
+
+    database_calls = []
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "name": "Test User",
+            "email": "test@example.com"
+        }
+    )
+
+    def fake_execute_query(
+        query,
+        params=(),
+        fetchone=False,
+        fetchall=False,
+        commit=False
+    ):
+        database_calls.append({
+            "query": query,
+            "params": params,
+            "fetchone": fetchone,
+            "fetchall": fetchall,
+            "commit": commit
+        })
+
+        return None
+
+    monkeypatch.setattr(
+        autoclient,
+        "execute_query",
+        fake_execute_query
+    )
+
+    response = business_profile_client.put(
+        "/api/business-profile",
+        json={
+            "businessName": "AutoClient Studio",
+            "description": "CRM and automation services",
+            "services": "Web development and automation",
+            "website": "https://example.com",
+            "tone": "friendly"
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["message"]
+        == "Business profile updated successfully"
+    )
+
+    update_calls = [
+        call
+        for call in database_calls
+        if "UPDATE users" in call["query"]
+    ]
+
+    assert len(update_calls) == 1
+
+    update_call = update_calls[0]
+
+    assert update_call["commit"] is True
+    assert update_call["params"][-1] == 999999
+
+
+def test_business_profile_rejects_long_business_name(
+    business_profile_client,
+    monkeypatch
+):
+    """
+    Business names longer than 150 characters
+    must be rejected.
+    """
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "name": "Test User",
+            "email": "test@example.com"
+        }
+    )
+
+    response = business_profile_client.put(
+        "/api/business-profile",
+        json={
+            "businessName": "A" * 151,
+            "tone": "professional"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert (
+        data["error"]
+        == "Business name must be 150 characters or fewer"
+    )
+
+def test_business_profile_rejects_invalid_tone(
+    business_profile_client,
+    monkeypatch
+):
+    """
+    Unsupported outreach tones must be rejected.
+    """
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "name": "Test User",
+            "email": "test@example.com"
+        }
+    )
+
+    response = business_profile_client.put(
+        "/api/business-profile",
+        json={
+            "businessName": "AutoClient Studio",
+            "tone": "aggressive"
+        }
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Invalid outreach tone"
+
+def test_business_profile_update_rejects_untrusted_origin(
+    business_profile_client,
+    monkeypatch
+):
+    """
+    Business Profile updates from an untrusted
+    origin must be rejected.
+    """
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: False
+    )
+
+    response = business_profile_client.put(
+        "/api/business-profile",
+        json={
+            "businessName": "AutoClient Studio",
+            "tone": "professional"
+        }
+    )
+
+    assert response.status_code == 403
+
+    data = response.get_json()
+
+    assert data is not None
+    assert data["error"] == "Invalid request origin"
+
+
+def test_generate_message_uses_business_profile(monkeypatch):
+    """
+    Smart Outreach should use the logged-in user's
+    Business Profile name and services when no
+    campaign-specific service is provided.
+    """
+
+    autoclient.app.config["TESTING"] = True
+
+    monkeypatch.setattr(
+        autoclient,
+        "is_trusted_origin",
+        lambda: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "get_user_by_id",
+        lambda user_id: {
+            "id": user_id,
+            "plan": "pro",
+            "business_name": "AutoClient Studio",
+            "business_description": (
+                "We build simple digital tools that help "
+                "small businesses save time and grow"
+),
+            "business_services": (
+                "Website development and business automation"
+            ),
+            "business_website": "https://autoclient.example",
+            "business_tone": "friendly",
+        }
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "user_has_feature",
+        lambda user_id, feature: True
+    )
+
+    monkeypatch.setattr(
+        autoclient,
+        "log_activity",
+        lambda *args, **kwargs: None
+    )
+
+    with autoclient.app.test_client() as client:
+        with client.session_transaction() as session:
+            session["user_id"] = 999999
+
+        response = client.post(
+            "/api/generate-message",
+            json={
+                "businessName": "Local Test Business",
+                "service": "",
+                "style": "",
+                "userName": "Test User",
+                "status": "New",
+                "followUpState": "not_contacted",
+            },
+        )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+    message = data["message"]
+
+    assert "AutoClient Studio" in message
+    assert (
+        "Website development and business automation"
+        in message
+    )
+    assert (
+        "we build simple digital tools that help "
+        "small businesses save time and grow"
+        in message
+    )
+    assert "https://autoclient.example" in message
+    assert "I thought it would be great to connect" in message
+    assert "Best,\nTest User" in message
