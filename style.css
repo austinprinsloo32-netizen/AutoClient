@@ -5,16 +5,27 @@
 }
 
 :root {
-  --bg: #eef4fb;
-  --card: #ffffff;
+  /* AutoClient Premium Light Theme */
+
+  --bg: #e8f0fa;
+
+  --card: #f4f8fd;
+
   --navy: #0f172a;
-  --muted: #64748b;
-  --line: #dbe3ef;
+
+  --muted: #52647d;
+
+  --line: #cbd9eb;
+
   --blue: #2563eb;
+
   --blue-dark: #1d4ed8;
+
   --green: #10b981;
+
   --red: #ef4444;
-  --soft: #f8fafc;
+
+  --soft: #edf4fc;
 }
 
 body {
@@ -1114,11 +1125,12 @@ body.dark-mode a {
 
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(240px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
   align-items: start;
-}
 
+  width: 100%;
+}
 .kanban-column {
   background: rgba(248, 250, 252, 0.92);
   border: 1px solid #dbe7f5;
@@ -8024,24 +8036,1270 @@ body.dark-mode .delete-lead-cancel:hover {
   }
 }
 /* =========================================================
-   LEAD PROFILE — NOTES ALIGNMENT FIX
+   LEAD PROFILE — NOTES CONTENT
    ========================================================= */
 
-.lead-details-notes,
-.lead-details-notes p,
-.lead-details-notes div {
-  text-align: left !important;
-}
-
 .lead-details-notes {
-  display: block !important;
-  align-items: initial !important;
-  justify-content: initial !important;
+  display: block;
+  width: 100%;
+  min-width: 0;
+
+  margin: 0;
+  padding: 14px;
+
+  text-align: left;
 }
 
-.lead-details-notes p {
-  margin: 0 !important;
+.lead-details-notes-text {
+  display: block;
+
   width: 100%;
+  margin: 0;
+  padding: 0;
+
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+
+  text-align: left;
+  text-indent: 0;
+
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: normal;
+}
+/* =========================================================
+   AUTOCLIENT — OUTREACH CENTER
+   ========================================================= */
+
+.outreach-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* ---------- Intro ---------- */
+
+.outreach-hub-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+
+  padding: 26px 28px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.08),
+      rgba(59, 130, 246, 0.02)
+    ),
+    var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.outreach-hub-intro > div {
+  min-width: 0;
+}
+
+.outreach-hub-intro h2 {
+  margin: 7px 0 7px;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.15;
+}
+
+.outreach-hub-intro p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.outreach-hub-intro .primary-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+
+/* ---------- Metric cards ---------- */
+
+.outreach-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.outreach-metric-card {
+  position: relative;
+  overflow: hidden;
+
+  min-height: 145px;
+  padding: 20px;
+
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.outreach-metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 3px;
+
+  background: var(--primary);
+  opacity: 0.8;
+}
+
+.outreach-metric-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.outreach-metric-card span {
+  display: block;
+  margin-bottom: 12px;
+
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.outreach-metric-card strong {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: var(--text);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.outreach-metric-card p {
+  margin: 0;
+
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+
+/* ---------- Main workspace ---------- */
+
+.outreach-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.outreach-hub-card {
+  min-width: 0;
+  overflow: hidden;
+
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.outreach-hub-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 22px 22px 18px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.outreach-hub-label {
+  display: inline-block;
+
+  margin-bottom: 7px;
+
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.outreach-hub-card-header h3 {
+  margin: 0 0 5px;
+
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.outreach-hub-card-header p {
+  margin: 0;
+
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+
+/* ---------- Lead lists ---------- */
+
+.outreach-lead-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.outreach-lead-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 17px 20px;
+
+  border-bottom: 1px solid var(--border);
+
+  transition: background 0.18s ease;
+}
+
+.outreach-lead-item:last-child {
+  border-bottom: 0;
+}
+
+.outreach-lead-item:hover {
+  background: rgba(59, 130, 246, 0.045);
+}
+
+.outreach-lead-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-width: 0;
+}
+
+.outreach-lead-avatar {
+  display: grid;
+  place-items: center;
+
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+
+  border-radius: 12px;
+
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+
+  color: var(--primary);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.outreach-lead-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  min-width: 0;
+}
+
+.outreach-lead-copy strong {
+  overflow: hidden;
+
+  color: var(--text);
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outreach-lead-copy span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.outreach-lead-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  flex-shrink: 0;
+}
+
+.outreach-lead-actions .primary-btn,
+.outreach-lead-actions .secondary-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+
+  border-radius: 10px;
+
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+
+/* ---------- Status badges ---------- */
+
+.outreach-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 27px;
+  padding: 5px 9px;
+
+  border-radius: 999px;
+
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.outreach-status-badge.ready {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.outreach-status-badge.today {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.11);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+}
+
+.outreach-status-badge.overdue {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+
+/* ---------- Empty states ---------- */
+
+.outreach-empty-state {
+  padding: 30px 22px;
+
+  text-align: center;
+}
+
+.outreach-empty-state strong {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.outreach-empty-state p {
+  margin: 0;
+
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+
+/* ---------- Recent Outreach ---------- */
+
+.outreach-history-card {
+  width: 100%;
+}
+
+.outreach-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.outreach-activity-item {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+
+  padding: 17px 22px 17px 42px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.outreach-activity-item:last-child {
+  border-bottom: 0;
+}
+
+.outreach-activity-item::before {
+  content: "";
+
+  position: absolute;
+  top: 23px;
+  left: 22px;
+
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.11);
+}
+
+.outreach-activity-item > div {
+  min-width: 0;
+}
+
+.outreach-activity-item strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.outreach-activity-item p {
+  margin: 0;
+
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.outreach-activity-item > span {
+  flex-shrink: 0;
+
+  color: var(--muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+
+/* ---------- Dark mode refinements ---------- */
+
+body.dark .outreach-hub-intro {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.13),
+      rgba(37, 99, 235, 0.025)
+    ),
+    var(--card);
+}
+
+body.dark .outreach-lead-item:hover {
+  background: rgba(59, 130, 246, 0.07);
+}
+
+body.dark .outreach-lead-avatar {
+  background: rgba(59, 130, 246, 0.13);
+  border-color: rgba(96, 165, 250, 0.22);
+}
+
+body.dark .outreach-status-badge.ready {
+  color: #86efac;
+}
+
+body.dark .outreach-status-badge.today {
+  color: #fbbf24;
+}
+
+body.dark .outreach-status-badge.overdue {
+  color: #fca5a5;
+}
+
+
+/* ---------- Tablet ---------- */
+
+@media (max-width: 1100px) {
+  .outreach-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .outreach-hub-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 700px) {
+  .outreach-hub {
+    gap: 16px;
+  }
+
+  .outreach-hub-intro {
+    flex-direction: column;
+    align-items: stretch;
+
+    padding: 20px;
+
+    border-radius: 16px;
+  }
+
+  .outreach-hub-intro .primary-btn {
+    width: 100%;
+  }
+
+  .outreach-metrics {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .outreach-metric-card {
+    min-height: auto;
+    padding: 17px;
+    border-radius: 15px;
+  }
+
+  .outreach-metric-card strong {
+    font-size: 1.65rem;
+  }
+
+  .outreach-hub-card {
+    border-radius: 16px;
+  }
+
+  .outreach-hub-card-header {
+    padding: 18px;
+  }
+
+  .outreach-lead-item {
+    flex-direction: column;
+    align-items: stretch;
+
+    padding: 16px;
+  }
+
+  .outreach-lead-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+
+    padding-left: 54px;
+  }
+
+  .outreach-lead-actions .primary-btn,
+  .outreach-lead-actions .secondary-btn {
+    flex: 1;
+  }
+
+  .outreach-status-badge {
+    flex: 0 0 auto;
+  }
+
+  .outreach-activity-item {
+    flex-direction: column;
+    gap: 8px;
+
+    padding: 16px 18px 16px 40px;
+  }
+
+  .outreach-activity-item::before {
+    left: 20px;
+    top: 22px;
+  }
+
+  .outreach-activity-item > span {
+    white-space: normal;
+  }
+}
+
+
+/* ---------- Very small screens ---------- */
+
+@media (max-width: 430px) {
+  .outreach-lead-actions {
+    padding-left: 0;
+  }
+
+  .outreach-lead-actions .outreach-status-badge {
+    width: 100%;
+  }
+
+  .outreach-lead-actions .primary-btn,
+  .outreach-lead-actions .secondary-btn {
+    width: calc(50% - 4px);
+  }
+}
+
+
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+#outreachPage .outreach-hub-intro {
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(59, 130, 246, 0.30),
+      transparent 38%
+    ),
+    linear-gradient(
+      135deg,
+      #173476 0%,
+      #10275c 45%,
+      #09162d 100%
+    ) !important;
+
+  border: 1px solid rgba(96, 165, 250, 0.24) !important;
+
+  box-shadow:
+    0 18px 45px rgba(2, 8, 23, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+#outreachPage .outreach-hub-intro .eyebrow {
+  color: #bfdbfe !important;
+
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(191, 219, 254, 0.18);
+}
+
+#outreachPage .outreach-hub-intro h2 {
+  color: #ffffff !important;
+}
+
+#outreachPage .outreach-hub-intro p {
+  color: #c7d5e8 !important;
+}
+
+
+/* =========================================================
+   METRIC CARDS
+   ========================================================= */
+
+#outreachPage .outreach-metric-card {
+  background:
+    linear-gradient(
+      145deg,
+      #11213a 0%,
+      #0c192d 100%
+    ) !important;
+
+  border: 1px solid var(--outreach-border) !important;
+
+  box-shadow:
+    0 12px 30px rgba(2, 8, 23, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+}
+
+#outreachPage .outreach-metric-card::before {
+  height: 3px !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      #2563eb,
+      #60a5fa
+    ) !important;
+
+  opacity: 1 !important;
+}
+
+#outreachPage .outreach-metric-card:hover {
+  transform: translateY(-3px);
+
+  border-color: var(--outreach-border-hover) !important;
+
+  box-shadow:
+    0 16px 38px rgba(2, 8, 23, 0.22),
+    0 0 0 1px rgba(59, 130, 246, 0.06) !important;
+}
+
+#outreachPage .outreach-metric-card span {
+  color: #aebdd1 !important;
+}
+
+#outreachPage .outreach-metric-card strong {
+  color: #ffffff !important;
+}
+
+#outreachPage .outreach-metric-card p {
+  color: var(--outreach-muted) !important;
+}
+
+
+/* =========================================================
+   PRIORITY + OPPORTUNITY + HISTORY CARDS
+   ========================================================= */
+
+#outreachPage .outreach-hub-card {
+  background:
+    linear-gradient(
+      145deg,
+      #0f1e34 0%,
+      #0a1628 100%
+    ) !important;
+
+  border: 1px solid var(--outreach-border) !important;
+
+  box-shadow:
+    0 16px 40px rgba(2, 8, 23, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+}
+
+#outreachPage .outreach-hub-card-header {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+#outreachPage .outreach-hub-label {
+  color: #60a5fa !important;
+}
+
+#outreachPage .outreach-hub-card-header h3 {
+  color: #f8fafc !important;
+}
+
+#outreachPage .outreach-hub-card-header p {
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   LEAD ROWS
+   ========================================================= */
+
+#outreachPage .outreach-lead-item {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.10) !important;
+}
+
+#outreachPage .outreach-lead-item:hover {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(37, 99, 235, 0.09),
+      rgba(37, 99, 235, 0.025)
+    ) !important;
+}
+
+#outreachPage .outreach-lead-avatar {
+  color: #bfdbfe !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(37, 99, 235, 0.32),
+      rgba(37, 99, 235, 0.13)
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.28) !important;
+}
+
+#outreachPage .outreach-lead-copy strong {
+  color: #f8fafc !important;
+}
+
+#outreachPage .outreach-lead-copy span {
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   LEAD ACTION BUTTONS
+   ========================================================= */
+
+#outreachPage .outreach-lead-actions .secondary-btn {
+  color: #dbeafe !important;
+
+  background: #17243a !important;
+
+  border:
+    1px solid rgba(148, 163, 184, 0.18) !important;
+
+  box-shadow: none !important;
+}
+
+#outreachPage .outreach-lead-actions .secondary-btn:hover {
+  color: #ffffff !important;
+
+  background: #20314d !important;
+
+  border-color:
+    rgba(96, 165, 250, 0.32) !important;
+}
+
+#outreachPage .outreach-lead-actions .primary-btn {
+  color: #ffffff !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #3b82f6
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.28) !important;
+
+  box-shadow:
+    0 7px 18px rgba(37, 99, 235, 0.20) !important;
+}
+
+#outreachPage .outreach-lead-actions .primary-btn:hover {
+  transform: translateY(-1px);
+
+  background:
+    linear-gradient(
+      135deg,
+      #3b82f6,
+      #60a5fa
+    ) !important;
+}
+
+
+/* =========================================================
+   STATUS BADGES
+   ========================================================= */
+
+#outreachPage .outreach-status-badge.ready {
+  color: #86efac !important;
+  background: rgba(34, 197, 94, 0.11) !important;
+  border-color: rgba(34, 197, 94, 0.25) !important;
+}
+
+#outreachPage .outreach-status-badge.today {
+  color: #fbbf24 !important;
+  background: rgba(245, 158, 11, 0.10) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+#outreachPage .outreach-status-badge.overdue {
+  color: #fca5a5 !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+
+/* =========================================================
+   RECENT OUTREACH
+   ========================================================= */
+
+#outreachPage .outreach-activity-item {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.10) !important;
+}
+
+#outreachPage .outreach-activity-item:hover {
+  background: rgba(37, 99, 235, 0.045) !important;
+}
+
+#outreachPage .outreach-activity-item::before {
+  background: #60a5fa !important;
+
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.12),
+    0 0 16px rgba(59, 130, 246, 0.18) !important;
+}
+
+#outreachPage .outreach-activity-item strong {
+  color: #f8fafc !important;
+}
+
+#outreachPage .outreach-activity-item p,
+#outreachPage .outreach-activity-item > span {
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   EMPTY STATES
+   ========================================================= */
+
+#outreachPage .outreach-empty-state strong {
+  color: #f8fafc !important;
+}
+
+#outreachPage .outreach-empty-state p {
+  color: #94a3b8 !important;
+}
+/* =========================================================
+   AUTOCLIENT OUTREACH — THEME SYSTEM
+   Light = AutoClient light SaaS
+   Dark  = Premium navy SaaS
+   ========================================================= */
+
+
+/* =========================
+   LIGHT MODE
+   ========================= */
+
+#outreachPage .outreach-hub-intro {
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(37, 99, 235, 0.08),
+      transparent 40%
+    ),
+    linear-gradient(
+      135deg,
+      #f4f8fd 0%,
+      #edf4fc 100%
+    ) !important;
+
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06) !important;
+}
+
+#outreachPage .outreach-hub-intro .eyebrow {
+  color: var(--blue) !important;
+}
+
+#outreachPage .outreach-hub-intro h2 {
+  color: var(--navy) !important;
+}
+
+#outreachPage .outreach-hub-intro p {
+  color: var(--muted) !important;
+}
+
+
+/* Metric cards */
+
+#outreachPage .outreach-metric-card {
+  background:
+    linear-gradient(
+      145deg,
+      #f8fbff 0%,
+      #edf4fc 100%
+    ) !important;
+
+  border: 1px solid var(--line) !important;
+
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.055) !important;
+}
+
+#outreachPage .outreach-metric-card::before {
+  background:
+    linear-gradient(
+      90deg,
+      #2563eb,
+      #60a5fa
+    ) !important;
+
+  opacity: 1 !important;
+}
+
+#outreachPage .outreach-metric-card span {
+  color: #52647d !important;
+}
+
+#outreachPage .outreach-metric-card strong {
+  color: var(--navy) !important;
+}
+
+#outreachPage .outreach-metric-card p {
+  color: var(--muted) !important;
+}
+
+
+/* Main cards */
+
+#outreachPage .outreach-hub-card {
+  background:
+    linear-gradient(
+      145deg,
+      #f8fbff 0%,
+      #edf4fc 100%
+    ) !important;
+
+  border: 1px solid var(--line) !important;
+
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.055) !important;
+}
+
+#outreachPage .outreach-hub-card-header {
+  border-bottom: 1px solid var(--line) !important;
+}
+
+#outreachPage .outreach-hub-label {
+  color: var(--blue) !important;
+}
+
+#outreachPage .outreach-hub-card-header h3 {
+  color: var(--navy) !important;
+}
+
+#outreachPage .outreach-hub-card-header p {
+  color: var(--muted) !important;
+}
+
+
+/* Lead rows */
+
+#outreachPage .outreach-lead-item {
+  border-bottom: 1px solid var(--line) !important;
+}
+
+#outreachPage .outreach-lead-item:hover {
+  background: rgba(37, 99, 235, 0.04) !important;
+}
+
+#outreachPage .outreach-lead-avatar {
+  color: var(--blue) !important;
+
+  background: #e5efff !important;
+
+  border:
+    1px solid rgba(37, 99, 235, 0.18) !important;
+}
+
+#outreachPage .outreach-lead-copy strong {
+  color: var(--navy) !important;
+}
+
+#outreachPage .outreach-lead-copy span {
+  color: var(--muted) !important;
+}
+
+
+/* View button */
+
+#outreachPage .outreach-lead-actions .secondary-btn {
+  color: #334155 !important;
+
+  background: #e7eef8 !important;
+
+  border: 1px solid #d3deec !important;
+
+  box-shadow: none !important;
+}
+
+#outreachPage .outreach-lead-actions .secondary-btn:hover {
+  color: var(--navy) !important;
+  background: #dce7f5 !important;
+}
+
+
+/* AI Outreach */
+
+#outreachPage .outreach-lead-actions .primary-btn {
+  color: #ffffff !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #3b82f6
+    ) !important;
+
+  border:
+    1px solid rgba(37, 99, 235, 0.2) !important;
+
+  box-shadow:
+    0 6px 16px rgba(37, 99, 235, 0.16) !important;
+}
+
+
+/* Activity */
+
+#outreachPage .outreach-activity-item {
+  border-bottom: 1px solid var(--line) !important;
+}
+
+#outreachPage .outreach-activity-item strong {
+  color: var(--navy) !important;
+}
+
+#outreachPage .outreach-activity-item p,
+#outreachPage .outreach-activity-item > span {
+  color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+body.dark-mode #outreachPage .outreach-hub-intro {
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(59, 130, 246, 0.24),
+      transparent 40%
+    ),
+    linear-gradient(
+      135deg,
+      #173b82 0%,
+      #102d66 45%,
+      #0b1c3d 100%
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.24) !important;
+
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-intro .eyebrow {
+  color: #bfdbfe !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-intro h2 {
+  color: #ffffff !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-intro p {
+  color: #cbd5e1 !important;
+}
+
+
+/* Dark metric cards */
+
+body.dark-mode #outreachPage .outreach-metric-card {
+  background:
+    linear-gradient(
+      145deg,
+      #11213a 0%,
+      #0c192d 100%
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.16) !important;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18) !important;
+}
+
+body.dark-mode #outreachPage .outreach-metric-card span {
+  color: #aebdd1 !important;
+}
+
+body.dark-mode #outreachPage .outreach-metric-card strong {
+  color: #ffffff !important;
+}
+
+body.dark-mode #outreachPage .outreach-metric-card p {
+  color: #94a3b8 !important;
+}
+
+
+/* Dark main cards */
+
+body.dark-mode #outreachPage .outreach-hub-card {
+  background:
+    linear-gradient(
+      145deg,
+      #0f1e34 0%,
+      #0a1628 100%
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.16) !important;
+
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-card-header {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-label {
+  color: #60a5fa !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-card-header h3 {
+  color: #f8fafc !important;
+}
+
+body.dark-mode #outreachPage .outreach-hub-card-header p {
+  color: #94a3b8 !important;
+}
+
+
+/* Dark lead rows */
+
+body.dark-mode #outreachPage .outreach-lead-item {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+body.dark-mode #outreachPage .outreach-lead-item:hover {
+  background:
+    rgba(37, 99, 235, 0.07) !important;
+}
+
+body.dark-mode #outreachPage .outreach-lead-avatar {
+  color: #bfdbfe !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(37, 99, 235, 0.32),
+      rgba(37, 99, 235, 0.13)
+    ) !important;
+
+  border:
+    1px solid rgba(96, 165, 250, 0.28) !important;
+}
+
+body.dark-mode #outreachPage .outreach-lead-copy strong {
+  color: #f8fafc !important;
+}
+
+body.dark-mode #outreachPage .outreach-lead-copy span {
+  color: #94a3b8 !important;
+}
+
+
+/* Dark View button */
+
+body.dark-mode
+#outreachPage
+.outreach-lead-actions
+.secondary-btn {
+  color: #dbeafe !important;
+
+  background: #17243a !important;
+
+  border:
+    1px solid rgba(148, 163, 184, 0.18) !important;
+}
+
+body.dark-mode
+#outreachPage
+.outreach-lead-actions
+.secondary-btn:hover {
+  color: #ffffff !important;
+  background: #20314d !important;
+}
+
+
+/* Dark activity */
+
+body.dark-mode #outreachPage .outreach-activity-item {
+  border-bottom:
+    1px solid rgba(148, 163, 184, 0.1) !important;
+}
+
+body.dark-mode #outreachPage .outreach-activity-item strong {
+  color: #f8fafc !important;
+}
+
+body.dark-mode #outreachPage .outreach-activity-item p,
+body.dark-mode #outreachPage .outreach-activity-item > span {
+  color: #94a3b8 !important;
 }

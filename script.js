@@ -1014,20 +1014,38 @@ if (["Qualified", "Interested"].includes(status)) {
     reason: reasons.slice(0, 2).join(" • ") || "Needs attention"
   };
 }
-
 function getSmartMetrics() {
-  const hotLeads = leads.filter(lead => getLeadScore(lead).level === "hot");
-  const warmLeads = leads.filter(lead => getLeadScore(lead).level === "warm");
-  const coldLeads = leads.filter(lead => getLeadScore(lead).level === "cold");
-  const overdueFollowUps = leads.filter(lead => isOverdue(lead.nextFollowUp));
-  const todayFollowUps = leads.filter(lead => isToday(lead.nextFollowUp));
-const activeLeads = leads.filter(lead =>
-  ["Contacted", "Follow-up", "Replied", "Qualified", "Interested", "Closed"].includes(lead.status)
-);
+  const hotLeads = leads.filter(
+    lead => getLeadScore(lead).level === "hot"
+  );
 
-  const closed = leads.filter(lead => lead.status === "Closed").length;
-  const conversionRate = leads.length ? Math.round((closed / leads.length) * 100) : 0;
-  const pipelineHealth = leads.length ? Math.round((activeLeads.length / leads.length) * 100) : 0;
+  const warmLeads = leads.filter(
+    lead => getLeadScore(lead).level === "warm"
+  );
+
+  const coldLeads = leads.filter(
+    lead => getLeadScore(lead).level === "cold"
+  );
+
+  const overdueFollowUps = leads.filter(
+    lead => isOverdue(lead.nextFollowUp)
+  );
+
+  const todayFollowUps = leads.filter(
+    lead => isToday(lead.nextFollowUp)
+  );
+
+  const activeLeads = leads.filter(lead =>
+    ["Contacted", "Follow-up", "Qualified"].includes(lead.status)
+  );
+
+  const closedLeads = leads.filter(
+    lead => lead.status === "Closed"
+  );
+
+  const conversionRate = leads.length
+    ? Math.round((closedLeads.length / leads.length) * 100)
+    : 0;
 
   return {
     hotLeads,
@@ -1036,8 +1054,8 @@ const activeLeads = leads.filter(lead =>
     overdueFollowUps,
     todayFollowUps,
     activeLeads,
-    conversionRate,
-    pipelineHealth
+    closedLeads,
+    conversionRate
   };
 }
 
@@ -1053,6 +1071,7 @@ function renderSmartDashboardWidgets() {
     smartGrid.className = "smart-dashboard-grid";
 
     const dashboardStats = dashboardPage.querySelector(".dashboard");
+
     if (dashboardStats) {
       dashboardStats.insertAdjacentElement("afterend", smartGrid);
     } else {
@@ -1082,13 +1101,292 @@ function renderSmartDashboardWidgets() {
     </div>
 
     <div class="smart-widget">
-      <span>📈 Pipeline Health</span>
-      <strong>${metrics.pipelineHealth}%</strong>
-      <p>${metrics.conversionRate}% conversion rate.</p>
+      <span>📈 Conversion Rate</span>
+      <strong>${metrics.conversionRate}%</strong>
+      <p>
+        ${metrics.closedLeads.length} of ${leads.length}
+        ${leads.length === 1 ? "lead" : "leads"} closed.
+      </p>
     </div>
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function renderOutreachCenter() {
+  const outreachPage = document.getElementById("outreachPage");
+  if (!outreachPage) return;
+
+  const readyCount = document.getElementById("outreachReadyCount");
+  const dueTodayCount = document.getElementById("outreachDueTodayCount");
+  const overdueCount = document.getElementById("outreachOverdueCount");
+  const contactedCount = document.getElementById("outreachContactedCount");
+
+  const attentionList = document.getElementById("outreachAttentionList");
+  const readyList = document.getElementById("outreachReadyList");
+  const recentActivity = document.getElementById("outreachRecentActivity");
+
+  if (
+    !readyCount ||
+    !dueTodayCount ||
+    !overdueCount ||
+    !contactedCount ||
+    !attentionList ||
+    !readyList ||
+    !recentActivity
+  ) {
+    return;
+  }
+
+  const metrics = getSmartMetrics();
+
+  const contactedLeads = leads.filter(lead =>
+    ["Contacted", "Follow-up", "Qualified", "Interested", "Closed"].includes(
+      lead.status
+    )
+  );
+
+  const readyLeads = leads
+    .filter(lead =>
+      lead.status !== "Closed" &&
+      getLeadScore(lead).level === "hot" &&
+      !isOverdue(lead.nextFollowUp) &&
+      !isToday(lead.nextFollowUp)
+    )
+    .slice(0, 5);
+
+  const attentionLeads = [
+    ...metrics.overdueFollowUps,
+    ...metrics.todayFollowUps.filter(
+      lead =>
+        !metrics.overdueFollowUps.some(
+          item => item.id === lead.id
+        )
+    )
+  ].filter(lead => lead.status !== "Closed");
+
+  readyCount.textContent = readyLeads.length;
+  dueTodayCount.textContent = metrics.todayFollowUps.length;
+  overdueCount.textContent = metrics.overdueFollowUps.length;
+  contactedCount.textContent = contactedLeads.length;
+
+  const getLeadIndex = lead =>
+    leads.findIndex(item => item.id === lead.id);
+
+  const getDisplayStatus = lead => {
+    if (lead.status === "Interested") {
+      return "Qualified";
+    }
+
+    return lead.status || "New";
+  };
+
+  const renderLeadCard = (lead, type) => {
+    const index = getLeadIndex(lead);
+
+    if (index === -1) return "";
+
+    const score = getLeadScore(lead);
+
+    const businessName = escapeHtml(
+      lead.business || lead.businessName || "Unnamed lead"
+    );
+
+    const displayStatus = escapeHtml(
+      getDisplayStatus(lead)
+    );
+
+    let badgeText = "Ready";
+    let badgeClass = "ready";
+
+    if (type === "overdue") {
+      badgeText = "Overdue";
+      badgeClass = "overdue";
+    } else if (type === "today") {
+      badgeText = "Due today";
+      badgeClass = "today";
+    }
+
+    return `
+      <div class="outreach-lead-item">
+        <div class="outreach-lead-main">
+
+          <div class="outreach-lead-avatar">
+            ${businessName.charAt(0).toUpperCase()}
+          </div>
+
+          <div class="outreach-lead-copy">
+            <strong>${businessName}</strong>
+
+            <span>
+              ${displayStatus} ·
+              ${escapeHtml(score.level.toUpperCase())} lead
+            </span>
+          </div>
+
+        </div>
+
+        <div class="outreach-lead-actions">
+
+          <span class="outreach-status-badge ${badgeClass}">
+            ${badgeText}
+          </span>
+
+          <button
+            type="button"
+            class="secondary-btn outreach-view-btn"
+            data-lead-index="${index}"
+          >
+            View
+          </button>
+
+          <button
+            type="button"
+            class="primary-btn outreach-ai-btn"
+            data-lead-index="${index}"
+          >
+            AI Outreach
+          </button>
+
+        </div>
+      </div>
+    `;
+  };
+
+  if (attentionLeads.length) {
+    attentionList.innerHTML = attentionLeads
+      .slice(0, 6)
+      .map(lead => {
+        const type = isOverdue(lead.nextFollowUp)
+          ? "overdue"
+          : "today";
+
+        return renderLeadCard(lead, type);
+      })
+      .join("");
+  } else {
+    attentionList.innerHTML = `
+      <div class="outreach-empty-state">
+        <strong>You're all caught up.</strong>
+        <p>No follow-ups are due or overdue right now.</p>
+      </div>
+    `;
+  }
+
+  if (readyLeads.length) {
+    readyList.innerHTML = readyLeads
+      .map(lead => renderLeadCard(lead, "ready"))
+      .join("");
+  } else {
+    readyList.innerHTML = `
+      <div class="outreach-empty-state">
+        <strong>No priority leads waiting.</strong>
+        <p>Hot leads ready for outreach will appear here.</p>
+      </div>
+    `;
+  }
+
+  const outreachActivities = activities
+    .filter(activity => {
+      const type = String(
+        activity.type || activity.action || ""
+      ).toLowerCase();
+
+      return (
+        type.includes("email") ||
+        type.includes("outreach") ||
+        type.includes("contact") ||
+        type.includes("message")
+      );
+    })
+    .slice(0, 6);
+
+  if (outreachActivities.length) {
+    recentActivity.innerHTML = outreachActivities
+      .map(activity => {
+        const title = escapeHtml(
+          activity.type ||
+          activity.action ||
+          "Outreach activity"
+        );
+
+        const detail = escapeHtml(
+          activity.details ||
+          activity.description ||
+          activity.message ||
+          ""
+        );
+
+        const timestamp = escapeHtml(
+          activity.createdAt ||
+          activity.created_at ||
+          activity.timestamp ||
+          ""
+        );
+
+        return `
+          <div class="outreach-activity-item">
+
+            <div>
+              <strong>${title}</strong>
+              ${detail ? `<p>${detail}</p>` : ""}
+            </div>
+
+            ${
+              timestamp
+                ? `<span>${timestamp}</span>`
+                : ""
+            }
+
+          </div>
+        `;
+      })
+      .join("");
+  } else {
+    recentActivity.innerHTML = `
+      <div class="outreach-empty-state">
+        <strong>No outreach activity yet.</strong>
+        <p>Your latest client-contact actions will appear here.</p>
+      </div>
+    `;
+  }
+
+  outreachPage
+    .querySelectorAll(".outreach-view-btn")
+    .forEach(button => {
+      button.addEventListener("click", function () {
+        const index = Number(this.dataset.leadIndex);
+
+        if (!Number.isInteger(index) || !leads[index]) {
+          showToast("Lead not found.", "error");
+          return;
+        }
+
+        openLeadDetails(index);
+      });
+    });
+
+  outreachPage
+    .querySelectorAll(".outreach-ai-btn")
+    .forEach(button => {
+      button.addEventListener("click", function () {
+        const index = Number(this.dataset.leadIndex);
+
+        if (!Number.isInteger(index) || !leads[index]) {
+          showToast("Lead not found.", "error");
+          return;
+        }
+
+        handleGenerate(index);
+      });
+    });
+}
 function getNotifications() {
   const metrics = getSmartMetrics();
   const notifications = [];
@@ -1624,6 +1922,7 @@ function renderAll() {
   renderKanbanBoard();
   renderRecentActivity();
   renderSmartDashboardWidgets();
+  renderOutreachCenter();
   renderNotifications();
   renderPlanUI();
 }
@@ -2853,9 +3152,9 @@ function openLeadDetails(index) {
             </div>
           </div>
 
-          <div class="lead-details-notes">
-            ${notes}
-          </div>
+       <div class="lead-details-notes">
+        <p class="lead-details-notes-text">${notes}</p>
+      </div>
 
         </section>
 
@@ -6870,40 +7169,41 @@ async function sendLinkedIn(
 
   return true;
 }
+if (copyBtn && messageOutput) {
+  copyBtn.addEventListener("click", async function () {
+    if (!messageOutput.value.trim()) {
+      copyBtn.textContent = "No message";
+      showToast("No outreach message to copy.", "warning");
 
-copyBtn.addEventListener("click", async function () {
-  if (!messageOutput.value.trim()) {
-    copyBtn.textContent = "No message";
-    showToast("No outreach message to copy.", "warning");
+      setTimeout(() => {
+        copyBtn.textContent = "Copy Message";
+      }, 1500);
+
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(messageOutput.value);
+    } catch (error) {
+      messageOutput.select();
+      document.execCommand("copy");
+    }
+
+    copyBtn.textContent = "Copied!";
+
+    await logActivity(
+      null,
+      "Message Copied",
+      "An outreach message was copied to clipboard."
+    );
+
+    showToast("Message copied successfully.", "success");
 
     setTimeout(() => {
       copyBtn.textContent = "Copy Message";
     }, 1500);
-
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(messageOutput.value);
-  } catch (error) {
-    messageOutput.select();
-    document.execCommand("copy");
-  }
-
-  copyBtn.textContent = "Copied!";
-
-  await logActivity(
-    null,
-    "Message Copied",
-    "An outreach message was copied to clipboard."
-  );
-
-  showToast("Message copied successfully.", "success");
-
-  setTimeout(() => {
-    copyBtn.textContent = "Copy Message";
-  }, 1500);
-});
+  });
+}
 
 function renderLeadIdeas(ideas) {
   leadIdeas.innerHTML = "";

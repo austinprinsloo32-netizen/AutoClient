@@ -493,42 +493,109 @@
 </div>
         </section>
 
-        <section id="outreachPage" class="page-section">
-          <div class="two-grid">
-            <div class="card">
-              <div class="section-heading">
-                <span class="step">✉</span>
-                <div>
-                  <h2>Your Service</h2>
-                  <p>Tell AutoClient what you offer so messages sound relevant.</p>
-                </div>
-              </div>
+<section id="outreachPage" class="page-section">
 
-              <textarea id="serviceInput" placeholder="Example: I build websites for small businesses..."></textarea>
+  <div class="outreach-hub">
 
-              <label for="messageStyle">Message Style</label>
-              <select id="messageStyle">
-                <option value="formal">Formal</option>
-                <option value="casual">Casual</option>
-                <option value="direct">Direct Sales</option>
-                <option value="followup">Follow-up</option>
-              </select>
-            </div>
+    <div class="outreach-hub-intro">
+      <div>
+        <span class="eyebrow">Outreach workspace</span>
+        <h2>Keep every conversation moving.</h2>
+        <p>
+          See who needs attention, launch personalized AI outreach,
+          and keep follow-ups from slipping through the cracks.
+        </p>
+      </div>
 
-            <div class="card">
-              <div class="section-heading">
-                <span class="step">AI</span>
-                <div>
-                  <h2>Generated Outreach Message</h2>
-                  <p>Select a lead and click AI Outreach from the lead folder.</p>
-                </div>
-              </div>
+      <button
+        type="button"
+        class="primary-btn"
+        data-page-jump="leadsPage"
+      >
+        View All Leads
+      </button>
+    </div>
 
-              <textarea id="messageOutput" readonly placeholder="Your outreach message will appear here..."></textarea>
-              <button id="copyBtn" class="secondary-btn">Copy Message</button>
-            </div>
+    <div class="outreach-metrics">
+
+      <div class="outreach-metric-card">
+        <span>🔥 Ready to Contact</span>
+        <strong id="outreachReadyCount">0</strong>
+        <p>High-priority opportunities.</p>
+      </div>
+
+      <div class="outreach-metric-card">
+        <span>⏰ Due Today</span>
+        <strong id="outreachDueTodayCount">0</strong>
+        <p>Follow-ups scheduled today.</p>
+      </div>
+
+      <div class="outreach-metric-card">
+        <span>⚠️ Overdue</span>
+        <strong id="outreachOverdueCount">0</strong>
+        <p>Follow-ups needing attention.</p>
+      </div>
+
+      <div class="outreach-metric-card">
+        <span>✓ Contacted</span>
+        <strong id="outreachContactedCount">0</strong>
+        <p>Leads you've already reached.</p>
+      </div>
+
+    </div>
+
+    <div class="outreach-hub-grid">
+
+      <div class="outreach-hub-card">
+        <div class="outreach-hub-card-header">
+          <div>
+            <span class="outreach-hub-label">Priority queue</span>
+            <h3>Needs Your Attention</h3>
+            <p>Follow-ups that should be handled first.</p>
           </div>
-        </section>
+        </div>
+
+        <div
+          id="outreachAttentionList"
+          class="outreach-lead-list"
+        ></div>
+      </div>
+
+      <div class="outreach-hub-card">
+        <div class="outreach-hub-card-header">
+          <div>
+            <span class="outreach-hub-label">Opportunities</span>
+            <h3>Ready for Outreach</h3>
+            <p>Strong leads worth contacting next.</p>
+          </div>
+        </div>
+
+        <div
+          id="outreachReadyList"
+          class="outreach-lead-list"
+        ></div>
+      </div>
+
+    </div>
+
+    <div class="outreach-hub-card outreach-history-card">
+      <div class="outreach-hub-card-header">
+        <div>
+          <span class="outreach-hub-label">Activity</span>
+          <h3>Recent Outreach</h3>
+          <p>Your latest client-contact activity.</p>
+        </div>
+      </div>
+
+      <div
+        id="outreachRecentActivity"
+        class="outreach-activity-list"
+      ></div>
+    </div>
+
+  </div>
+
+</section>
 
         <section id="analyticsPage" class="page-section">
           <div class="card">
