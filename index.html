@@ -132,12 +132,11 @@
               <h3 id="contactedLeads">0</h3>
               <p>Contacted</p>
             </div>
-
-            <div class="stat-card">
-              <span>Hot</span>
-              <h3 id="interestedLeads">0</h3>
-              <p>Interested</p>
-            </div>
+              <div class="stat-card">
+                <span>Ready</span>
+                <h3 id="qualifiedLeads">0</h3>
+                <p>Qualified</p>
+              </div>
 
             <div class="stat-card">
               <span>Won</span>
@@ -203,7 +202,7 @@
               <div class="mini-list">
                 <div class="mini-item">
                   <strong>Keep your pipeline moving</strong>
-                  <span>Review overdue follow-ups, contact new leads, and move interested prospects forward.</span>
+                  <span>Review overdue follow-ups, contact new leads, and move qualified prospects forward.</span>
                 </div>
               </div>
             </div>
@@ -242,49 +241,85 @@
             </div>
 
             <select id="filterStatus">
-              <option value="all">All Statuses</option>
-              <option value="New">New</option>
-              <option value="Contacted">Contacted</option>
-              <option value="Replied">Replied</option>
-              <option value="Interested">Interested</option>
-              <option value="Closed">Closed</option>
-              <option value="Rejected">Rejected</option>
+            <option value="all">All Statuses</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Qualified">Qualified</option>
+            <option value="Closed">Closed</option>
             </select>
           </div>
 
           <div id="leadList" class="lead-list"></div>
 
           <div class="kanban-wrapper">
-            <div class="kanban-header">
-              <div>
-                <p class="eyebrow">Pipeline</p>
-                <h2>CRM Pipeline</h2>
-                <p>Track lead progress visually across your sales pipeline.</p>
-              </div>
-            </div>
+  <div class="kanban-header">
+    <div>
+      <p class="eyebrow">Pipeline</p>
+      <h2>CRM Pipeline</h2>
+      <p>Track lead progress visually across your sales pipeline.</p>
+    </div>
+  </div>
 
-            <div class="kanban-board">
-              <div class="kanban-column">
-                <div class="kanban-title new-title">New</div>
-                <div id="kanban-new" class="kanban-dropzone"></div>
-              </div>
+  <div class="kanban-board">
 
-              <div class="kanban-column">
-                <div class="kanban-title contacted-title">Contacted</div>
-                <div id="kanban-contacted" class="kanban-dropzone"></div>
-              </div>
+    <div class="kanban-column">
+      <div class="kanban-title new-title">
+        New
+      </div>
 
-              <div class="kanban-column">
-                <div class="kanban-title interested-title">Interested</div>
-                <div id="kanban-interested" class="kanban-dropzone"></div>
-              </div>
+      <div
+        id="kanban-new"
+        class="kanban-dropzone"
+      ></div>
+    </div>
 
-              <div class="kanban-column">
-                <div class="kanban-title closed-title">Closed</div>
-                <div id="kanban-closed" class="kanban-dropzone"></div>
-              </div>
-            </div>
-          </div>
+    <div class="kanban-column">
+      <div class="kanban-title contacted-title">
+        Contacted
+      </div>
+
+      <div
+        id="kanban-contacted"
+        class="kanban-dropzone"
+      ></div>
+    </div>
+
+    <div class="kanban-column">
+      <div class="kanban-title follow-up-title">
+        Follow-up
+      </div>
+
+      <div
+        id="kanban-follow-up"
+        class="kanban-dropzone"
+      ></div>
+    </div>
+
+    <div class="kanban-column">
+      <div class="kanban-title qualified-title">
+        Qualified
+      </div>
+
+      <div
+        id="kanban-qualified"
+        class="kanban-dropzone"
+      ></div>
+    </div>
+
+    <div class="kanban-column">
+      <div class="kanban-title closed-title">
+        Closed
+      </div>
+
+      <div
+        id="kanban-closed"
+        class="kanban-dropzone"
+      ></div>
+    </div>
+
+  </div>
+</div>
 
           <div
   id="leadDrawerOverlay"
@@ -334,6 +369,20 @@
             id="businessName"
             placeholder="Business name"
             required
+          />
+        </div>
+
+        <div class="lead-add-field">
+          <label for="contactPerson">
+            Contact person
+          </label>
+
+          <input
+            type="text"
+            id="contactPerson"
+            placeholder="e.g. Sarah Jacobs"
+            maxlength="150"
+            autocomplete="name"
           />
         </div>
 
@@ -535,12 +584,11 @@
               <h3 id="adminNewLeads">0</h3>
               <p>New Leads</p>
             </div>
-
-            <div class="stat-card">
-              <span>Hot</span>
-              <h3 id="adminInterestedLeads">0</h3>
-              <p>Interested</p>
-            </div>
+              <div class="stat-card">
+                <span>Ready</span>
+                <h3 id="adminQualifiedLeads">0</h3>
+                <p>Qualified</p>
+              </div>
 
             <div class="stat-card">
               <span>Won</span>

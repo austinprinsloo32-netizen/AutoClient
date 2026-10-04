@@ -7013,11 +7013,18 @@ body.dark-mode .delete-lead-cancel:hover {
   font-weight: 700;
 }
 
-.lead-edit-body label:first-child,
-.lead-edit-body label:nth-child(4),
-.lead-edit-body label:nth-child(5),
-.lead-edit-body label:last-child {
+.lead-edit-body .lead-edit-full-width {
   grid-column: 1 / -1;
+}
+
+.lead-edit-notes-field {
+  align-self: stretch;
+}
+
+.lead-edit-notes-field textarea {
+  width: 100%;
+  min-height: 120px;
+  display: block;
 }
 
 .lead-edit-body input,
@@ -7512,6 +7519,174 @@ body.dark-mode .delete-lead-cancel:hover {
   resize: vertical;
 }
 
+/* =========================================
+   SMART OUTREACH — INTELLIGENCE WORKSPACE
+   ========================================= */
+
+/* Give the redesigned workspace more room. */
+.lead-outreach-dialog {
+  width: min(900px, 100%);
+}
+
+/* Top lead intelligence summary. */
+.lead-outreach-context {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lead-outreach-stat {
+  padding: 14px 16px;
+
+  background: rgba(17, 28, 47, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+}
+
+.lead-outreach-stat span {
+  display: block;
+  margin-bottom: 6px;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lead-outreach-stat strong {
+  display: block;
+
+  color: #f8fafc;
+
+  font-size: 14px;
+  line-height: 1.4;
+
+  overflow-wrap: anywhere;
+}
+
+/* Shared headings inside the workspace. */
+.lead-outreach-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-bottom: 10px;
+}
+
+.lead-outreach-section-heading > span {
+  color: #e2e8f0;
+
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.lead-outreach-section-heading small {
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* AI recommendation cards. */
+.lead-outreach-insight {
+  padding-top: 2px;
+}
+
+.lead-outreach-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lead-outreach-insight-card {
+  min-height: 110px;
+
+  padding: 15px;
+
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+}
+
+.lead-outreach-insight-card > span {
+  display: block;
+  margin-bottom: 8px;
+
+  color: #60a5fa;
+
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lead-outreach-insight-card p {
+  margin: 0;
+
+  color: #cbd5e1;
+
+  font-size: 13px;
+  line-height: 1.55;
+
+  overflow-wrap: anywhere;
+}
+
+/* Service + tone controls. */
+.lead-outreach-settings {
+  padding-top: 2px;
+}
+
+.lead-outreach-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.7fr);
+  gap: 14px;
+}
+
+/* Generated message area. */
+.lead-outreach-message-section {
+  padding-top: 2px;
+}
+
+.lead-outreach-message-section textarea {
+  min-height: 240px;
+  height: 240px;
+}
+
+/* Tablet layout. */
+@media (max-width: 800px) {
+  .lead-outreach-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lead-outreach-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lead-outreach-insight-card {
+    min-height: auto;
+  }
+}
+
+/* Mobile layout. */
+@media (max-width: 600px) {
+  .lead-outreach-context {
+    grid-template-columns: 1fr;
+  }
+
+  .lead-outreach-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lead-outreach-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 /* =========================================================
    ADD LEAD CENTERED MODAL
    ========================================================= */
@@ -7749,4 +7924,124 @@ body.dark-mode .delete-lead-cancel:hover {
   .lead-add-secondary {
     width: 100%;
   }
+}
+/* =========================================================
+   ADMIN DASHBOARD — RESPONSIVE LAYOUT FIX
+   ========================================================= */
+
+#adminPage {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Admin heading */
+#adminPage .split-header {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Admin statistic cards */
+#adminPage .admin-dashboard {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+
+  width: 100%;
+  min-width: 0;
+
+  margin-top: 18px;
+  margin-bottom: 20px;
+}
+
+#adminPage .admin-dashboard .stat-card {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Users + All Leads area */
+#adminPage .two-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 2fr);
+  gap: 20px;
+
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+#adminPage .card,
+#adminPage .table-like,
+#adminPage .table-row {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#adminPage .table-row {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Prevent long emails / text from widening the page */
+#adminPage .table-row span,
+#adminPage .table-row strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Medium desktop / laptop */
+@media (max-width: 1200px) {
+  #adminPage .admin-dashboard {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  #adminPage .admin-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #adminPage .two-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  #adminPage .admin-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  #adminPage .split-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #adminPage #refreshAdminBtn {
+    width: 100%;
+  }
+}
+/* =========================================================
+   LEAD PROFILE — NOTES ALIGNMENT FIX
+   ========================================================= */
+
+.lead-details-notes,
+.lead-details-notes p,
+.lead-details-notes div {
+  text-align: left !important;
+}
+
+.lead-details-notes {
+  display: block !important;
+  align-items: initial !important;
+  justify-content: initial !important;
+}
+
+.lead-details-notes p {
+  margin: 0 !important;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

@@ -345,6 +345,7 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 userId INTEGER,
                 businessName TEXT NOT NULL,
+                contactPerson TEXT,
                 link TEXT,
                 contact TEXT,
                 priority TEXT DEFAULT 'Cold',
@@ -392,6 +393,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 userId INTEGER,
                 businessName TEXT NOT NULL,
+                contactPerson TEXT,
                 link TEXT,
                 contact TEXT,
                 priority TEXT DEFAULT 'Cold',
@@ -424,6 +426,12 @@ def init_db():
         """, commit=True)
 
     # Lead fields
+    add_column_if_missing(
+        "leads",
+        "contactPerson",
+        "TEXT"
+    )
+
     add_column_if_missing(
         "leads",
         "lastContacted",
@@ -3166,6 +3174,10 @@ def add_lead():
         data.get("businessName") or ""
     ).strip()
 
+    contact_person = str(
+        data.get("contactPerson") or ""
+    ).strip()
+
     link = str(
         data.get("link") or ""
     ).strip()
@@ -3231,6 +3243,11 @@ def add_lead():
                 "Business name must be "
                 "150 characters or fewer"
             )
+        }), 400
+
+    if len(contact_person) > 150:
+        return jsonify({
+            "error": "Contact person must be 150 characters or fewer"
         }), 400
 
     if len(link) > 2048:
@@ -3338,6 +3355,7 @@ def add_lead():
             INSERT INTO leads (
                 userId,
                 businessName,
+                contactPerson,
                 link,
                 contact,
                 email,
@@ -3352,12 +3370,13 @@ def add_lead():
             )
             VALUES (
                 %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING *
         """, (
             user_id,
             business_name,
+            contact_person,
             link,
             contact,
             email,
@@ -3378,6 +3397,7 @@ def add_lead():
             INSERT INTO leads (
                 userId,
                 businessName,
+                contactPerson,
                 link,
                 contact,
                 email,
@@ -3390,10 +3410,11 @@ def add_lead():
                 lastContacted,
                 nextFollowUp
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             business_name,
+            contact_person,
             link,
             contact,
             email,
@@ -4170,6 +4191,13 @@ def update_lead(lead_id):
         ) or ""
     ).strip()
 
+    contact_person = str(
+        data.get(
+            "contactPerson",
+            old_lead.get("contactPerson") or ""
+        ) or ""
+    ).strip()
+
     link = str(
         data.get(
             "link",
@@ -4269,6 +4297,11 @@ def update_lead(lead_id):
                 "Business name must be "
                 "150 characters or fewer"
             )
+        }), 400
+
+    if len(contact_person) > 150:
+        return jsonify({
+            "error": "Contact person must be 150 characters or fewer"
         }), 400
 
     if len(link) > 2048:
@@ -4384,6 +4417,7 @@ def update_lead(lead_id):
             """
             UPDATE leads
             SET businessName=%s,
+                contactPerson=%s,
                 link=%s,
                 contact=%s,
                 email=%s,
@@ -4401,6 +4435,7 @@ def update_lead(lead_id):
             """,
             (
                 business_name,
+                contact_person,
                 link,
                 contact,
                 email,
@@ -4431,6 +4466,7 @@ def update_lead(lead_id):
             """
             UPDATE leads
             SET businessName=?,
+                contactPerson=?,
                 link=?,
                 contact=?,
                 email=?,
@@ -4447,6 +4483,7 @@ def update_lead(lead_id):
             """,
             (
                 business_name,
+                contact_person,
                 link,
                 contact,
                 email,
@@ -4473,6 +4510,7 @@ def update_lead(lead_id):
             "id": lead_id,
             "userId": user_id,
             "businessName": business_name,
+            "contactPerson": contact_person,
             "link": link,
             "contact": contact,
             "email": email,
@@ -4670,6 +4708,13 @@ def generate_message():
         data.get("businessName")
         or "your business"
     ).strip()
+
+    contact_person = (
+        data.get("contactPerson")
+        or ""
+    ).strip()
+
+    recipient = contact_person or business
 
     # A service entered specifically for this outreach
     # still takes priority. If none is entered, use the
@@ -4972,7 +5017,7 @@ def generate_message():
 
     if smart_follow_up_type == "overdue":
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I hope you're doing well.
 
@@ -4983,7 +5028,7 @@ If it is still something you'd like to explore, I'd be happy to have a quick cha
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Just checking back in on my previous message about {service}.
 
@@ -4992,7 +5037,7 @@ I know things get busy, so I thought I'd follow up and see if it's still worth a
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I'm following up on my previous message regarding {service}.
 
@@ -5003,7 +5048,7 @@ Would you be available for a short conversation?
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Following up on my previous message about {service}.
 
@@ -5012,7 +5057,7 @@ Is this still something you'd like to discuss?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 I wanted to follow up on my previous message regarding {service}.
 
@@ -5028,7 +5073,7 @@ If so, I would be happy to arrange a short conversation at a convenient time.
 
     elif smart_follow_up_type == "due_today":
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I hope you're doing well.
 
@@ -5039,7 +5084,7 @@ Happy to chat whenever it suits you.
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Just following up as planned about {service}.
 
@@ -5050,7 +5095,7 @@ Happy to chat if the timing is right.
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I'm following up as planned regarding {service}.
 
@@ -5059,7 +5104,7 @@ I believe there is a strong opportunity to move this forward. Would you be avail
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Following up as planned regarding {service}.
 
@@ -5068,7 +5113,7 @@ Would you be open to discussing the next step?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 I am following up as planned regarding {service}.
 
@@ -5091,7 +5136,7 @@ I wanted to check whether you would be open to continuing the conversation and d
             )
 
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 {timing_line}
 
@@ -5102,7 +5147,7 @@ I'd be happy to continue the conversation whenever it suits you.
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 {timing_line}
 
@@ -5111,7 +5156,7 @@ Just checking whether anything has changed regarding {service} and whether it's 
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 {timing_line}
 
@@ -5122,7 +5167,7 @@ Would you be available to discuss the next step?
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 {timing_line}
 
@@ -5131,7 +5176,7 @@ Is it still worth continuing the conversation about {service}?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 {timing_line}
 
@@ -5145,7 +5190,7 @@ I wanted to check whether there have been any developments and whether it would 
 
     elif smart_follow_up_type == "needs_follow_up":
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I hope you're doing well.
 
@@ -5156,7 +5201,7 @@ I'd be happy to pick up the conversation whenever you're ready.
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Just checking in after our previous chat.
 
@@ -5167,7 +5212,7 @@ Happy to chat whenever it suits you.
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I'm following up after our previous contact regarding {service}.
 
@@ -5176,7 +5221,7 @@ I believe there is still a worthwhile opportunity here. Let's arrange a short co
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Following up after our previous contact.
 
@@ -5185,7 +5230,7 @@ Is there still interest in discussing {service}?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 I wanted to follow up after our previous contact regarding {service}.
 
@@ -5199,7 +5244,7 @@ Please let me know whether this is still something you would be open to discussi
 
     elif smart_follow_up_type == "interested":
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Thanks for the interest so far.
 
@@ -5210,7 +5255,7 @@ Would you be available for a quick chat?
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Thanks for the interest so far.
 
@@ -5221,7 +5266,7 @@ Are you free for a quick conversation?
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Thank you for the interest so far.
 
@@ -5232,7 +5277,7 @@ Would you be available?
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 It looks like there may be a good fit for {service}.
 
@@ -5241,7 +5286,7 @@ Would you be available for a short conversation to discuss the next step?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 Thank you for the interest shown so far.
 
@@ -5257,7 +5302,7 @@ Would you be available for a short conversation to discuss the next step?
 
     elif smart_follow_up_type == "follow_up":
         if style == "friendly":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I hope you're doing well.
 
@@ -5268,7 +5313,7 @@ I think there may be a useful opportunity here, and I'd be happy to chat about i
 {sign_off()}"""
 
         elif style == "casual":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Just following up on my previous message about {service}.
 
@@ -5279,7 +5324,7 @@ Would you be open to a quick chat?
 {sign_off()}"""
 
         elif style == "confident":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 I'm following up on my previous message regarding {service}.
 
@@ -5290,7 +5335,7 @@ Would you be available for a short conversation so we can discuss the next step?
 {sign_off()}"""
 
         elif style == "direct":
-            msg = f"""Hi {business},
+            msg = f"""Hi {recipient},
 
 Following up on my previous message regarding {service}.
 
@@ -5299,7 +5344,7 @@ Is this something worth discussing further?
 {sign_off()}"""
 
         else:
-            msg = f"""Good day {business},
+            msg = f"""Good day {recipient},
 
 I wanted to follow up on my previous message regarding {service}.
 
@@ -5316,7 +5361,7 @@ Would you be open to a short conversation?
     else:
         if style == "friendly":
             if has_intelligence:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5328,7 +5373,7 @@ I'd love to hear your thoughts. Would you be open to a quick chat?
 
 {sign_off()}"""
             else:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5340,7 +5385,7 @@ I thought it would be great to connect. Would you be open to a quick chat?
 
         elif style == "casual":
             if has_intelligence:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5352,7 +5397,7 @@ Think it could be worth a quick chat?
 
 {sign_off()}"""
             else:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5364,7 +5409,7 @@ Open to a quick chat?
 
         elif style == "confident":
             if has_intelligence:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5376,7 +5421,7 @@ I believe there is a strong opportunity to create value here. Would you be avail
 
 {sign_off()}"""
             else:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5388,7 +5433,7 @@ I believe there is a strong opportunity to help your business. Would you be avai
 
         elif style == "direct":
             if has_intelligence:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 {personalization_line}
 
@@ -5400,7 +5445,7 @@ Open to a short conversation?
 
 {sign_off()}"""
             else:
-                msg = f"""Hi {business},
+                msg = f"""Hi {recipient},
 
 I help businesses with {service}.
 
@@ -5410,7 +5455,7 @@ Would you be open to a short conversation?
 
         else:
             if has_intelligence:
-                msg = f"""Good day {business},
+                msg = f"""Good day {recipient},
 
 {personalization_line}
 
@@ -5422,7 +5467,7 @@ Would you be open to a short conversation to see whether this could be useful fo
 
 {sign_off()}"""
             else:
-                msg = f"""Good day {business},
+                msg = f"""Good day {recipient},
 
 {personalization_line}
 
@@ -5476,11 +5521,10 @@ def send_email():
             "error": "Lead is required"
         }), 400
 
-    # Load the lead using BOTH the lead ID and
-    # the logged-in user's ID.
-    #
-    # This prevents one user from sending email
-    # using another user's CRM lead.
+    # --------------------------------------------------
+    # Load and verify the lead
+    # --------------------------------------------------
+
     lead = get_lead_by_id(
         lead_id,
         user_id
@@ -5491,13 +5535,15 @@ def send_email():
             "error": "Lead not found"
         }), 404
 
-    lead_status = str(
+    current_status = str(
         get_field(
             lead,
             "status",
             "New"
-        )
-    ).strip().lower()
+        ) or "New"
+    ).strip()
+
+    status_lower = current_status.lower()
 
     closed_statuses = {
         "closed",
@@ -5505,15 +5551,17 @@ def send_email():
         "rejected"
     }
 
-    # Enforce the closed-lead rule on the server.
-    # Frontend protection alone is not sufficient.
-    if lead_status in closed_statuses:
+    if status_lower in closed_statuses:
         return jsonify({
             "error": (
                 "This lead is closed or rejected. "
                 "Reopen it before sending outreach."
             )
         }), 400
+
+    # --------------------------------------------------
+    # Email data
+    # --------------------------------------------------
 
     to_email = str(
         data.get("to") or ""
@@ -5533,6 +5581,10 @@ def send_email():
         "businessName",
         "Lead"
     )
+
+    # --------------------------------------------------
+    # Validation
+    # --------------------------------------------------
 
     if not RESEND_API_KEY:
         return jsonify({
@@ -5581,6 +5633,10 @@ def send_email():
             )
         }), 400
 
+    # --------------------------------------------------
+    # Send email through Resend
+    # --------------------------------------------------
+
     try:
         response = requests.post(
             "https://api.resend.com/emails",
@@ -5612,6 +5668,48 @@ def send_email():
                 "error": "Email failed to send"
             }), response.status_code
 
+        # --------------------------------------------------
+        # Email succeeded — update CRM contact state
+        # --------------------------------------------------
+
+        contacted_at = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        # A brand-new lead becomes Contacted after the
+        # first successful email.
+        #
+        # Existing pipeline states such as Interested,
+        # Follow-up, Proposal, etc. are preserved.
+        if status_lower == "new":
+            updated_status = "Contacted"
+        else:
+            updated_status = current_status
+
+        p = placeholder()
+
+        execute_query(
+            f"""
+            UPDATE leads
+            SET
+                lastContacted = {p},
+                status = {p}
+            WHERE id = {p}
+              AND userId = {p}
+            """,
+            (
+                contacted_at,
+                updated_status,
+                lead_id,
+                user_id
+            ),
+            commit=True
+        )
+
+        # --------------------------------------------------
+        # Activity logging
+        # --------------------------------------------------
+
         log_activity(
             user_id,
             lead_id,
@@ -5622,9 +5720,32 @@ def send_email():
             )
         )
 
+        if (
+            status_lower == "new"
+            and updated_status == "Contacted"
+        ):
+            log_activity(
+                user_id,
+                lead_id,
+                "Lead Status Changed",
+                (
+                    f"{business_name} moved from "
+                    "New to Contacted after successful outreach."
+                )
+            )
+
+        # --------------------------------------------------
+        # Return updated CRM state
+        # --------------------------------------------------
+
         return jsonify({
             "message": "Email sent successfully",
-            "resend": result
+            "resend": result,
+            "lead": {
+                "id": lead_id,
+                "status": updated_status,
+                "lastContacted": contacted_at
+            }
         }), 200
 
     except requests.RequestException:
@@ -5704,22 +5825,36 @@ def admin_stats():
         "SELECT COUNT(*) AS count FROM users",
         fetchone=True
     )
+
     total_leads = execute_query(
         "SELECT COUNT(*) AS count FROM leads",
         fetchone=True
     )
+
     new_leads = execute_query(
         "SELECT COUNT(*) AS count FROM leads WHERE status = 'New'",
         fetchone=True
     )
-    interested = execute_query(
-        "SELECT COUNT(*) AS count FROM leads WHERE status = 'Interested'",
+
+    qualified_leads = execute_query(
+        """
+        SELECT COUNT(*) AS count
+        FROM leads
+        WHERE status IN (
+            'Qualified',
+            'Interested',
+            'Proposal',
+            'Negotiation'
+        )
+        """,
         fetchone=True
     )
-    closed = execute_query(
+
+    closed_leads = execute_query(
         "SELECT COUNT(*) AS count FROM leads WHERE status = 'Closed'",
         fetchone=True
     )
+
     pro_users = execute_query(
         "SELECT COUNT(*) AS count FROM users WHERE plan = 'pro'",
         fetchone=True
@@ -5729,11 +5864,10 @@ def admin_stats():
         "totalUsers": row_to_dict(total_users)["count"],
         "totalLeads": row_to_dict(total_leads)["count"],
         "newLeads": row_to_dict(new_leads)["count"],
-        "interestedLeads": row_to_dict(interested)["count"],
-        "closedLeads": row_to_dict(closed)["count"],
+        "qualifiedLeads": row_to_dict(qualified_leads)["count"],
+        "closedLeads": row_to_dict(closed_leads)["count"],
         "proUsers": row_to_dict(pro_users)["count"]
     })
-
 
 @app.route("/api/admin/users", methods=["GET"])
 def admin_users():

@@ -752,6 +752,9 @@ def test_active_owned_lead_can_reach_email_service(
     A valid active lead owned by the logged-in
     user should be allowed to reach the email
     provider.
+
+    Successful first outreach should also move
+    a New lead to Contacted and log both events.
     """
 
     lead = {
@@ -860,7 +863,7 @@ def test_active_owned_lead_can_reach_email_service(
         == "This is a safe automated test."
     )
 
-    assert len(activity_calls) == 1
+    assert len(activity_calls) == 2
 
     assert (
         activity_calls[0]["action"]
@@ -869,6 +872,19 @@ def test_active_owned_lead_can_reach_email_service(
 
     assert activity_calls[0]["user_id"] == 999999
     assert activity_calls[0]["lead_id"] == 12345
+
+    assert (
+        activity_calls[1]["action"]
+        == "Lead Status Changed"
+    )
+
+    assert activity_calls[1]["user_id"] == 999999
+    assert activity_calls[1]["lead_id"] == 12345
+
+    assert (
+        "New to Contacted"
+        in activity_calls[1]["details"]
+    )
 
 def test_user_cannot_log_activity_for_another_users_lead(
     authenticated_pro_client,
