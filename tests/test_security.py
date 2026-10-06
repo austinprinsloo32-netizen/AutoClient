@@ -2008,7 +2008,7 @@ def test_paystack_webhook_rejects_wrong_currency(
             "status": "success",
             "reference": reference,
             "currency": "USD",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2118,7 +2118,7 @@ def test_paystack_webhook_rejects_wrong_plan(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "free",
                 "userId": "999999"
@@ -2182,7 +2182,7 @@ def test_paystack_webhook_activates_valid_pro_transaction(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2257,7 +2257,7 @@ def test_paystack_webhook_ignores_duplicate_transaction(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2336,7 +2336,7 @@ def test_paystack_webhook_releases_claim_on_activation_failure(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2508,7 +2508,7 @@ def test_paystack_callback_rejects_wrong_user(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "123456"
@@ -2566,7 +2566,7 @@ def test_paystack_callback_activates_valid_transaction(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2651,7 +2651,7 @@ def test_paystack_callback_does_not_repeat_activation(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"
@@ -2713,7 +2713,7 @@ def test_paystack_callback_releases_claim_on_failure(
             "status": "success",
             "reference": reference,
             "currency": "ZAR",
-            "amount": 19900,
+            "amount": 14900,
             "metadata": {
                 "plan": "pro",
                 "userId": "999999"

@@ -617,6 +617,12 @@ function renderPlanUI() {
   const topPlanStatus =
     document.getElementById("topPlanStatus");
 
+  const freePlanBtn =
+    document.getElementById("freePlanBtn");
+
+  const upgradeProBtn =
+    document.getElementById("upgradeProBtn");
+
   const status =
     (
       currentPlan.subscriptionStatus ||
@@ -680,9 +686,6 @@ function renderPlanUI() {
     }
 
     else if (plan === "pro") {
-      // Never incorrectly label an effective Pro
-      // account as FREE just because its provider
-      // returned an unfamiliar subscription status.
       topPlanStatus.textContent = "PRO";
     }
 
@@ -761,8 +764,49 @@ function renderPlanUI() {
   // -----------------------------------------
 
   if (planLimits) {
+    const maxLeads =
+      currentPlan.features?.max_leads ?? 10;
+
     planLimits.textContent =
-      `Lead limit: ${currentPlan.features.max_leads}`;
+      `Lead limit: ${maxLeads}`;
+  }
+
+  // -----------------------------------------
+  // PRICING CARDS
+  // -----------------------------------------
+
+  if (plan === "pro") {
+    if (freePlanBtn) {
+      freePlanBtn.textContent =
+        "Starter plan";
+
+      freePlanBtn.disabled = true;
+    }
+
+    if (upgradeProBtn) {
+      upgradeProBtn.textContent =
+        status === "beta"
+          ? "Current Pro access"
+          : "Current Pro plan";
+
+      upgradeProBtn.disabled = true;
+    }
+  }
+
+  else {
+    if (freePlanBtn) {
+      freePlanBtn.textContent =
+        "Current Starter plan";
+
+      freePlanBtn.disabled = true;
+    }
+
+    if (upgradeProBtn) {
+      upgradeProBtn.textContent =
+        "Upgrade to Pro";
+
+      upgradeProBtn.disabled = false;
+    }
   }
 }
 

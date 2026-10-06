@@ -1877,7 +1877,7 @@ def paystack_callback():
             }
         )
 
-    if verified_amount != 19900:
+    if verified_amount != 14900:
         return (
             "",
             302,
@@ -2663,7 +2663,7 @@ def paystack_webhook():
                 )
             }), 400
 
-        if verified_amount != 19900:
+        if verified_amount != 14900:
             return jsonify({
                 "error": (
                     "Unexpected transaction amount"
